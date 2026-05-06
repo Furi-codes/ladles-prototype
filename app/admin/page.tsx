@@ -154,10 +154,10 @@ export default function AdminDashboard() {
             fontSize: "13px",
             flexShrink: 0,
           }}>
-            ZM
+            JJ
           </div>
           <div>
-            <div style={{ fontSize: "12px", color: "#fff8f0", fontWeight: "600" }}>Zelda Mncube</div>
+            <div style={{ fontSize: "12px", color: "#fff8f0", fontWeight: "600" }}>Joe Johnson</div>
             <div style={{ fontSize: "10px", color: "rgba(255,180,80,0.6)" }}>Operations Lead</div>
           </div>
         </div>
