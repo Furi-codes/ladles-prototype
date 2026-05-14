@@ -238,7 +238,7 @@ export default function LoginPage() {
             Continue with Google
           </button>
 
-          {/* Sign Up links */}
+          {/* Sign Up link */}
           <p style={{
             textAlign: "center",
             fontSize: "13px",

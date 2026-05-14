@@ -207,7 +207,7 @@ export default function VolunteerBooking() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN  */}
+        {/* RIGHT COLUMN */}
         <div style={{
           background: "#fff", borderRadius: "12px", border: "1px solid #e0e0e0",
           boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden", height: "fit-content"
