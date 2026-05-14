@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -8,34 +9,22 @@ export default function LoginPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #1a0a00 0%, #3d1a00 40%, #7c3300 100%)",
+        background: "#f3f3f3",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "'Georgia', serif",
+        fontFamily: "'Helvetica Neue', Arial, sans-serif",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      {/* Decorative background circles */}
+      {/* Red top bar */}
       <div style={{
-        position: "absolute", top: "-120px", left: "-120px",
-        width: "500px", height: "500px", borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(255,140,0,0.15) 0%, transparent 70%)",
-        pointerEvents: "none",
-      }} />
-      <div style={{
-        position: "absolute", bottom: "-80px", right: "-80px",
-        width: "400px", height: "400px", borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(255,200,50,0.12) 0%, transparent 70%)",
-        pointerEvents: "none",
-      }} />
-      {/* Subtle grid texture */}
-      <div style={{
-        position: "absolute", inset: 0,
-        backgroundImage: "radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)",
-        backgroundSize: "32px 32px",
-        pointerEvents: "none",
+        position: "fixed",
+        top: 0, left: 0, right: 0,
+        height: "6px",
+        background: "#ef3a40",
+        zIndex: 100,
       }} />
 
       <div style={{
@@ -49,76 +38,64 @@ export default function LoginPage() {
         zIndex: 1,
       }}>
 
-        {/* Logo / Brand */}
-        <div style={{ textAlign: "center", marginBottom: "40px" }}>
-  <div
-    style={{
-      width: "76px",
-      height: "76px",
-      borderRadius: "50%",
-      margin: "0 auto 18px",
-      boxShadow:
-        "0 0 0 6px rgba(255,140,0,0.2), 0 8px 32px rgba(255,140,0,0.35)",
-      overflow: "hidden",
-      position: "relative",
-    }}
-  >
-    <img
-      src="/Ladles-logo.png"
-      alt="Ladles of Love Logo"
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        display: "block",
-      }}
-    />
-  </div>
-
-  <h1
-    style={{
-      fontFamily: "'Georgia', serif",
-      fontSize: "30px",
-      color: "white",
-      margin: 0,
-    }}
-  >
-    Ladles of Love
-  </h1>
-
-  <p
-    style={{
-      color: "#d9a15b",
-      letterSpacing: "3px",
-      marginTop: "8px",
-    }}
-  >
-    VOLUNTEER PORTAL
-  </p>
-</div>
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div style={{
+            width: "90px", height: "90px",
+            borderRadius: "50%",
+            margin: "0 auto 16px",
+            overflow: "hidden",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+          }}>
+            <Image
+              src="/ladles-logo.png"
+              alt="Ladles of Love"
+              width={90}
+              height={90}
+              style={{ objectFit: "contain", width: "100%", height: "100%" }}
+            />
+          </div>
+          <h1 style={{
+            fontSize: "28px",
+            fontWeight: "800",
+            color: "#2b3336",
+            margin: "0 0 4px",
+            letterSpacing: "-0.5px",
+          }}>
+            LADLES OF LOVE
+          </h1>
+          <p style={{
+            fontSize: "12px",
+            color: "#ef3a40",
+            margin: 0,
+            letterSpacing: "2px",
+            textTransform: "uppercase",
+            fontStyle: "italic",
+          }}>
+            feeding the soul
+          </p>
+        </div>
 
         {/* Card */}
         <div style={{
-          background: "rgba(255,252,245,0.97)",
-          borderRadius: "20px",
+          background: "#ffffff",
+          borderRadius: "12px",
           padding: "40px 36px",
           width: "100%",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.45), 0 2px 0 rgba(255,180,80,0.4) inset",
-          border: "1px solid rgba(255,180,80,0.2)",
+          boxShadow: "0 8px 40px rgba(43,51,54,0.10)",
+          border: "1px solid #e0e0e0",
         }}>
           <h2 style={{
-            fontFamily: "'Georgia', serif",
             fontSize: "22px",
-            color: "#2d1200",
-            margin: "0 0 6px",
-            fontWeight: "700",
+            color: "#2b3336",
+            margin: "0 0 4px",
+            fontWeight: "800",
           }}>
             Sign in
           </h2>
           <p style={{
-            fontFamily: "'Trebuchet MS', sans-serif",
             fontSize: "13px",
-            color: "#8c6a40",
+            color: "#666",
             margin: "0 0 28px",
           }}>
             Access your volunteer dashboard
@@ -128,12 +105,11 @@ export default function LoginPage() {
           <div style={{ marginBottom: "16px" }}>
             <label style={{
               display: "block",
-              fontFamily: "'Trebuchet MS', sans-serif",
-              fontSize: "12px",
-              fontWeight: "600",
-              color: "#5c3a1a",
+              fontSize: "11px",
+              fontWeight: "700",
+              color: "#2b3336",
               marginBottom: "6px",
-              letterSpacing: "0.5px",
+              letterSpacing: "1px",
               textTransform: "uppercase",
             }}>
               Email Address
@@ -145,15 +121,13 @@ export default function LoginPage() {
               style={{
                 width: "100%",
                 padding: "12px 14px",
-                borderRadius: "10px",
-                border: "1.5px solid #e8d5b5",
-                background: "#fffdf9",
-                fontFamily: "'Trebuchet MS', sans-serif",
+                borderRadius: "6px",
+                border: "1.5px solid #ddd",
+                background: "#f3f3f3",
                 fontSize: "14px",
-                color: "#2d1200",
+                color: "#2b3336",
                 outline: "none",
                 boxSizing: "border-box",
-                transition: "border-color 0.2s",
               }}
             />
           </div>
@@ -162,12 +136,11 @@ export default function LoginPage() {
           <div style={{ marginBottom: "28px" }}>
             <label style={{
               display: "block",
-              fontFamily: "'Trebuchet MS', sans-serif",
-              fontSize: "12px",
-              fontWeight: "600",
-              color: "#5c3a1a",
+              fontSize: "11px",
+              fontWeight: "700",
+              color: "#2b3336",
               marginBottom: "6px",
-              letterSpacing: "0.5px",
+              letterSpacing: "1px",
               textTransform: "uppercase",
             }}>
               Password
@@ -179,21 +152,19 @@ export default function LoginPage() {
               style={{
                 width: "100%",
                 padding: "12px 14px",
-                borderRadius: "10px",
-                border: "1.5px solid #e8d5b5",
-                background: "#fffdf9",
-                fontFamily: "'Trebuchet MS', sans-serif",
+                borderRadius: "6px",
+                border: "1.5px solid #ddd",
+                background: "#f3f3f3",
                 fontSize: "14px",
-                color: "#2d1200",
+                color: "#2b3336",
                 outline: "none",
                 boxSizing: "border-box",
               }}
             />
             <div style={{ textAlign: "right", marginTop: "6px" }}>
               <span style={{
-                fontFamily: "'Trebuchet MS', sans-serif",
                 fontSize: "12px",
-                color: "#d4780a",
+                color: "#ef3a40",
                 cursor: "pointer",
               }}>
                 Forgot password?
@@ -207,27 +178,21 @@ export default function LoginPage() {
             style={{
               width: "100%",
               padding: "14px",
-              borderRadius: "12px",
+              borderRadius: "6px",
               border: "none",
-              background: "linear-gradient(135deg, #d4780a, #ff8c00)",
+              background: "#ef3a40",
               color: "#fff",
-              fontFamily: "'Trebuchet MS', sans-serif",
-              fontSize: "15px",
+              fontSize: "14px",
               fontWeight: "700",
               cursor: "pointer",
-              letterSpacing: "0.5px",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
               marginBottom: "12px",
-              boxShadow: "0 4px 16px rgba(212,120,10,0.45)",
-              transition: "transform 0.1s, box-shadow 0.1s",
+              boxShadow: "0 4px 14px rgba(239,58,64,0.35)",
+              transition: "background 0.2s",
             }}
-            onMouseOver={e => {
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
-              (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 20px rgba(212,120,10,0.55)";
-            }}
-            onMouseOut={e => {
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-              (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(212,120,10,0.45)";
-            }}
+            onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = "#2b3336"}
+            onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = "#ef3a40"}
           >
             Sign In
           </button>
@@ -237,12 +202,9 @@ export default function LoginPage() {
             display: "flex", alignItems: "center",
             gap: "12px", margin: "16px 0",
           }}>
-            <div style={{ flex: 1, height: "1px", background: "#e8d5b5" }} />
-            <span style={{
-              fontFamily: "'Trebuchet MS', sans-serif",
-              fontSize: "12px", color: "#b09070",
-            }}>or</span>
-            <div style={{ flex: 1, height: "1px", background: "#e8d5b5" }} />
+            <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
+            <span style={{ fontSize: "12px", color: "#aaa" }}>or</span>
+            <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
           </div>
 
           {/* Google Button */}
@@ -251,11 +213,10 @@ export default function LoginPage() {
             style={{
               width: "100%",
               padding: "13px",
-              borderRadius: "12px",
-              border: "1.5px solid #e8d5b5",
+              borderRadius: "6px",
+              border: "1.5px solid #ddd",
               background: "#fff",
-              color: "#2d1200",
-              fontFamily: "'Trebuchet MS', sans-serif",
+              color: "#2b3336",
               fontSize: "14px",
               fontWeight: "600",
               cursor: "pointer",
@@ -265,7 +226,7 @@ export default function LoginPage() {
               gap: "10px",
               transition: "background 0.2s",
             }}
-            onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = "#fff8f0"}
+            onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = "#f3f3f3"}
             onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = "#fff"}
           >
             <svg width="18" height="18" viewBox="0 0 48 48">
@@ -280,15 +241,14 @@ export default function LoginPage() {
           {/* Sign Up link */}
           <p style={{
             textAlign: "center",
-            fontFamily: "'Trebuchet MS', sans-serif",
             fontSize: "13px",
-            color: "#8c6a40",
+            color: "#666",
             margin: "20px 0 0",
           }}>
             New volunteer?{" "}
             <span
               onClick={() => router.push("/volunteer")}
-              style={{ color: "#d4780a", fontWeight: "600", cursor: "pointer" }}
+              style={{ color: "#ef3a40", fontWeight: "700", cursor: "pointer" }}
             >
               Create an account
             </span>
@@ -297,10 +257,10 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p style={{
-          fontFamily: "'Trebuchet MS', sans-serif",
           fontSize: "12px",
-          color: "rgba(255,220,160,0.45)",
-          marginTop: "28px",
+          color: "#2b3336",
+          opacity: 0.5,
+          marginTop: "24px",
           textAlign: "center",
         }}>
           © 2025 Ladles of Love · Nourishing communities, one ladle at a time.
