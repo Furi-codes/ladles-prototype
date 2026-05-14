@@ -51,38 +51,51 @@ export default function LoginPage() {
 
         {/* Logo / Brand */}
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
-          <div style={{
-            width: "76px", height: "76px",
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #ff8c00, #ffb347)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 18px",
-            boxShadow: "0 0 0 6px rgba(255,140,0,0.2), 0 8px 32px rgba(255,140,0,0.35)",
-            fontSize: "34px",
-          }}>
-            🍲
-          </div>
-          <h1 style={{
-            fontFamily: "'Georgia', serif",
-            fontSize: "30px",
-            fontWeight: "700",
-            color: "#fff8f0",
-            margin: "0 0 6px",
-            letterSpacing: "-0.5px",
-          }}>
-            Ladles of Love
-          </h1>
-          <p style={{
-            fontFamily: "'Trebuchet MS', sans-serif",
-            fontSize: "13px",
-            color: "rgba(255,220,160,0.75)",
-            margin: 0,
-            letterSpacing: "2px",
-            textTransform: "uppercase",
-          }}>
-            Volunteer Portal
-          </p>
-        </div>
+  <div
+    style={{
+      width: "76px",
+      height: "76px",
+      borderRadius: "50%",
+      margin: "0 auto 18px",
+      boxShadow:
+        "0 0 0 6px rgba(255,140,0,0.2), 0 8px 32px rgba(255,140,0,0.35)",
+      overflow: "hidden",
+      position: "relative",
+    }}
+  >
+    <img
+      src="/Ladles-logo.png"
+      alt="Ladles of Love Logo"
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+      }}
+    />
+  </div>
+
+  <h1
+    style={{
+      fontFamily: "'Georgia', serif",
+      fontSize: "30px",
+      color: "white",
+      margin: 0,
+    }}
+  >
+    Ladles of Love
+  </h1>
+
+  <p
+    style={{
+      color: "#d9a15b",
+      letterSpacing: "3px",
+      marginTop: "8px",
+    }}
+  >
+    VOLUNTEER PORTAL
+  </p>
+</div>
 
         {/* Card */}
         <div style={{
