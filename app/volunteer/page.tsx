@@ -61,6 +61,10 @@ export default function VolunteerBooking() {
   const currentEventObj = events.find(e => e.id.toString() === selectedEventId);
   const availableSlotsArray = currentEventObj ? currentEventObj.time_slots.split(",") : [];
 
+  const eventsCompleted = bookings.length;
+  const volunteerHours = eventsCompleted * 4;
+
+
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#f3f3f3", color: "#2b3336", fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
 
@@ -235,6 +239,8 @@ export default function VolunteerBooking() {
                   const eventInfo = getEventData(booking.event_id);
                   const isEditing = editingBookingId === booking.id;
 
+
+
                   return (
                     <tr key={booking.id} style={{ borderBottom: "1px solid #f3f3f3" }}>
                       <td style={{ padding: "16px 24px" }}>
@@ -299,6 +305,110 @@ export default function VolunteerBooking() {
             </div>
           )}
         </div>
+
+          <div
+  style={{
+    background: "#fff",
+    borderRadius: "12px",
+    border: "1px solid #e0e0e0",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+    overflow: "hidden",
+  }}
+>
+  <div
+    style={{
+      padding: "20px 24px",
+      borderBottom: "1px solid #e0e0e0",
+    }}
+  >
+    <h3
+      style={{
+        fontSize: "18px",
+        color: "#2b3336",
+        margin: 0,
+        fontWeight: "800",
+      }}
+    >
+      My Progression
+    </h3>
+  </div>
+
+  <table
+    style={{
+      width: "100%",
+      borderCollapse: "collapse",
+    }}
+  >
+    <thead>
+      <tr style={{ background: "#f3f3f3" }}>
+        <th
+          style={{
+            padding: "12px 24px",
+            textAlign: "left",
+            fontSize: "11px",
+            fontWeight: "700",
+            color: "#2b3336",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+          }}
+        >
+          Progress
+        </th>
+
+        <th
+          style={{
+            padding: "12px 24px",
+            textAlign: "right",
+            fontSize: "11px",
+            fontWeight: "700",
+            color: "#2b3336",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+          }}
+        >
+          Total
+        </th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr style={{ borderBottom: "1px solid #f3f3f3" }}>
+        <td style={{ padding: "18px 24px", fontWeight: 600 }}>
+          Hours Volunteered
+        </td>
+
+        <td
+          style={{
+            padding: "18px 24px",
+            textAlign: "right",
+            fontWeight: 700,
+            color: "#ef3a40",
+          }}
+        >
+          {volunteerHours} hrs
+        </td>
+      </tr>
+
+      <tr>
+        <td style={{ padding: "18px 24px", fontWeight: 600 }}>
+          Events Completed
+        </td>
+
+        <td
+          style={{
+            padding: "18px 24px",
+            textAlign: "right",
+            fontWeight: 700,
+            color: "#ef3a40",
+          }}
+        >
+          {eventsCompleted}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
       </main>
 
       {/* FOOTER */}
