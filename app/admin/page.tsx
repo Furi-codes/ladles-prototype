@@ -5,10 +5,12 @@ import Image from "next/image";
 import Sidebar from "./components/Sidebar";
 import TopHeader from "./components/TopHeader";
 import VolunteerView from "./components/VolunteerNav";
+import PageHeader from "./components/PageHeader";
 // --- CRUD SERVICE ---
 import { getEvents, getBookings, getVolunteers, upsertEvent, deleteEvent as removeEventFromDB, deleteBooking as removeBookingFromDB } from "../../lib/admin-actions";
 
-// --- THE BLUEPRINTS ---
+
+// --- THE BLUEPRINTS --- (defining what each object must consist of)
 interface Event {
   id: number;
   title: string;
@@ -33,9 +35,6 @@ interface Volunteer {
   role: string;
 }
 
-// --- CONSTANTS & STYLES ---
-
-
 export default function AdminDashboard() {
   const router = useRouter();
   
@@ -43,7 +42,7 @@ export default function AdminDashboard() {
   const [activeNav, setActiveNav] = useState("Dashboard");
 
   // --- DATABASE STATE ---
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<Event[]>([]); // events is current value, setEvents is the function to update it.
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,18 +53,18 @@ export default function AdminDashboard() {
   const [location, setLocation] = useState("");
   const [timeSlots, setTimeSlots] = useState("");
   const [slots, setSlots] = useState("");
-  const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null); // null means no event is being edited, otherwise it holds the ID of the event being edited.
 
   // --- ENGINE DRIVER ---
   useEffect(() => {
     fetchData();
   }, []); // the [] tells it to run once on page load. 
 
-  async function fetchData() {
+  async function fetchData() { //async means it will run in the background and not block the UI.
     setIsLoading(true);
     
     const { data: eData } = await getEvents();
-    if (eData) setEvents(eData); // safety net in case the table doesn't exist yet, or is empty
+    if (eData) setEvents(eData); // safety net in case the table is empty
 
     const { data: bData } = await getBookings();
     if (bData) setBookings(bData);
@@ -73,12 +72,12 @@ export default function AdminDashboard() {
     const { data: vData } = await getVolunteers();
     if (vData) setVolunteers(vData);
 
-    setIsLoading(false);
+    setIsLoading(false);// finish loading once data is fetched.
   }
 
   // --- EVENT CRUD ---
   async function saveEvent(e: React.FormEvent) {
-    e.preventDefault();
+    e.preventDefault(); // prevent the default form submission behavior (which would reload the page).
     const eventData = { title, date, location, time_slots: timeSlots, total_slots: parseInt(slots) };
     await upsertEvent(eventData, editingEventId);
     setTitle(""); setDate(""); setLocation(""); setTimeSlots(""); setSlots(""); setEditingEventId(null);
@@ -126,17 +125,7 @@ export default function AdminDashboard() {
         <main style={{ padding: "32px", flex: 1 }}>
           
           {/* Dynamic Page Title */}
-          <div style={{ marginBottom: "28px" }}>
-            <h2 style={{ fontFamily: "'montserrat-black', 'Montserrat', sans-serif", fontSize: "42px", fontWeight: 900, margin: 0, letterSpacing: "-0.5px" }}>
-              {activeNav === "Dashboard" && (
-                <><span style={{ color: "transparent", WebkitTextStroke: "1.5px #262626" }}>More ways </span><span style={{ color: "#262626" }}>to get involved</span></>
-              )}
-              {activeNav === "Manage Activities" && <span style={{ color: "#262626" }}>Manage Activities</span>}
-              {activeNav === "Volunteers" && <span style={{ color: "#262626" }}>Volunteer Directory</span>}
-              {["Corporate CSR", "Export Reports", "Settings"].includes(activeNav) && <span style={{ color: "#262626" }}>{activeNav}</span>}
-            </h2>
-            <p style={{ color: "#64748b", fontSize: "13px", margin: "4px 0 0" }}>Cape Town & Johannesburg · Real-time overview</p>
-          </div>
+          <PageHeader activeNav={activeNav} />
 
           {/* ========================================== */}
           {/* TAB 1: DASHBOARD (Metrics & Live Feed Only) */}

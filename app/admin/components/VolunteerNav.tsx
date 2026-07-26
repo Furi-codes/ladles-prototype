@@ -1,4 +1,4 @@
-
+"use client";
 
 export default function VolunteerView({volunteers}: {volunteers: any[]}) {
     return (
