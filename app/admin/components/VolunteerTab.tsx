@@ -31,7 +31,7 @@ export default function VolunteerView({volunteers}: {volunteers: any[]}) {
                     </tr>
                   ))}
                   {volunteers.length === 0 && (
-                    <tr><td colSpan={4} style={{ padding: "30px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No volunteers found. Make sure your profiles table exists!</td></tr>
+                    <tr><td colSpan={4} style={{ padding: "30px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No volunteers found.</td></tr>
                   )}
                 </tbody>
               </table>
