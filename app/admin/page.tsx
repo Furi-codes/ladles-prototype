@@ -71,7 +71,7 @@ export default function AdminDashboard() {
 
           {/* TAB 3: VOLUNTEERS */}
           {activeNav === "Volunteers" && (
-            <VolunteerView volunteers={volunteers} />
+            <VolunteerView volunteers={volunteers} events={events} bookings={bookings} />
           )}
 
           {/* PLACEHOLDERS FOR REMAINING TABS */}
@@ -79,7 +79,7 @@ export default function AdminDashboard() {
             <div style={{ background: "#fff", borderRadius: "12px", border: "1px dashed #cbd5e1", padding: "60px", textAlign: "center" }}>
               <div style={{ fontSize: "40px", marginBottom: "16px" }}>🛠️</div>
               <h3 style={{ fontSize: "18px", color: "#1a1a1a", margin: "0 0 8px", fontWeight: "700" }}>{activeNav} Module</h3>
-              <p style={{ fontSize: "14px", color: "#64748b", margin: 0 }}>This section is currently under construction for the prototype phase.</p>
+              <p style={{ fontSize: "14px", color: "#64748b", margin: 0 }}>This section is currently under construction for now. Stay Tuned! :)</p>
             </div>
           )}
 

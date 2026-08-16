@@ -1,40 +1,107 @@
 "use client";
+import { useState } from "react";
 
-export default function VolunteerView({volunteers}: {volunteers: any[]}) {
-    return (
-             <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-              <div style={{ padding: "16px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h3 style={{ fontSize: "16px", color: "#1a1a1a", margin: 0, fontWeight: "700" }}>Registered Users</h3>
-                <input placeholder="Search volunteers..." style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px", outline: "none" }} />
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc" }}>
-                    {["Name", "Email Address", "Role", "Actions"].map((col) => (
-                      <th key={col} style={{ padding: "12px 24px", textAlign: col === "Actions" ? "right" : "left", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>{col}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {volunteers.map((vol, index) => (
-                    <tr key={vol.id} style={{ borderBottom: index < volunteers.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                      <td style={{ padding: "14px 24px", fontSize: "13px", fontWeight: "600", color: "#1a1a1a" }}>{vol.full_name || "N/A"}</td>
-                      <td style={{ padding: "14px 24px", fontSize: "13px", color: "#475569" }}>{vol.email || "N/A"}</td>
-                      <td style={{ padding: "14px 24px", fontSize: "12px" }}>
-                        <span style={{ padding: "4px 8px", background: vol.role === "admin" ? "#fef2f2" : "#f1f5f9", color: vol.role === "admin" ? "#e62b32" : "#475569", borderRadius: "4px", fontWeight: "700" }}>
-                          {vol.role || "volunteer"}
-                        </span>
-                      </td>
-                      <td style={{ padding: "14px 24px", textAlign: "right" }}>
-                        <button style={{ background: "transparent", color: "#64748b", border: "1px solid #cbd5e1", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>View Profile</button>
-                      </td>
-                    </tr>
-                  ))}
-                  {volunteers.length === 0 && (
-                    <tr><td colSpan={4} style={{ padding: "30px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No volunteers found.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+export default function VolunteerView({ volunteers, events, bookings }: { volunteers: any[], events: any[], bookings: any[] }) {
+  // 1. State to track which event the admin selects from the dropdown
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+
+  // 2. State for our "Whiteboard" so we can toggle attendance visually
+  const [localBookings, setLocalBookings] = useState<any[]>(bookings);
+
+  // 3. Filter the whiteboard to ONLY show bookings for the chosen event
+  const currentRoster = localBookings.filter(
+    (booking) => booking.event_id.toString() === selectedEventId
+  );
+
+  // 4. The function that toggles the visual button
+  function handleToggleAttendance(bookingId: number, currentStatus: string) {
+    const newStatus = currentStatus === "Present" ? "Confirmed" : "Present";
+    
+    // Update our visual whiteboard instantly
+    setLocalBookings(prev => 
+      prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b)
     );
+
+    // Later: Add Supabase code here to save to the database permanently
+  }
+
+  return (
+    <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+      
+      {/* HEADER & DROPDOWN */}
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
+        <h3 style={{ fontSize: "16px", color: "#1a1a1a", margin: 0, fontWeight: "700" }}>Track Attendance</h3>
+        
+        <select 
+          value={selectedEventId} 
+          onChange={(e) => setSelectedEventId(e.target.value)}
+          style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", minWidth: "250px", cursor: "pointer", fontWeight: "600" }}
+        >
+          <option value="">-- Select an Event to view roster --</option>
+          {events.map(evt => (
+            <option key={evt.id} value={evt.id}>{evt.title} ({evt.date})</option>
+          ))}
+        </select>
+      </div>
+
+      {/* ROSTER TABLE */}
+      {selectedEventId === "" ? (
+        <div style={{ padding: "60px", textAlign: "center", color: "#64748b", fontSize: "14px" }}>
+          Please select an event from the dropdown above to view the volunteer roster.
+        </div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: "#fff", borderBottom: "2px solid #f1f5f9" }}>
+              {["Volunteer", "Time Slot", "Status", "Action"].map((col) => (
+                <th key={col} style={{ padding: "14px 24px", textAlign: col === "Action" ? "right" : "left", fontSize: "11px", fontWeight: "800", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" }}>{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {currentRoster.map((booking, index) => (
+              <tr key={booking.id} style={{ borderBottom: index < currentRoster.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                <td style={{ padding: "16px 24px", fontSize: "14px", fontWeight: "700", color: "#1a1a1a" }}>{booking.volunteer_name}</td>
+                <td style={{ padding: "16px 24px", fontSize: "13px", color: "#64748b", fontWeight: "600" }}>{booking.selected_slot}</td>
+                <td style={{ padding: "16px 24px" }}>
+                  <span style={{ 
+                    padding: "6px 10px", 
+                    background: booking.status === "Present" ? "#dcfce7" : "#f1f5f9", 
+                    color: booking.status === "Present" ? "#16a34a" : "#475569", 
+                    borderRadius: "6px", 
+                    fontSize: "11px", 
+                    fontWeight: "800",
+                    letterSpacing: "0.5px"
+                  }}>
+                    {booking.status === "Present" ? "✓ PRESENT" : "AWAITING"}
+                  </span>
+                </td>
+                <td style={{ padding: "16px 24px", textAlign: "right" }}>
+                  <button 
+                    onClick={() => handleToggleAttendance(booking.id, booking.status)}
+                    style={{ 
+                      padding: "8px 16px", 
+                      borderRadius: "6px", 
+                      border: booking.status === "Present" ? "1px solid #fecaca" : "none",
+                      background: booking.status === "Present" ? "#fff" : "#1a1a1a", 
+                      color: booking.status === "Present" ? "#e62b32" : "#fff",
+                      fontSize: "12px", 
+                      fontWeight: "700", 
+                      cursor: "pointer",
+                      transition: "all 0.15s"
+                    }}
+                  >
+                    {booking.status === "Present" ? "Undo" : "Mark Present"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {currentRoster.length === 0 && (
+              <tr><td colSpan={4} style={{ padding: "40px", textAlign: "center", color: "#64748b", fontSize: "14px" }}>No volunteers have booked this shift yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 }
