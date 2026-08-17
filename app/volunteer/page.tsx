@@ -19,6 +19,8 @@ export default function VolunteerBooking() {
   const [volunteerName, setVolunteerName] = useState("");
   const [editingBookingId, setEditingBookingId] = useState<number | null>(null);
   const [editNewSlot, setEditNewSlot] = useState("");
+  const [showProgressionDetails, setShowProgressionDetails] = useState(false);
+  const [selectedProgressionId, setSelectedProgressionId] = useState<number | null>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -49,6 +51,96 @@ export default function VolunteerBooking() {
     fetchData();
   }
 
+  function printMyProgression(booking?: any) {
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) return;
+
+  const bookingsToPrint = booking
+    ? [booking]
+    : completedBookings;
+
+  const rows = bookingsToPrint.map((item) => {
+    const eventInfo = getEventData(item.event_id);
+
+    return `
+      <tr>
+        <td>${eventInfo?.title || "Unknown Event"}</td>
+        <td>
+          ${eventInfo?.date || "N/A"}<br>
+          ${eventInfo?.location || "N/A"}
+        </td>
+        <td>${item.status || "N/A"}</td>
+      </tr>
+    `;
+  }).join("");
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Ladles of Love - Volunteer Attendance</title>
+
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            color: #2b3336;
+          }
+
+          h1 {
+            margin-bottom: 5px;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+          }
+
+          th {
+            background: #f3f3f3;
+            text-align: left;
+            padding: 12px;
+            border: 1px solid #ddd;
+          }
+
+          td {
+            padding: 12px;
+            border: 1px solid #ddd;
+          }
+        </style>
+      </head>
+
+      <body>
+
+        <h1>Ladles of Love</h1>
+
+        <p>Volunteer Attendance Transcript</p>
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Date & Location</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${rows}
+          </tbody>
+
+        </table>
+
+      </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  printWindow.print();
+}
+
   async function cancelBooking(id: number) {
     await supabase.from("bookings").delete().eq("id", id);
     fetchData();
@@ -61,8 +153,14 @@ export default function VolunteerBooking() {
   const currentEventObj = events.find(e => e.id.toString() === selectedEventId);
   const availableSlotsArray = currentEventObj ? currentEventObj.time_slots.split(",") : [];
 
-  const eventsCompleted = bookings.length;
-  const volunteerHours = eventsCompleted * 4;
+  const completedBookings = bookings.filter(
+  booking => booking.status === "Completed"
+  );
+
+  const eventsCompleted = completedBookings.length;
+
+  // Hours will be implemented later
+  const volunteerHours = 0;
 
 
   return (
@@ -213,9 +311,11 @@ export default function VolunteerBooking() {
 
         {/* RIGHT COLUMN */}
         <div style={{
-          background: "#fff", borderRadius: "12px", border: "1px solid #e0e0e0",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)", overflow: "hidden", height: "fit-content"
-        }}>
+          display: "flex",
+          flexDirection: "column",
+          gap: "24px"
+          }}>
+
           <div style={{ padding: "20px 24px", borderBottom: "1px solid #e0e0e0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3 style={{ fontSize: "18px", color: "#2b3336", margin: 0, fontWeight: "800" }}>My Active Shifts</h3>
             <span style={{ fontSize: "12px", color: "#fff", fontWeight: "700", background: "#ef3a40", padding: "4px 12px", borderRadius: "20px" }}>
@@ -306,110 +406,488 @@ export default function VolunteerBooking() {
           )}
         </div>
 
-          <div
-  style={{
-    background: "#fff",
-    borderRadius: "12px",
-    border: "1px solid #e0e0e0",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-    overflow: "hidden",
-  }}
->
-  <div
-    style={{
-      padding: "20px 24px",
-      borderBottom: "1px solid #e0e0e0",
-    }}
-  >
-    <h3
-      style={{
-        fontSize: "18px",
-        color: "#2b3336",
-        margin: 0,
-        fontWeight: "800",
-      }}
-    >
+        {/* MY PROGRESSION */}
+<div style={{
+  background: "#fff",
+  borderRadius: "12px",
+  border: "1px solid #e0e0e0",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+  overflow: "hidden"
+}}>
+
+  {/* HEADER */}
+  <div style={{
+    padding: "20px 24px",
+    borderBottom: "1px solid #e0e0e0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  }}>
+
+    <h3 style={{
+      fontSize: "18px",
+      color: "#2b3336",
+      margin: 0,
+      fontWeight: "800"
+    }}>
       My Progression
     </h3>
+
   </div>
 
-  <table
-    style={{
-      width: "100%",
-      borderCollapse: "collapse",
-    }}
-  >
+  {/* TABLE */}
+  <table style={{
+    width: "100%",
+    borderCollapse: "collapse"
+  }}>
+
     <thead>
       <tr style={{ background: "#f3f3f3" }}>
-        <th
-          style={{
-            padding: "12px 24px",
-            textAlign: "left",
-            fontSize: "11px",
-            fontWeight: "700",
-            color: "#2b3336",
-            textTransform: "uppercase",
-            letterSpacing: "1px",
-          }}
-        >
+
+        <th style={{
+          padding: "12px 24px",
+          textAlign: "left",
+          fontSize: "11px",
+          fontWeight: "700",
+          color: "#2b3336",
+          textTransform: "uppercase",
+          letterSpacing: "1px"
+        }}>
           Progress
         </th>
 
-        <th
-          style={{
-            padding: "12px 24px",
-            textAlign: "right",
-            fontSize: "11px",
-            fontWeight: "700",
-            color: "#2b3336",
-            textTransform: "uppercase",
-            letterSpacing: "1px",
-          }}
-        >
+        <th style={{
+          padding: "12px 24px",
+          textAlign: "right",
+          fontSize: "11px",
+          fontWeight: "700",
+          color: "#2b3336",
+          textTransform: "uppercase",
+          letterSpacing: "1px"
+        }}>
           Total
         </th>
+
       </tr>
     </thead>
 
     <tbody>
-      <tr style={{ borderBottom: "1px solid #f3f3f3" }}>
-        <td style={{ padding: "18px 24px", fontWeight: 600 }}>
+
+      {/* HOURS */}
+      <tr style={{
+        borderBottom: "1px solid #f3f3f3"
+      }}>
+
+        <td style={{
+          padding: "16px 24px",
+          fontSize: "13px",
+          fontWeight: "600"
+        }}>
           Hours Volunteered
         </td>
 
-        <td
-          style={{
-            padding: "18px 24px",
-            textAlign: "right",
-            fontWeight: 700,
-            color: "#ef3a40",
-          }}
-        >
-          {volunteerHours} hrs
+        <td style={{
+          padding: "16px 24px",
+          textAlign: "right",
+          fontSize: "13px",
+          fontWeight: "700",
+          color: "#ef3a40"
+        }}>
+          {volunteerHours} hours
         </td>
+
       </tr>
 
+      {/* EVENTS */}
       <tr>
-        <td style={{ padding: "18px 24px", fontWeight: 600 }}>
+
+        <td style={{
+          padding: "16px 24px",
+          fontSize: "13px",
+          fontWeight: "600"
+        }}>
           Events Completed
         </td>
 
-        <td
-          style={{
-            padding: "18px 24px",
-            textAlign: "right",
-            fontWeight: 700,
-            color: "#ef3a40",
-          }}
-        >
+        <td style={{
+          padding: "16px 24px",
+          textAlign: "right",
+          fontSize: "13px",
+          fontWeight: "700",
+          color: "#ef3a40"
+        }}>
           {eventsCompleted}
         </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
 
+      </tr>
+
+    </tbody>
+
+  </table>
+
+  {/* BUTTONS */}
+  <div style={{
+    padding: "10px 12px",
+    borderTop: "1px solid #e0e0e0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  }}>
+
+    {/* LEFT BUTTON */}
+    <button
+      onClick={() => setShowProgressionDetails(true)}
+      style={{
+        padding: "7px 12px",
+        background: "#fff",
+        color: "#2b3336",
+        border: "1px solid #2b3336",
+        borderRadius: "5px",
+        fontSize: "11px",
+        cursor: "pointer"
+      }}
+    >
+      My Progression Details
+    </button>
+
+    {/* RIGHT BUTTON */}
+    <button
+      onClick={() => printMyProgression()}
+      style={{
+        padding: "7px 18px",
+        background: "#fff",
+        color: "#2b3336",
+        border: "1px solid #2b3336",
+        borderRadius: "5px",
+        fontSize: "11px",
+        cursor: "pointer"
+      }}
+    >
+      Print
+    </button>
+
+  </div>
+
+  </div>
       </main>
+
+      {/* PROGRESSION DETAILS */}
+{showProgressionDetails && (
+  <div style={{
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 200
+  }}>
+
+    {/* DETAILS WINDOW */}
+    <div style={{
+      width: "90%",
+      maxWidth: "850px",
+      background: "#fff",
+      borderRadius: "12px",
+      border: "1px solid #e0e0e0",
+      boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
+      overflow: "hidden"
+    }}>
+
+      {/* HEADER */}
+      <div style={{
+        padding: "16px 20px",
+        borderBottom: "1px solid #e0e0e0",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }}>
+
+        <h3 style={{
+          margin: 0,
+          fontSize: "18px",
+          fontWeight: "800",
+          color: "#2b3336"
+        }}>
+          My Progression Details
+        </h3>
+
+        {/* CLOSE BUTTON */}
+        <button
+          onClick={() => {
+            setShowProgressionDetails(false);
+            setSelectedProgressionId(null);
+          }}
+          style={{
+            width: "34px",
+            height: "34px",
+            border: "none",
+            background: "#fff",
+            color: "#ef3a40",
+            fontSize: "24px",
+            cursor: "pointer"
+          }}
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      {/* TABLE */}
+      <div style={{
+        padding: "20px",
+        maxHeight: "55vh",
+        overflowY: "auto"
+      }}>
+
+        <table style={{
+          width: "100%",
+          borderCollapse: "collapse"
+        }}>
+
+          <thead>
+
+            <tr style={{
+              background: "#f3f3f3"
+            }}>
+
+              {/* SELECT COLUMN */}
+              <th style={{
+                width: "40px",
+                padding: "12px",
+                border: "1px solid #ddd"
+              }}>
+              </th>
+
+              {/* EVENT */}
+              <th style={{
+                padding: "12px",
+                border: "1px solid #ddd",
+                textAlign: "left",
+                fontSize: "11px",
+                fontWeight: "700",
+                color: "#2b3336",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px"
+              }}>
+                Event
+              </th>
+
+              {/* DATE & LOCATION */}
+              <th style={{
+                padding: "12px",
+                border: "1px solid #ddd",
+                textAlign: "left",
+                fontSize: "11px",
+                fontWeight: "700",
+                color: "#2b3336",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px"
+              }}>
+                Date & Location
+              </th>
+
+              {/* STATUS */}
+              <th style={{
+                padding: "12px",
+                border: "1px solid #ddd",
+                textAlign: "left",
+                fontSize: "11px",
+                fontWeight: "700",
+                color: "#2b3336",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px"
+              }}>
+                Status
+              </th>
+
+              {/* DURATION */}
+              <th style={{
+                padding: "12px",
+                border: "1px solid #ddd",
+                textAlign: "left",
+                fontSize: "11px",
+                fontWeight: "700",
+                color: "#2b3336",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px"
+              }}>
+                Duration
+</th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            {bookings.map((booking) => {
+
+              const eventInfo = getEventData(booking.event_id);
+
+              return (
+                <tr key={booking.id}>
+
+                  {/* RADIO BUTTON */}
+                  <td style={{
+                    padding: "12px",
+                    border: "1px solid #ddd",
+                    textAlign: "center"
+                  }}>
+
+                    <input
+                      type="radio"
+                      name="progressionEvent"
+                      checked={
+                        selectedProgressionId === booking.id
+                      }
+                      onChange={() =>
+                        setSelectedProgressionId(booking.id)
+                      }
+                    />
+
+                  </td>
+
+
+                  {/* EVENT NAME */}
+                  <td style={{
+                    padding: "12px",
+                    border: "1px solid #ddd",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "#2b3336"
+                  }}>
+                    {eventInfo?.title || "Unknown Event"}
+                  </td>
+
+
+                  {/* DATE & LOCATION */}
+                  <td style={{
+                    padding: "12px",
+                    border: "1px solid #ddd",
+                    fontSize: "12px",
+                    color: "#2b3336"
+                  }}>
+
+                    <div>
+                      {eventInfo?.date || "N/A"}
+                    </div>
+
+                    <div style={{
+                      color: "#666",
+                      marginTop: "4px"
+                    }}>
+                      {eventInfo?.location || "N/A"}
+                    </div>
+
+                  </td>
+
+
+                  {/* STATUS */}
+                  <td style={{
+                    padding: "12px",
+                    border: "1px solid #ddd",
+                    fontSize: "12px"
+                  }}>
+
+                    <span style={{
+                      padding: "4px 9px",
+                      borderRadius: "20px",
+                      background: "#ef3a40",
+                      color: "#fff",
+                      fontSize: "11px",
+                      fontWeight: "700"
+                    }}>
+                      {booking.status}
+                    </span>
+
+                  </td>
+
+                </tr>
+              );
+
+            })}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+
+      {/* BOTTOM BUTTONS */}
+      <div style={{
+        padding: "12px 20px",
+        borderTop: "1px solid #e0e0e0",
+        display: "flex",
+        justifyContent: "flex-start",
+        gap: "8px"
+      }}>
+
+        {/* PRINT SELECTED */}
+        <button
+          disabled={selectedProgressionId === null}
+          onClick={() => {
+
+            const selectedBooking = bookings.find(
+              booking =>
+                booking.id === selectedProgressionId
+            );
+
+            if (selectedBooking) {
+              printMyProgression(selectedBooking);
+            }
+
+          }}
+          style={{
+            padding: "8px 18px",
+            background:
+              selectedProgressionId === null
+                ? "#eee"
+                : "#fff",
+            color:
+              selectedProgressionId === null
+                ? "#999"
+                : "#2b3336",
+            border: "1px solid #2b3336",
+            borderRadius: "6px",
+            fontSize: "11px",
+            fontWeight: "700",
+            cursor:
+              selectedProgressionId === null
+                ? "not-allowed"
+                : "pointer"
+          }}
+        >
+          Print
+        </button>
+
+
+        {/* PRINT ALL */}
+        <button
+          onClick={() => printMyProgression()}
+          style={{
+            padding: "8px 18px",
+            background: "#fff",
+            color: "#2b3336",
+            border: "1px solid #2b3336",
+            borderRadius: "6px",
+            fontSize: "11px",
+            fontWeight: "700",
+            cursor: "pointer"
+          }}
+        >
+          Print All
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+)}
 
       {/* FOOTER */}
       <p style={{ textAlign: "center", fontSize: "12px", color: "#2b3336", opacity: 0.4, paddingBottom: "32px" }}>
