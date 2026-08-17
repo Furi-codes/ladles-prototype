@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
+import { Event } from "../../../lib/types";
 import { upsertEvent, deleteEvent as removeEventFromDB } from "../../../lib/admin-actions";
 
-export default function ActivitiesTab({ events, isLoading, fetchData }: { events: any[], isLoading: boolean, fetchData: () => void }) {
+export default function ActivitiesTab({ events, isLoading, fetchData }: { events: Event[], isLoading: boolean, fetchData: () => void }) {
   // --- FORM STATE ---
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");

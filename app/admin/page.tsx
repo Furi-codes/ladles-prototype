@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import TopHeader from "./components/TopHeader";
 import PageHeader from "./components/PageHeader";
+import { Event, Booking, Volunteer } from "../../lib/types";
 
 // --- TAB COMPONENTS ---
 import DashboardTab from "./components/DashboardTab";
@@ -14,12 +15,12 @@ import { getEvents, getBookings, getVolunteers } from "../../lib/admin-actions";
 
 export default function AdminDashboard() {
   // --- UI STATE ---
-  const [activeNav, setActiveNav] = useState("Dashboard");
+  const [activeNav, setActiveNav] = useState("Dashboard"); // Remembers what tab is selected
 
   // --- DATABASE STATE ---
-  const [events, setEvents] = useState<any[]>([]); 
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [volunteers, setVolunteers] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);         //
+  const [bookings, setBookings] = useState<Booking[]>([]);     // Empty because it fills up with data from database
+  const [volunteers, setVolunteers] = useState<Volunteer[]>([]); //
   const [isLoading, setIsLoading] = useState(true);
 
   // --- ENGINE DRIVER ---

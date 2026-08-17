@@ -1,7 +1,8 @@
 "use client";
+import { Event, Booking, Volunteer } from "../../../lib/types";
 import { useState } from "react";
 
-export default function VolunteerView({ volunteers, events, bookings }: { volunteers: any[], events: any[], bookings: any[] }) {
+export default function VolunteerView({ volunteers, events, bookings }: { volunteers: Volunteer[], events: Event[], bookings: Booking[] }) {
   // 1. State to track which event the admin selects from the dropdown
   const [selectedEventId, setSelectedEventId] = useState<string>("");
 

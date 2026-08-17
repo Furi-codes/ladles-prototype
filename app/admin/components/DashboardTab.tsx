@@ -1,6 +1,7 @@
 "use client";
+import { Event, Booking, Volunteer } from "../../../lib/types";
 
-export default function DashboardTab({ bookings, events, volunteers, isLoading }: { bookings: any[], events: any[], volunteers: any[], isLoading: boolean }) {
+export default function DashboardTab({ bookings, events, volunteers, isLoading }: { bookings: Booking[], events: Event[], volunteers: Volunteer[], isLoading: boolean }) {
   
   function getEventName(eventId: number) {
     const evt = events.find((e: any) => e.id === eventId);
