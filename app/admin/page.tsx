@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 // --- THE BLUEPRINTS ---
 interface Event {
@@ -35,7 +35,6 @@ const navLinks = [
 // --- CLOUD CONNECTION ---
 const supabaseUrl = "https://lkczfrnuksjxsimbcxkz.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrY3pmcm51a3NqeHNpbWJjeGt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1ODc2ODIsImV4cCI6MjA5NDE2MzY4Mn0.xN3DDINaA9nn0d4do4MrJ9XFlkNKBZuRPQBi3qIUU2w"; 
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -58,8 +57,47 @@ export default function AdminDashboard() {
 
   // --- ENGINE DRIVER ---
   useEffect(() => {
-    fetchData();
-  }, []);
+  fetchData();
+
+  // Subscribe to booking changes
+  const subscription = supabase
+    .channel('admin-bookings')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'bookings'
+      },
+      (payload) => {
+        console.log('📊 Admin: Booking changed:', payload);
+        fetchData();
+      }
+    )
+    .subscribe();
+
+  // Also subscribe to event changes
+  const eventSubscription = supabase
+    .channel('admin-events')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'events'
+      },
+      (payload) => {
+        console.log('📊 Admin: Event changed:', payload);
+        fetchData();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    subscription.unsubscribe();
+    eventSubscription.unsubscribe();
+  };
+}, []);
 
   async function fetchData() {
     setIsLoading(true);

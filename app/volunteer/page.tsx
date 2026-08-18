@@ -1,173 +1,303 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import Image from "next/image";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
+import moment from "moment";
+import { supabase } from "@/lib/supabase"; // ← Import from lib
 
-const supabaseUrl = "https://lkczfrnuksjxsimbcxkz.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrY3pmcm51a3NqeHNpbWJjeGt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1ODc2ODIsImV4cCI6MjA5NDE2MzY4Mn0.xN3DDINaA9nn0d4do4MrJ9XFlkNKBZuRPQBi3qIUU2w";
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-export default function VolunteerBooking() {
-  const router = useRouter();
-
-  const [events, setEvents] = useState<any[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedEventId, setSelectedEventId] = useState("");
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
-  const [volunteerName, setVolunteerName] = useState("");
-  const [editingBookingId, setEditingBookingId] = useState<number | null>(null);
-  const [editNewSlot, setEditNewSlot] = useState("");
-  const [showProgressionDetails, setShowProgressionDetails] = useState(false);
-  const [selectedProgressionId, setSelectedProgressionId] = useState<number | null>(null);
-
-  useEffect(() => { fetchData(); }, []);
-
-  async function fetchData() {
-    setIsLoading(true);
-    const { data: eData } = await supabase.from("events").select("*");
-    if (eData) setEvents(eData);
-    const { data: bData } = await supabase.from("bookings").select("*").order("id", { ascending: false });
-    if (bData) setBookings(bData);
-    setIsLoading(false);
-  }
-
-  async function bookShift(e: React.FormEvent) {
-    e.preventDefault();
-    await supabase.from("bookings").insert([{
-      event_id: parseInt(selectedEventId),
-      volunteer_name: volunteerName,
-      selected_slot: selectedTimeSlot,
-      status: "Confirmed"
-    }]);
-    setVolunteerName(""); setSelectedEventId(""); setSelectedTimeSlot("");
-    fetchData();
-  }
-
-  async function saveUpdatedSlot(bookingId: number) {
-    await supabase.from("bookings").update({ selected_slot: editNewSlot }).eq("id", bookingId);
-    setEditingBookingId(null);
-    fetchData();
-  }
-
-  function printMyProgression(booking?: any) {
-  const printWindow = window.open("", "_blank");
-
-  if (!printWindow) return;
-
-  const bookingsToPrint = booking
-    ? [booking]
-    : completedBookings;
-
-  const rows = bookingsToPrint.map((item) => {
-    const eventInfo = getEventData(item.event_id);
-
-    return `
-      <tr>
-        <td>${eventInfo?.title || "Unknown Event"}</td>
-        <td>
-          ${eventInfo?.date || "N/A"}<br>
-          ${eventInfo?.location || "N/A"}
-        </td>
-        <td>${item.status || "N/A"}</td>
-      </tr>
-    `;
-  }).join("");
-
-  printWindow.document.write(`
-    <html>
-      <head>
-        <title>Ladles of Love - Volunteer Attendance</title>
-
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 40px;
-            color: #2b3336;
-          }
-
-          h1 {
-            margin-bottom: 5px;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 25px;
-          }
-
-          th {
-            background: #f3f3f3;
-            text-align: left;
-            padding: 12px;
-            border: 1px solid #ddd;
-          }
-
-          td {
-            padding: 12px;
-            border: 1px solid #ddd;
-          }
-        </style>
-      </head>
-
-      <body>
-
-        <h1>Ladles of Love</h1>
-
-        <p>Volunteer Attendance Transcript</p>
-
-        <table>
-
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Date & Location</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            ${rows}
-          </tbody>
-
-        </table>
-
-      </body>
-    </html>
-  `);
-
-  printWindow.document.close();
-  printWindow.print();
+// ============================================
+// TYPES
+// ============================================
+interface Event {
+  id: number;
+  title: string;
+  date: string;
+  location: string;
+  time_slots: string;
+  total_slots: number;
+  description?: string;
 }
 
-  async function cancelBooking(id: number) {
-    await supabase.from("bookings").delete().eq("id", id);
+interface Booking {
+  id: number;
+  event_id: number;
+  volunteer_name: string;
+  selected_slot: string;
+  status: string;
+}
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+export default function VolunteerCalendar() {
+  const router = useRouter();
+
+  // --- STATE ---
+  const [events, setEvents] = useState<Event[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [volunteerName, setVolunteerName] = useState("");
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [toasts, setToasts] = useState<{ id: number; type: string; message: string }[]>([]);
+
+  // ============================================
+  // FETCH DATA
+  // ============================================
+  async function fetchData() {
+    setIsLoading(true);
+    try {
+      const { data: eData } = await supabase
+        .from("events")
+        .select("*")
+        .order("date", { ascending: true });
+      if (eData) setEvents(eData);
+
+      const { data: bData } = await supabase
+        .from("bookings")
+        .select("*")
+        .order("id", { ascending: false });
+      if (bData) setBookings(bData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      showToast("error", "Failed to load data. Please refresh.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // ============================================
+  // REAL-TIME SUBSCRIPTION
+  // ============================================
+  useEffect(() => {
     fetchData();
+
+    // Subscribe to booking changes
+    const subscription = supabase
+      .channel('volunteer-bookings')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'bookings'
+        },
+        (payload) => {
+          console.log('🔄 Booking changed:', payload);
+          fetchData(); // Re-fetch when any change happens
+        }
+      )
+      .subscribe();
+
+    // Cleanup on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // ============================================
+  // TOAST NOTIFICATIONS
+  // ============================================
+  function showToast(type: 'success' | 'error' | 'info', message: string) {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 5000);
+  }
+
+  // ============================================
+  // HELPERS
+  // ============================================
+  function getEventsForDate(date: Date) {
+    const dateString = moment(date).format("YYYY-MM-DD");
+    return events.filter(event => event.date === dateString);
+  }
+
+  function hasEvents(date: Date) {
+    return getEventsForDate(date).length > 0;
+  }
+
+  function isUserBookedForEvent(eventId: number) {
+    return bookings.some(booking =>
+      booking.event_id === eventId &&
+      booking.volunteer_name.toLowerCase() === volunteerName.toLowerCase()
+    );
+  }
+
+  function getBookingForEvent(eventId: number) {
+    return bookings.find(booking =>
+      booking.event_id === eventId &&
+      booking.volunteer_name.toLowerCase() === volunteerName.toLowerCase()
+    );
   }
 
   function getEventData(eventId: number) {
     return events.find(e => e.id === eventId);
   }
 
-  const currentEventObj = events.find(e => e.id.toString() === selectedEventId);
-  const availableSlotsArray = currentEventObj ? currentEventObj.time_slots.split(",") : [];
+  // ============================================
+  // HANDLE EVENT CLICK
+  // ============================================
+  function handleEventClick(event: Event) {
+    if (!volunteerName.trim()) {
+      showToast("error", "Please enter your name first!");
+      return;
+    }
+    setSelectedEvent(event);
+    setSelectedTimeSlot("");
+    setShowEventModal(true);
+  }
 
-  const completedBookings = bookings.filter(
-  booking => booking.status === "Completed"
+  // ============================================
+  // HANDLE SIGN UP
+  // ============================================
+  async function handleSignUp(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!volunteerName.trim()) {
+      setBookingMessage({ type: 'error', text: 'Please enter your name' });
+      return;
+    }
+
+    if (!selectedTimeSlot) {
+      setBookingMessage({ type: 'error', text: 'Please select a time slot' });
+      return;
+    }
+
+    // Check if slot is already taken
+    const slotTaken = bookings.some(booking =>
+      booking.event_id === selectedEvent?.id &&
+      booking.selected_slot === selectedTimeSlot
+    );
+
+    if (slotTaken) {
+      setBookingMessage({ type: 'error', text: 'This time slot is already taken. Please choose another.' });
+      return;
+    }
+
+    // Check if user already has a booking for this event
+    if (isUserBookedForEvent(selectedEvent!.id)) {
+      setBookingMessage({ type: 'error', text: 'You are already signed up for this event!' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setBookingMessage(null);
+
+    try {
+      const { error } = await supabase.from("bookings").insert([{
+        event_id: selectedEvent!.id,
+        volunteer_name: volunteerName.trim(),
+        selected_slot: selectedTimeSlot,
+        status: "Confirmed"
+      }]);
+
+      if (error) throw error;
+
+      showToast("success", `✅ Successfully signed up for ${selectedEvent!.title}!`);
+      setBookingMessage({ type: 'success', text: '✅ Successfully signed up for the event!' });
+
+      // Close modal after 2 seconds
+      setTimeout(() => {
+        setShowEventModal(false);
+        setSelectedEvent(null);
+        setSelectedTimeSlot("");
+        setBookingMessage(null);
+      }, 2000);
+
+    } catch (error) {
+      console.error("Booking error:", error);
+      setBookingMessage({ type: 'error', text: 'Failed to sign up. Please try again.' });
+      showToast("error", "Failed to sign up. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // ============================================
+  // HANDLE CANCEL BOOKING
+  // ============================================
+  async function cancelBooking(bookingId: number) {
+    if (!confirm("Are you sure you want to cancel this booking?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("id", bookingId);
+      if (error) throw error;
+      showToast("info", "Booking cancelled successfully");
+    } catch (error) {
+      console.error("Cancel error:", error);
+      showToast("error", "Failed to cancel booking. Please try again.");
+    }
+  }
+
+  // ============================================
+  // CALENDAR RENDER HELPERS
+  // ============================================
+  function tileClassName({ date }: { date: Date }) {
+    if (hasEvents(date)) {
+      return "has-event";
+    }
+    return null;
+  }
+
+  function tileContent({ date }: { date: Date }) {
+    const dayEvents = getEventsForDate(date);
+    if (dayEvents.length > 0) {
+      return (
+        <div className="event-dot-container">
+          <div className="event-dot"></div>
+          <div className="event-count">{dayEvents.length}</div>
+        </div>
+      );
+    }
+    return null;
+  }
+
+  // ============================================
+  // FILTERED BOOKINGS
+  // ============================================
+  const userBookings = bookings.filter(booking =>
+    booking.volunteer_name.toLowerCase() === volunteerName.toLowerCase() &&
+    booking.status === "Confirmed"
   );
 
-  const eventsCompleted = completedBookings.length;
-
-  // Hours will be implemented later
-  const volunteerHours = 0;
-
-
+  // ============================================
+  // RENDER
+  // ============================================
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#f3f3f3", color: "#2b3336", fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+    <div style={{
+      minHeight: "100vh",
+      backgroundColor: "#f3f3f3",
+      color: "#2b3336",
+      fontFamily: "'Helvetica Neue', Arial, sans-serif"
+    }}>
+
+      {/* TOAST CONTAINER */}
+      <div className="toast-container">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`toast toast-${toast.type}`}
+          >
+            {toast.message}
+          </div>
+        ))}
+      </div>
 
       {/* RED TOP BAR */}
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: "6px", background: "#ef3a40", zIndex: 100 }} />
+      <div style={{
+        position: "fixed", top: 0, left: 0, right: 0, height: "6px",
+        background: "#ef3a40", zIndex: 100
+      }} />
 
       {/* HEADER */}
       <header style={{
@@ -186,8 +316,13 @@ export default function VolunteerBooking() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden" }}>
-            <Image src="/ladles-logo.png" alt="Ladles of Love" width={44} height={44}
-              style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+            <Image
+              src="/ladles-logo.png"
+              alt="Ladles of Love"
+              width={44}
+              height={44}
+              style={{ objectFit: "contain", width: "100%", height: "100%" }}
+            />
           </div>
           <div>
             <h1 style={{ color: "#2b3336", margin: 0, fontSize: "17px", fontWeight: "800", letterSpacing: "-0.3px" }}>
@@ -199,698 +334,502 @@ export default function VolunteerBooking() {
           </div>
         </div>
 
-        <button
-          onClick={() => router.push("/admin")}
-          style={{
-            padding: "8px 18px", borderRadius: "6px", border: "1.5px solid #2b3336",
-            background: "#fff", color: "#2b3336", fontSize: "13px", fontWeight: "700",
-            cursor: "pointer", letterSpacing: "0.5px", transition: "all 0.2s",
-          }}
-          onMouseOver={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = "#2b3336";
-            (e.currentTarget as HTMLButtonElement).style.color = "#fff";
-          }}
-          onMouseOut={e => {
-            (e.currentTarget as HTMLButtonElement).style.background = "#fff";
-            (e.currentTarget as HTMLButtonElement).style.color = "#2b3336";
-          }}
-        >
-          ← Admin Dashboard
-        </button>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <button
+            onClick={() => router.push("/admin")}
+            style={{
+              padding: "8px 18px",
+              borderRadius: "6px",
+              border: "1.5px solid #2b3336",
+              background: "#fff",
+              color: "#2b3336",
+              fontSize: "13px",
+              fontWeight: "700",
+              cursor: "pointer",
+              letterSpacing: "0.5px",
+              transition: "all 0.2s",
+            }}
+            onMouseOver={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#2b3336";
+              (e.currentTarget as HTMLButtonElement).style.color = "#fff";
+            }}
+            onMouseOut={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+              (e.currentTarget as HTMLButtonElement).style.color = "#2b3336";
+            }}
+          >
+            ← Admin Dashboard
+          </button>
+        </div>
       </header>
 
       {/* MAIN CONTENT */}
-      <main style={{ padding: "40px 32px", maxWidth: "1000px", margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "32px" }}>
+      <main style={{ padding: "40px 32px", maxWidth: "1400px", margin: "0 auto" }}>
 
-        {/* LEFT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          <div style={{
-            background: "#fff", borderRadius: "12px", border: "1px solid #e0e0e0",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.05)", padding: "28px"
-          }}>
-            <h2 style={{ fontSize: "22px", color: "#2b3336", margin: "0 0 8px", fontWeight: "800" }}>
-              Claim a Shift
-            </h2>
-            <p style={{ color: "#666", fontSize: "13px", margin: "0 0 24px", lineHeight: "1.5" }}>
-              Select an upcoming event and secure your time slot to help feed the community.
-            </p>
-
-            <form onSubmit={bookShift} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div>
-                <label style={{ fontSize: "11px", color: "#2b3336", fontWeight: "700", letterSpacing: "1px", textTransform: "uppercase" }}>
-                  Full Name
-                </label>
-                <input required placeholder="e.g. Jane Doe" value={volunteerName}
-                  onChange={(e) => setVolunteerName(e.target.value)}
-                  style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1.5px solid #ddd", fontSize: "14px", marginTop: "6px", boxSizing: "border-box", background: "#f3f3f3", color: "#2b3336", outline: "none" }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: "11px", color: "#2b3336", fontWeight: "700", letterSpacing: "1px", textTransform: "uppercase" }}>
-                  Select Event
-                </label>
-                <select value={selectedEventId}
-                  onChange={(e) => { setSelectedEventId(e.target.value); setSelectedTimeSlot(""); }}
-                  style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1.5px solid #ddd", fontSize: "14px", marginTop: "6px", boxSizing: "border-box", background: "#f3f3f3", color: "#2b3336", outline: "none" }}
-                  required>
-                  <option value="" disabled>-- Available Events --</option>
-                  {events.map(evt => (
-                    <option key={evt.id} value={evt.id}>{evt.title} ({evt.date})</option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedEventId && (
-                <div>
-                  <label style={{ fontSize: "11px", color: "#2b3336", fontWeight: "700", letterSpacing: "1px", textTransform: "uppercase" }}>
-                    Available Time Slots
-                  </label>
-                  <select value={selectedTimeSlot} onChange={(e) => setSelectedTimeSlot(e.target.value)}
-                    style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1.5px solid #ddd", fontSize: "14px", marginTop: "6px", boxSizing: "border-box", background: "#f3f3f3", color: "#2b3336", outline: "none" }}
-                    required>
-                    <option value="" disabled>-- Pick a Time --</option>
-                    {availableSlotsArray.map((slot: string, i: number) => (
-                      <option key={i} value={slot.trim()}>{slot.trim()}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <button type="submit"
-                style={{
-                  marginTop: "12px", padding: "14px", borderRadius: "6px",
-                  background: "#ef3a40", color: "white", border: "none",
-                  fontSize: "14px", fontWeight: "700", cursor: "pointer",
-                  letterSpacing: "1px", textTransform: "uppercase",
-                  boxShadow: "0 4px 14px rgba(239,58,64,0.35)", transition: "background 0.2s",
-                }}
-                onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = "#2b3336"}
-                onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = "#ef3a40"}
-              >
-                Confirm My Booking
-              </button>
-            </form>
-          </div>
-
-          {/* INFO CARD */}
-          <div style={{
-            background: "#2b3336", borderRadius: "12px",
-            padding: "24px", boxShadow: "0 4px 16px rgba(0,0,0,0.15)", color: "white"
-          }}>
-            <h4 style={{ fontSize: "16px", margin: "0 0 12px", fontWeight: "800", letterSpacing: "-0.3px" }}>
-              Before you arrive...
-            </h4>
-            <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "13px", color: "rgba(255,255,255,0.8)", lineHeight: "1.8" }}>
-              <li>Please arrive 15 minutes before your shift.</li>
-              <li>Wear comfortable, closed-toe shoes.</li>
-              <li>If you cannot make it, please cancel your shift so another volunteer can take your place.</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN */}
+        {/* LIVE STATUS INDICATOR */}
         <div style={{
           display: "flex",
-          flexDirection: "column",
-          gap: "24px"
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "24px",
+          flexWrap: "wrap",
+          gap: "12px"
+        }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "12px",
+            color: "#16a34a",
+            padding: "6px 14px",
+            background: "#dcfce7",
+            borderRadius: "20px"
           }}>
-
-          <div style={{ padding: "20px 24px", borderBottom: "1px solid #e0e0e0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ fontSize: "18px", color: "#2b3336", margin: 0, fontWeight: "800" }}>My Active Shifts</h3>
-            <span style={{ fontSize: "12px", color: "#fff", fontWeight: "700", background: "#ef3a40", padding: "4px 12px", borderRadius: "20px" }}>
-              Total: {bookings.length}
-            </span>
+            <span style={{
+              display: "inline-block",
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              background: "#16a34a",
+              animation: "pulse 1.5s infinite"
+            }}></span>
+            Live Updates
           </div>
-
-          {isLoading ? (
-            <div style={{ padding: "40px", textAlign: "center", color: "#666", fontSize: "14px" }}>Syncing with Database...</div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#f3f3f3" }}>
-                  <th style={{ padding: "12px 24px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#2b3336", textTransform: "uppercase", letterSpacing: "1px" }}>Shift Details</th>
-                  <th style={{ padding: "12px 24px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#2b3336", textTransform: "uppercase", letterSpacing: "1px" }}>Status</th>
-                  <th style={{ padding: "12px 24px", textAlign: "right", fontSize: "11px", fontWeight: "700", color: "#2b3336", textTransform: "uppercase", letterSpacing: "1px" }}>Manage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((booking) => {
-                  const eventInfo = getEventData(booking.event_id);
-                  const isEditing = editingBookingId === booking.id;
-
-
-
-                  return (
-                    <tr key={booking.id} style={{ borderBottom: "1px solid #f3f3f3" }}>
-                      <td style={{ padding: "16px 24px" }}>
-                        <div style={{ fontSize: "14px", fontWeight: "700", color: "#2b3336", marginBottom: "4px" }}>{booking.volunteer_name}</div>
-                        <div style={{ fontSize: "12px", color: "#666", marginBottom: "4px" }}>{eventInfo ? eventInfo.title : "Loading..."}</div>
-
-                        {isEditing ? (
-                          <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
-                            <select onChange={(e) => setEditNewSlot(e.target.value)}
-                              style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid #ddd", fontSize: "11px", background: "#f3f3f3" }}>
-                              <option value="">Change slot...</option>
-                              {eventInfo?.time_slots.split(",").map((slot: string, i: number) => (
-                                <option key={i} value={slot.trim()}>{slot.trim()}</option>
-                              ))}
-                            </select>
-                            <button onClick={() => saveUpdatedSlot(booking.id)}
-                              style={{ padding: "4px 10px", background: "#ef3a40", color: "white", border: "none", borderRadius: "4px", fontSize: "11px", fontWeight: "700", cursor: "pointer" }}>
-                              Save
-                            </button>
-                            <button onClick={() => setEditingBookingId(null)}
-                              style={{ padding: "4px 10px", background: "#f3f3f3", color: "#2b3336", border: "1px solid #ddd", borderRadius: "4px", fontSize: "11px", fontWeight: "700", cursor: "pointer" }}>
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: "11px", color: "#2b3336", background: "#f3f3f3", display: "inline-block", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
-                            ⏱️ {booking.selected_slot}
-                          </div>
-                        )}
-                      </td>
-
-                      <td style={{ padding: "16px 24px" }}>
-                        <span style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "20px", fontWeight: "700", background: "#ef3a40", color: "#fff" }}>
-                          {booking.status}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                          {!isEditing && (
-                            <button onClick={() => { setEditingBookingId(booking.id); setEditNewSlot(booking.selected_slot); }}
-                              style={{ padding: "6px 12px", background: "#fff", color: "#2b3336", border: "1.5px solid #ddd", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>
-                              Change
-                            </button>
-                          )}
-                          <button onClick={() => cancelBooking(booking.id)}
-                            style={{ padding: "6px 12px", background: "#ef3a40", color: "#fff", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-
-          {bookings.length === 0 && !isLoading && (
-            <div style={{ padding: "32px", textAlign: "center", color: "#666", fontSize: "14px" }}>
-              You have no active shifts. Claim one on the left!
-            </div>
-          )}
+          <button
+            onClick={fetchData}
+            style={{
+              padding: "6px 16px",
+              background: "#2b3336",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              fontSize: "12px",
+              cursor: "pointer"
+            }}
+          >
+            🔄 Refresh
+          </button>
         </div>
 
-        {/* MY PROGRESSION */}
-<div style={{
-  background: "#fff",
-  borderRadius: "12px",
-  border: "1px solid #e0e0e0",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-  overflow: "hidden"
-}}>
-
-  {/* HEADER */}
-  <div style={{
-    padding: "20px 24px",
-    borderBottom: "1px solid #e0e0e0",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  }}>
-
-    <h3 style={{
-      fontSize: "18px",
-      color: "#2b3336",
-      margin: 0,
-      fontWeight: "800"
-    }}>
-      My Progression
-    </h3>
-
-  </div>
-
-  {/* TABLE */}
-  <table style={{
-    width: "100%",
-    borderCollapse: "collapse"
-  }}>
-
-    <thead>
-      <tr style={{ background: "#f3f3f3" }}>
-
-        <th style={{
-          padding: "12px 24px",
-          textAlign: "left",
-          fontSize: "11px",
-          fontWeight: "700",
-          color: "#2b3336",
-          textTransform: "uppercase",
-          letterSpacing: "1px"
+        {/* NAME INPUT SECTION */}
+        <div style={{
+          background: "#fff",
+          borderRadius: "12px",
+          padding: "20px 24px",
+          marginBottom: "32px",
+          border: "1px solid #e0e0e0",
+          display: "flex",
+          alignItems: "center",
+          gap: "20px",
+          flexWrap: "wrap"
         }}>
-          Progress
-        </th>
+          <div style={{ flex: 1, minWidth: "200px" }}>
+            <label style={{ fontSize: "11px", color: "#2b3336", fontWeight: "700", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
+              Your Name
+            </label>
+            <input
+              placeholder="Enter your name to see your bookings"
+              value={volunteerName}
+              onChange={(e) => setVolunteerName(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: "6px",
+                border: "1.5px solid #ddd",
+                fontSize: "14px",
+                boxSizing: "border-box",
+                background: "#f8f8f8",
+                color: "#2b3336",
+                outline: "none"
+              }}
+            />
+          </div>
+          <div style={{ fontSize: "13px", color: "#666" }}>
+            {volunteerName ? (
+              <span>👋 Welcome, <strong>{volunteerName}</strong>! You have <strong>{userBookings.length}</strong> active shift{userBookings.length !== 1 ? 's' : ''}.</span>
+            ) : (
+              <span>👤 Enter your name to view your shifts</span>
+            )}
+          </div>
+        </div>
 
-        <th style={{
-          padding: "12px 24px",
-          textAlign: "right",
-          fontSize: "11px",
-          fontWeight: "700",
-          color: "#2b3336",
-          textTransform: "uppercase",
-          letterSpacing: "1px"
+        {/* TWO COLUMN LAYOUT */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "32px",
+          alignItems: "start"
         }}>
-          Total
-        </th>
 
-      </tr>
-    </thead>
+          {/* LEFT COLUMN - CALENDAR */}
+          <div style={{
+            background: "#fff",
+            borderRadius: "12px",
+            border: "1px solid #e0e0e0",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+            padding: "24px",
+            overflow: "hidden"
+          }}>
+            <h2 style={{ fontSize: "20px", color: "#2b3336", margin: "0 0 20px", fontWeight: "800" }}>
+              📅 Event Calendar
+            </h2>
+            <p style={{ color: "#666", fontSize: "13px", margin: "0 0 20px", lineHeight: "1.5" }}>
+              Click on any highlighted date to see available events and sign up.
+            </p>
 
-    <tbody>
+            {isLoading ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>Loading calendar...</div>
+            ) : (
+              <div className="calendar-wrapper">
+                <Calendar
+                  onChange={() => {}}
+                  value={new Date()}
+                  tileClassName={tileClassName}
+                  tileContent={tileContent}
+                  minDate={new Date()}
+                  locale="en-US"
+                  onClickDay={(date) => {
+                    console.log("📅 Date clicked:", date);
+                    const dayEvents = getEventsForDate(date);
+                    console.log("📋 Events on this date:", dayEvents);
+                    
+                    if (dayEvents.length === 0) {
+                      showToast("info", "No events on this date. Check other dates!");
+                      return;
+                    }
+                    
+                    if (dayEvents.length === 1) {
+                      // If only one event, open it directly
+                      handleEventClick(dayEvents[0]);
+                    } else {
+                      // If multiple events, show the first one
+                      handleEventClick(dayEvents[0]);
+                      showToast("info", `📅 ${dayEvents.length} events on this day. Click again to see more.`);
+                    }
+                  }}
+                  />
+              </div>
+            )}
 
-      {/* HOURS */}
-      <tr style={{
-        borderBottom: "1px solid #f3f3f3"
-      }}>
+            {/* LEGEND */}
+            <div style={{
+              marginTop: "20px",
+              padding: "12px 16px",
+              background: "#f8f8f8",
+              borderRadius: "6px",
+              display: "flex",
+              gap: "24px",
+              flexWrap: "wrap"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                <span style={{
+                  display: "inline-block",
+                  width: "12px",
+                  height: "12px",
+                  borderRadius: "50%",
+                  background: "#ef3a40"
+                }}></span>
+                Events available
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                <span style={{
+                  display: "inline-block",
+                  width: "12px",
+                  height: "12px",
+                  borderRadius: "50%",
+                  background: "#2b3336"
+                }}></span>
+                You're signed up
+              </div>
+            </div>
+          </div>
 
-        <td style={{
-          padding: "16px 24px",
-          fontSize: "13px",
-          fontWeight: "600"
-        }}>
-          Hours Volunteered
-        </td>
+          {/* RIGHT COLUMN - ACTIVE SHIFTS */}
+          <div>
+            <div style={{
+              background: "#fff",
+              borderRadius: "12px",
+              border: "1px solid #e0e0e0",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                padding: "20px 24px",
+                borderBottom: "1px solid #e0e0e0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}>
+                <h3 style={{ fontSize: "18px", color: "#2b3336", margin: 0, fontWeight: "800" }}>
+                  My Active Shifts
+                </h3>
+                <span style={{
+                  fontSize: "12px",
+                  color: "#fff",
+                  fontWeight: "700",
+                  background: "#ef3a40",
+                  padding: "4px 12px",
+                  borderRadius: "20px"
+                }}>
+                  {userBookings.length}
+                </span>
+              </div>
 
-        <td style={{
-          padding: "16px 24px",
-          textAlign: "right",
-          fontSize: "13px",
-          fontWeight: "700",
-          color: "#ef3a40"
-        }}>
-          {volunteerHours} hours
-        </td>
+              {!volunteerName ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "#999", fontSize: "14px" }}>
+                  Enter your name above to see your shifts
+                </div>
+              ) : isLoading ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "#666", fontSize: "14px" }}>
+                  Loading your shifts...
+                </div>
+              ) : userBookings.length === 0 ? (
+                <div style={{ padding: "40px", textAlign: "center", color: "#999", fontSize: "14px" }}>
+                  You have no active shifts.<br />
+                  <span style={{ fontSize: "12px", color: "#ccc" }}>
+                    Click on an event in the calendar to sign up!
+                  </span>
+                </div>
+              ) : (
+                <div style={{ padding: "8px 0" }}>
+                  {userBookings.map((booking) => {
+                    const eventInfo = getEventData(booking.event_id);
+                    return (
+                      <div
+                        key={booking.id}
+                        style={{
+                          padding: "16px 24px",
+                          borderBottom: "1px solid #f3f3f3",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: "14px", fontWeight: "700", color: "#2b3336", marginBottom: "4px" }}>
+                            {eventInfo?.title || "Unknown Event"}
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#666", marginBottom: "4px" }}>
+                            📍 {eventInfo?.location || "N/A"} &nbsp;|&nbsp; 📅 {eventInfo?.date || "N/A"}
+                          </div>
+                          <div style={{
+                            fontSize: "11px",
+                            color: "#2b3336",
+                            background: "#f3f3f3",
+                            display: "inline-block",
+                            padding: "3px 8px",
+                            borderRadius: "4px",
+                            fontWeight: "600"
+                          }}>
+                            ⏱️ {booking.selected_slot}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => cancelBooking(booking.id)}
+                          style={{
+                            padding: "6px 14px",
+                            background: "#ef3a40",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            transition: "background 0.2s"
+                          }}
+                          onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = "#cc2222"}
+                          onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = "#ef3a40"}
+                        >
+                          Cancel Shift
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
 
-      </tr>
-
-      {/* EVENTS */}
-      <tr>
-
-        <td style={{
-          padding: "16px 24px",
-          fontSize: "13px",
-          fontWeight: "600"
-        }}>
-          Events Completed
-        </td>
-
-        <td style={{
-          padding: "16px 24px",
-          textAlign: "right",
-          fontSize: "13px",
-          fontWeight: "700",
-          color: "#ef3a40"
-        }}>
-          {eventsCompleted}
-        </td>
-
-      </tr>
-
-    </tbody>
-
-  </table>
-
-  {/* BUTTONS */}
-  <div style={{
-    padding: "10px 12px",
-    borderTop: "1px solid #e0e0e0",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  }}>
-
-    {/* LEFT BUTTON */}
-    <button
-      onClick={() => setShowProgressionDetails(true)}
-      style={{
-        padding: "7px 12px",
-        background: "#fff",
-        color: "#2b3336",
-        border: "1px solid #2b3336",
-        borderRadius: "5px",
-        fontSize: "11px",
-        cursor: "pointer"
-      }}
-    >
-      My Progression Details
-    </button>
-
-    {/* RIGHT BUTTON */}
-    <button
-      onClick={() => printMyProgression()}
-      style={{
-        padding: "7px 18px",
-        background: "#fff",
-        color: "#2b3336",
-        border: "1px solid #2b3336",
-        borderRadius: "5px",
-        fontSize: "11px",
-        cursor: "pointer"
-      }}
-    >
-      Print
-    </button>
-
-  </div>
-
-  </div>
+        </div>
       </main>
 
-      {/* PROGRESSION DETAILS */}
-{showProgressionDetails && (
-  <div style={{
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.45)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 200
-  }}>
-
-    {/* DETAILS WINDOW */}
-    <div style={{
-      width: "90%",
-      maxWidth: "850px",
-      background: "#fff",
-      borderRadius: "12px",
-      border: "1px solid #e0e0e0",
-      boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
-      overflow: "hidden"
-    }}>
-
-      {/* HEADER */}
-      <div style={{
-        padding: "16px 20px",
-        borderBottom: "1px solid #e0e0e0",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
-
-        <h3 style={{
-          margin: 0,
-          fontSize: "18px",
-          fontWeight: "800",
-          color: "#2b3336"
+      {/* EVENT DETAIL MODAL */}
+      {showEventModal && selectedEvent && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          backdropFilter: "blur(4px)"
         }}>
-          My Progression Details
-        </h3>
-
-        {/* CLOSE BUTTON */}
-        <button
-          onClick={() => {
-            setShowProgressionDetails(false);
-            setSelectedProgressionId(null);
-          }}
-          style={{
-            width: "34px",
-            height: "34px",
-            border: "none",
+          <div style={{
             background: "#fff",
-            color: "#ef3a40",
-            fontSize: "24px",
-            cursor: "pointer"
-          }}
-        >
-          ×
-        </button>
+            borderRadius: "16px",
+            padding: "32px",
+            maxWidth: "500px",
+            width: "90%",
+            maxHeight: "90vh",
+            overflow: "auto",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            animation: "slideUp 0.3s ease-out"
+          }}>
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setShowEventModal(false);
+                setSelectedEvent(null);
+                setBookingMessage(null);
+              }}
+              style={{
+                float: "right",
+                background: "none",
+                border: "none",
+                fontSize: "28px",
+                color: "#999",
+                cursor: "pointer",
+                padding: "0 4px"
+              }}
+            >
+              ×
+            </button>
 
-      </div>
+            <h2 style={{ fontSize: "24px", color: "#2b3336", margin: "0 0 8px", fontWeight: "800" }}>
+              {selectedEvent.title}
+            </h2>
 
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "14px", color: "#666", marginBottom: "6px" }}>
+                📅 {selectedEvent.date}
+              </div>
+              <div style={{ fontSize: "14px", color: "#666", marginBottom: "6px" }}>
+                📍 {selectedEvent.location}
+              </div>
+              <div style={{ fontSize: "14px", color: "#666", marginBottom: "6px" }}>
+                👥 Capacity: {selectedEvent.total_slots} volunteers
+              </div>
+              {selectedEvent.description && (
+                <div style={{ fontSize: "14px", color: "#555", marginTop: "12px", lineHeight: "1.6" }}>
+                  {selectedEvent.description}
+                </div>
+              )}
+            </div>
 
-      {/* TABLE */}
-      <div style={{
-        padding: "20px",
-        maxHeight: "55vh",
-        overflowY: "auto"
-      }}>
+            {/* Sign Up Form */}
+            {!isUserBookedForEvent(selectedEvent.id) ? (
+              <form onSubmit={handleSignUp}>
+                <div style={{ marginBottom: "16px" }}>
+                  <label style={{ fontSize: "11px", color: "#2b3336", fontWeight: "700", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+                    Select Time Slot
+                  </label>
+                  <select
+                    required
+                    value={selectedTimeSlot}
+                    onChange={(e) => setSelectedTimeSlot(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "6px",
+                      border: "1.5px solid #ddd",
+                      fontSize: "14px",
+                      background: "#f8f8f8",
+                      color: "#2b3336",
+                      outline: "none"
+                    }}
+                  >
+                    <option value="" disabled>Choose a time slot</option>
+                    {selectedEvent.time_slots.split(",").map((slot: string, i: number) => {
+                      const isBooked = bookings.some(b =>
+                        b.event_id === selectedEvent.id &&
+                        b.selected_slot === slot.trim()
+                      );
+                      return (
+                        <option
+                          key={i}
+                          value={slot.trim()}
+                          disabled={isBooked}
+                          style={{ color: isBooked ? "#999" : "#2b3336" }}
+                        >
+                          {slot.trim()} {isBooked ? "🔴 (Taken)" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
 
-        <table style={{
-          width: "100%",
-          borderCollapse: "collapse"
-        }}>
-
-          <thead>
-
-            <tr style={{
-              background: "#f3f3f3"
-            }}>
-
-              {/* SELECT COLUMN */}
-              <th style={{
-                width: "40px",
-                padding: "12px",
-                border: "1px solid #ddd"
-              }}>
-              </th>
-
-              {/* EVENT */}
-              <th style={{
-                padding: "12px",
-                border: "1px solid #ddd",
-                textAlign: "left",
-                fontSize: "11px",
-                fontWeight: "700",
-                color: "#2b3336",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px"
-              }}>
-                Event
-              </th>
-
-              {/* DATE & LOCATION */}
-              <th style={{
-                padding: "12px",
-                border: "1px solid #ddd",
-                textAlign: "left",
-                fontSize: "11px",
-                fontWeight: "700",
-                color: "#2b3336",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px"
-              }}>
-                Date & Location
-              </th>
-
-              {/* STATUS */}
-              <th style={{
-                padding: "12px",
-                border: "1px solid #ddd",
-                textAlign: "left",
-                fontSize: "11px",
-                fontWeight: "700",
-                color: "#2b3336",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px"
-              }}>
-                Status
-              </th>
-
-              {/* DURATION */}
-              <th style={{
-                padding: "12px",
-                border: "1px solid #ddd",
-                textAlign: "left",
-                fontSize: "11px",
-                fontWeight: "700",
-                color: "#2b3336",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px"
-              }}>
-                Duration
-</th>
-
-            </tr>
-
-          </thead>
-
-
-          <tbody>
-
-            {bookings.map((booking) => {
-
-              const eventInfo = getEventData(booking.event_id);
-
-              return (
-                <tr key={booking.id}>
-
-                  {/* RADIO BUTTON */}
-                  <td style={{
-                    padding: "12px",
-                    border: "1px solid #ddd",
-                    textAlign: "center"
+                {bookingMessage && (
+                  <div style={{
+                    padding: "10px 14px",
+                    borderRadius: "6px",
+                    marginBottom: "16px",
+                    background: bookingMessage.type === 'success' ? "#dcfce7" : "#fee2e2",
+                    color: bookingMessage.type === 'success' ? "#166534" : "#991b1b",
+                    fontSize: "13px"
                   }}>
+                    {bookingMessage.text}
+                  </div>
+                )}
 
-                    <input
-                      type="radio"
-                      name="progressionEvent"
-                      checked={
-                        selectedProgressionId === booking.id
-                      }
-                      onChange={() =>
-                        setSelectedProgressionId(booking.id)
-                      }
-                    />
-
-                  </td>
-
-
-                  {/* EVENT NAME */}
-                  <td style={{
-                    padding: "12px",
-                    border: "1px solid #ddd",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    color: "#2b3336"
-                  }}>
-                    {eventInfo?.title || "Unknown Event"}
-                  </td>
-
-
-                  {/* DATE & LOCATION */}
-                  <td style={{
-                    padding: "12px",
-                    border: "1px solid #ddd",
-                    fontSize: "12px",
-                    color: "#2b3336"
-                  }}>
-
-                    <div>
-                      {eventInfo?.date || "N/A"}
-                    </div>
-
-                    <div style={{
-                      color: "#666",
-                      marginTop: "4px"
-                    }}>
-                      {eventInfo?.location || "N/A"}
-                    </div>
-
-                  </td>
-
-
-                  {/* STATUS */}
-                  <td style={{
-                    padding: "12px",
-                    border: "1px solid #ddd",
-                    fontSize: "12px"
-                  }}>
-
-                    <span style={{
-                      padding: "4px 9px",
-                      borderRadius: "20px",
-                      background: "#ef3a40",
-                      color: "#fff",
-                      fontSize: "11px",
-                      fontWeight: "700"
-                    }}>
-                      {booking.status}
-                    </span>
-
-                  </td>
-
-                </tr>
-              );
-
-            })}
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-
-      {/* BOTTOM BUTTONS */}
-      <div style={{
-        padding: "12px 20px",
-        borderTop: "1px solid #e0e0e0",
-        display: "flex",
-        justifyContent: "flex-start",
-        gap: "8px"
-      }}>
-
-        {/* PRINT SELECTED */}
-        <button
-          disabled={selectedProgressionId === null}
-          onClick={() => {
-
-            const selectedBooking = bookings.find(
-              booking =>
-                booking.id === selectedProgressionId
-            );
-
-            if (selectedBooking) {
-              printMyProgression(selectedBooking);
-            }
-
-          }}
-          style={{
-            padding: "8px 18px",
-            background:
-              selectedProgressionId === null
-                ? "#eee"
-                : "#fff",
-            color:
-              selectedProgressionId === null
-                ? "#999"
-                : "#2b3336",
-            border: "1px solid #2b3336",
-            borderRadius: "6px",
-            fontSize: "11px",
-            fontWeight: "700",
-            cursor:
-              selectedProgressionId === null
-                ? "not-allowed"
-                : "pointer"
-          }}
-        >
-          Print
-        </button>
-
-
-        {/* PRINT ALL */}
-        <button
-          onClick={() => printMyProgression()}
-          style={{
-            padding: "8px 18px",
-            background: "#fff",
-            color: "#2b3336",
-            border: "1px solid #2b3336",
-            borderRadius: "6px",
-            fontSize: "11px",
-            fontWeight: "700",
-            cursor: "pointer"
-          }}
-        >
-          Print All
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-)}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{
+                    width: "100%",
+                    padding: "14px",
+                    borderRadius: "8px",
+                    background: isSubmitting ? "#999" : "#ef3a40",
+                    color: "white",
+                    border: "none",
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    cursor: isSubmitting ? "not-allowed" : "pointer",
+                    letterSpacing: "1px",
+                    textTransform: "uppercase",
+                    boxShadow: "0 4px 14px rgba(239,58,64,0.35)",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseOver={e => {
+                    if (!isSubmitting) (e.currentTarget as HTMLButtonElement).style.background = "#2b3336";
+                  }}
+                  onMouseOut={e => {
+                    if (!isSubmitting) (e.currentTarget as HTMLButtonElement).style.background = "#ef3a40";
+                  }}
+                >
+                  {isSubmitting ? "Signing up..." : "✅ Sign Up for This Event"}
+                </button>
+              </form>
+            ) : (
+              <div style={{
+                padding: "20px",
+                background: "#dcfce7",
+                borderRadius: "8px",
+                textAlign: "center",
+                color: "#166534",
+                fontWeight: "600",
+                fontSize: "14px"
+              }}>
+                ✅ You're already signed up for this event!
+                <br />
+                <span style={{ fontSize: "12px", fontWeight: "400", color: "#555" }}>
+                  Your shift: {getBookingForEvent(selectedEvent.id)?.selected_slot}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
-      <p style={{ textAlign: "center", fontSize: "12px", color: "#2b3336", opacity: 0.4, paddingBottom: "32px" }}>
+      <p style={{
+        textAlign: "center",
+        fontSize: "12px",
+        color: "#2b3336",
+        opacity: 0.4,
+        paddingBottom: "32px",
+        marginTop: "40px"
+      }}>
         © 2025 Ladles of Love · Nourishing communities, one ladle at a time.
       </p>
     </div>
