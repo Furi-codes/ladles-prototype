@@ -10,7 +10,7 @@ import DashboardTab from "./components/DashboardTab";
 import ActivitiesTab from "./components/ActivitiesTab";
 import VolunteerView from "./components/VolunteerTab";
 
-// --- CRUD SERVICE ---
+// --- CRUD ---
 import { getEvents, getBookings, getVolunteers } from "../../lib/admin-actions";
 
 export default function AdminDashboard() {
@@ -18,21 +18,21 @@ export default function AdminDashboard() {
   const [activeNav, setActiveNav] = useState("Dashboard"); // Remembers what tab is selected
 
   // --- DATABASE STATE ---
-  const [events, setEvents] = useState<Event[]>([]);         //
-  const [bookings, setBookings] = useState<Booking[]>([]);     // Empty because it fills up with data from database
+  const [events, setEvents] = useState<Event[]>([]);             //
+  const [bookings, setBookings] = useState<Booking[]>([]);       // Empty because it fills up with data from database
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]); //
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- ENGINE DRIVER ---
+  // --- DATA FETCHING ---
   useEffect(() => {
     fetchData();
   }, []); 
 
-  async function fetchData() { 
+  async function fetchData() { // async so that it doesnt have to wait for database to do anything else
     setIsLoading(true);
     
     const { data: eData } = await getEvents();
-    if (eData) setEvents(eData); 
+    if (eData) setEvents(eData); // If the data is there, set it
 
     const { data: bData } = await getBookings();
     if (bData) setBookings(bData);

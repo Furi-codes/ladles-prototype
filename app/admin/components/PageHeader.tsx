@@ -11,7 +11,7 @@ export default function PageHeader({ activeNav }: { activeNav: string }) {
               {activeNav === "Volunteers" && <span style={{ color: "#262626" }}>Volunteer Directory</span>}
               {["Corporate CSR", "Export Reports", "Settings"].includes(activeNav) && <span style={{ color: "#262626" }}>{activeNav}</span>}
             </h2>
-            <p style={{ color: "#64748b", fontSize: "13px", margin: "4px 0 0" }}>Cape Town & Johannesburg · Real-time overview</p>
+            {/* <p style={{ color: "#64748b", fontSize: "13px", margin: "4px 0 0" }}>Cape Town & Johannesburg · Real-time overview</p> */}
           </div>
     );
 }

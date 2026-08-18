@@ -3,27 +3,21 @@ import { Event, Booking, Volunteer } from "../../../lib/types";
 import { useState } from "react";
 
 export default function VolunteerView({ volunteers, events, bookings }: { volunteers: Volunteer[], events: Event[], bookings: Booking[] }) {
-  // 1. State to track which event the admin selects from the dropdown
+  // State to track which event the admin selects from the dropdown
   const [selectedEventId, setSelectedEventId] = useState<string>("");
-
-  // 2. State for our "Whiteboard" so we can toggle attendance visually
   const [localBookings, setLocalBookings] = useState<any[]>(bookings);
 
-  // 3. Filter the whiteboard to ONLY show bookings for the chosen event
   const currentRoster = localBookings.filter(
     (booking) => booking.event_id.toString() === selectedEventId
   );
 
-  // 4. The function that toggles the visual button
   function handleToggleAttendance(bookingId: number, currentStatus: string) {
     const newStatus = currentStatus === "Present" ? "Confirmed" : "Present";
-    
-    // Update our visual whiteboard instantly
     setLocalBookings(prev => 
       prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b)
     );
 
-    // Later: Add Supabase code here to save to the database permanently
+    //Add Supabase code here to save to the database permanently
   }
 
   return (

@@ -10,17 +10,17 @@ export default function ActivitiesTab({ events, isLoading, fetchData }: { events
   const [location, setLocation] = useState("");
   const [timeSlots, setTimeSlots] = useState("");
   const [slots, setSlots] = useState("");
-  const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null); // If empty means creating new event, if filled means editing existing event
 
   // --- POP-UP STATE ---
-  const [showPopup, setShowPopup] = useState(false);
-  const [popupSettings, setPopupSettings] = useState({
+  const [showPopup, setShowPopup] = useState(false); // Controls visibility of the confirmation pop-up
+  const [popupSettings, setPopupSettings] = useState({ // Settings for the pop-up
     title: "",
     message: "",
     onConfirm: () => {},
   });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]; // Used to set the minimum date (today) for the date input field, ensuring users cannot select past dates.
 
   // --- EVENT CRUD ---
   function handleFormSubmit(e: React.FormEvent) {
