@@ -1,9 +1,27 @@
 // lib/supabase.ts
 import { createClient } from '@supabase/supabase-js'
 
-// Get keys from environment variables (safer!)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Create a single instance to use across your app
 export const supabase = createClient(supabaseUrl, supabaseKey)
+
+// Helper to get current user
+export async function getCurrentUser() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+}
+
+// Helper to get current user's profile
+export async function getCurrentUserProfile() {
+  const user = await getCurrentUser()
+  if (!user) return null
+  
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+  
+  return profile
+}
