@@ -4,6 +4,7 @@ import Sidebar from "./components/Sidebar";
 import TopHeader from "./components/TopHeader";
 import PageHeader from "./components/PageHeader";
 import { Event, Booking, Volunteer } from "../../lib/types";
+import { supabase } from "@/lib/supabase";
 
 // --- TAB COMPONENTS ---
 import DashboardTab from "./components/DashboardTab";
@@ -24,9 +25,48 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   // --- DATA FETCHING ---
-  useEffect(() => {
-    fetchData();
-  }, []); 
+   useEffect(() => {
+  fetchData();
+
+  // Subscribe to booking changes
+  const subscription = supabase
+    .channel('admin-bookings')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'bookings'
+      },
+      (payload) => {
+        console.log('📊 Admin: Booking changed:', payload);
+        fetchData();
+      }
+    )
+    .subscribe();
+
+  // Also subscribe to event changes
+  const eventSubscription = supabase
+    .channel('admin-events')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'events'
+      },
+      (payload) => {
+        console.log('📊 Admin: Event changed:', payload);
+        fetchData();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    subscription.unsubscribe();
+    eventSubscription.unsubscribe();
+  };
+}, []);
 
   async function fetchData() { // async so that it doesnt have to wait for database to do anything else
     setIsLoading(true);
