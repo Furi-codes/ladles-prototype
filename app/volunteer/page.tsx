@@ -5,7 +5,7 @@ import Image from "next/image";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import moment from "moment";
-import { supabase } from "@/lib/supabase"; // ← Import from lib
+import { supabase, getCurrentUser, getCurrentUserProfile } from "@/lib/supabase";
 
 // ============================================
 // TYPES
@@ -24,8 +24,17 @@ interface Booking {
   id: number;
   event_id: number;
   volunteer_name: string;
+  volunteer_email: string;
   selected_slot: string;
   status: string;
+  user_id?: string;
+}
+
+interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
 }
 
 // ============================================
@@ -40,11 +49,68 @@ export default function VolunteerCalendar() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
-  const [volunteerName, setVolunteerName] = useState("");
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingMessage, setBookingMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [toasts, setToasts] = useState<{ id: number; type: string; message: string }[]>([]);
+  
+  // --- USER STATE ---
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  
+  // --- EVENT LIST MODAL STATE ---
+  const [eventsOnDate, setEventsOnDate] = useState<Event[]>([]);
+  const [showEventListModal, setShowEventListModal] = useState(false);
+
+  // ============================================
+  // AUTH - GET CURRENT USER
+  // ============================================
+  useEffect(() => {
+    async function loadUser() {
+      setIsLoadingUser(true);
+      try {
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+          setIsAuthenticated(true);
+          
+          // Get user profile
+          const userProfile = await getCurrentUserProfile();
+          if (userProfile) {
+            setProfile(userProfile);
+          } else {
+            // If no profile exists, create one from user data
+            const { data: newProfile, error } = await supabase
+              .from('profiles')
+              .insert([{
+                id: currentUser.id,
+                full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Volunteer',
+                email: currentUser.email
+              }])
+              .select()
+              .single();
+              
+            if (!error && newProfile) {
+              setProfile(newProfile);
+            }
+          }
+        } else {
+          setIsAuthenticated(false);
+          // Redirect to login if not authenticated
+          // router.push('/login');
+        }
+      } catch (error) {
+        console.error("Error loading user:", error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoadingUser(false);
+      }
+    }
+    
+    loadUser();
+  }, []);
 
   // ============================================
   // FETCH DATA
@@ -77,24 +143,22 @@ export default function VolunteerCalendar() {
   useEffect(() => {
     fetchData();
 
-    // Subscribe to booking changes
     const subscription = supabase
       .channel('volunteer-bookings')
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to INSERT, UPDATE, DELETE
+          event: '*',
           schema: 'public',
           table: 'bookings'
         },
         (payload) => {
           console.log('🔄 Booking changed:', payload);
-          fetchData(); // Re-fetch when any change happens
+          fetchData();
         }
       )
       .subscribe();
 
-    // Cleanup on unmount
     return () => {
       subscription.unsubscribe();
     };
@@ -124,16 +188,18 @@ export default function VolunteerCalendar() {
   }
 
   function isUserBookedForEvent(eventId: number) {
+    if (!user) return false;
     return bookings.some(booking =>
       booking.event_id === eventId &&
-      booking.volunteer_name.toLowerCase() === volunteerName.toLowerCase()
+      booking.user_id === user.id
     );
   }
 
   function getBookingForEvent(eventId: number) {
+    if (!user) return null;
     return bookings.find(booking =>
       booking.event_id === eventId &&
-      booking.volunteer_name.toLowerCase() === volunteerName.toLowerCase()
+      booking.user_id === user.id
     );
   }
 
@@ -142,11 +208,19 @@ export default function VolunteerCalendar() {
   }
 
   // ============================================
+  // GET USER'S BOOKINGS
+  // ============================================
+  const userBookings = bookings.filter(booking =>
+    booking.user_id === user?.id &&
+    booking.status === "Confirmed"
+  );
+
+  // ============================================
   // HANDLE EVENT CLICK
   // ============================================
   function handleEventClick(event: Event) {
-    if (!volunteerName.trim()) {
-      showToast("error", "Please enter your name first!");
+    if (!isAuthenticated) {
+      showToast("error", "Please log in first!");
       return;
     }
     setSelectedEvent(event);
@@ -160,8 +234,8 @@ export default function VolunteerCalendar() {
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!volunteerName.trim()) {
-      setBookingMessage({ type: 'error', text: 'Please enter your name' });
+    if (!isAuthenticated || !user) {
+      setBookingMessage({ type: 'error', text: 'Please log in to sign up.' });
       return;
     }
 
@@ -193,7 +267,9 @@ export default function VolunteerCalendar() {
     try {
       const { error } = await supabase.from("bookings").insert([{
         event_id: selectedEvent!.id,
-        volunteer_name: volunteerName.trim(),
+        user_id: user.id,
+        volunteer_name: profile?.full_name || user.email?.split('@')[0] || 'Volunteer',
+        volunteer_email: user.email,
         selected_slot: selectedTimeSlot,
         status: "Confirmed"
       }]);
@@ -203,7 +279,6 @@ export default function VolunteerCalendar() {
       showToast("success", `✅ Successfully signed up for ${selectedEvent!.title}!`);
       setBookingMessage({ type: 'success', text: '✅ Successfully signed up for the event!' });
 
-      // Close modal after 2 seconds
       setTimeout(() => {
         setShowEventModal(false);
         setSelectedEvent(null);
@@ -230,13 +305,91 @@ export default function VolunteerCalendar() {
       const { error } = await supabase
         .from("bookings")
         .delete()
-        .eq("id", bookingId);
+        .eq("id", bookingId)
+        .eq("user_id", user?.id); // Only allow user to cancel their own bookings
+
       if (error) throw error;
       showToast("info", "Booking cancelled successfully");
     } catch (error) {
       console.error("Cancel error:", error);
       showToast("error", "Failed to cancel booking. Please try again.");
     }
+  }
+
+  // ============================================
+  // PRINT MY PROGRESSION
+  // ============================================
+  function printMyProgression() {
+    const completedBookings = bookings.filter(b => 
+      b.status === "Completed" && 
+      b.user_id === user?.id
+    );
+    
+    if (completedBookings.length === 0) {
+      showToast("info", "You haven't completed any events yet!");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const rows = completedBookings.map((booking) => {
+      const eventInfo = getEventData(booking.event_id);
+      return `
+        <tr>
+          <td>${eventInfo?.title || "Unknown Event"}</td>
+          <td>
+            ${eventInfo?.date || "N/A"}<br>
+            ${eventInfo?.location || "N/A"}
+          </td>
+          <td>${booking.selected_slot || "N/A"}</td>
+          <td>${booking.status || "N/A"}</td>
+        </tr>
+      `;
+    }).join("");
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Ladles of Love - Volunteer Progression</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: #2b3336; }
+            h1 { margin-bottom: 5px; color: #2b3336; }
+            .subtitle { color: #666; font-size: 14px; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 25px; }
+            th { background: #f3f3f3; text-align: left; padding: 12px; border: 1px solid #ddd; font-weight: 700; }
+            td { padding: 12px; border: 1px solid #ddd; }
+            .footer { margin-top: 30px; font-size: 12px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <h1>🏠 Ladles of Love</h1>
+          <p class="subtitle">Volunteer Progression Report</p>
+          <p><strong>Volunteer:</strong> ${profile?.full_name || user?.email}</p>
+          <p><strong>Total Events Completed:</strong> ${completedBookings.length}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Date & Location</th>
+                <th>Time Slot</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+          <div class="footer">
+            © 2025 Ladles of Love · Nourishing communities, one ladle at a time.<br>
+            Printed on ${new Date().toLocaleDateString()}
+          </div>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.print();
   }
 
   // ============================================
@@ -261,14 +414,6 @@ export default function VolunteerCalendar() {
     }
     return null;
   }
-
-  // ============================================
-  // FILTERED BOOKINGS
-  // ============================================
-  const userBookings = bookings.filter(booking =>
-    booking.volunteer_name.toLowerCase() === volunteerName.toLowerCase() &&
-    booking.status === "Confirmed"
-  );
 
   // ============================================
   // RENDER
@@ -335,6 +480,23 @@ export default function VolunteerCalendar() {
         </div>
 
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          {/* User Info */}
+          {isAuthenticated && profile && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "6px 14px",
+              background: "#f3f3f3",
+              borderRadius: "20px",
+              fontSize: "13px",
+              color: "#2b3336"
+            }}>
+              <span>👋</span>
+              <span style={{ fontWeight: "600" }}>{profile.full_name}</span>
+            </div>
+          )}
+          
           <button
             onClick={() => router.push("/admin")}
             style={{
@@ -395,23 +557,34 @@ export default function VolunteerCalendar() {
             }}></span>
             Live Updates
           </div>
-          <button
-            onClick={fetchData}
-            style={{
-              padding: "6px 16px",
-              background: "#2b3336",
-              color: "#fff",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "12px",
-              cursor: "pointer"
-            }}
-          >
-            🔄 Refresh
-          </button>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            {isAuthenticated && (
+              <span style={{
+                fontSize: "13px",
+                color: "#2b3336",
+                fontWeight: "600"
+              }}>
+                ✅ Logged in as {profile?.full_name || user?.email}
+              </span>
+            )}
+            <button
+              onClick={fetchData}
+              style={{
+                padding: "6px 16px",
+                background: "#2b3336",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                fontSize: "12px",
+                cursor: "pointer"
+              }}
+            >
+              🔄 Refresh
+            </button>
+          </div>
         </div>
 
-        {/* NAME INPUT SECTION */}
+        {/* WELCOME SECTION - No name input required anymore */}
         <div style={{
           background: "#fff",
           borderRadius: "12px",
@@ -420,36 +593,32 @@ export default function VolunteerCalendar() {
           border: "1px solid #e0e0e0",
           display: "flex",
           alignItems: "center",
-          gap: "20px",
-          flexWrap: "wrap"
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "12px"
         }}>
-          <div style={{ flex: 1, minWidth: "200px" }}>
-            <label style={{ fontSize: "11px", color: "#2b3336", fontWeight: "700", letterSpacing: "1px", textTransform: "uppercase", display: "block", marginBottom: "4px" }}>
-              Your Name
-            </label>
-            <input
-              placeholder="Enter your name to see your bookings"
-              value={volunteerName}
-              onChange={(e) => setVolunteerName(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: "6px",
-                border: "1.5px solid #ddd",
-                fontSize: "14px",
-                boxSizing: "border-box",
-                background: "#f8f8f8",
-                color: "#2b3336",
-                outline: "none"
-              }}
-            />
-          </div>
-          <div style={{ fontSize: "13px", color: "#666" }}>
-            {volunteerName ? (
-              <span>👋 Welcome, <strong>{volunteerName}</strong>! You have <strong>{userBookings.length}</strong> active shift{userBookings.length !== 1 ? 's' : ''}.</span>
+          <div>
+            {isLoadingUser ? (
+              <span style={{ fontSize: "14px", color: "#666" }}>Loading your profile...</span>
+            ) : isAuthenticated ? (
+              <span style={{ fontSize: "14px", color: "#2b3336" }}>
+                👋 Welcome back, <strong>{profile?.full_name || user?.email}</strong>! 
+                You have <strong style={{ color: "#ef3a40" }}>{userBookings.length}</strong> active shift{userBookings.length !== 1 ? 's' : ''}.
+              </span>
             ) : (
-              <span>👤 Enter your name to view your shifts</span>
+              <span style={{ fontSize: "14px", color: "#ef3a40" }}>
+                ⚠️ Please log in to sign up for events.
+              </span>
             )}
+          </div>
+          <div style={{
+            fontSize: "12px",
+            color: "#666",
+            background: "#f3f3f3",
+            padding: "4px 12px",
+            borderRadius: "12px"
+          }}>
+            📅 {events.length} events available
           </div>
         </div>
 
@@ -499,15 +668,13 @@ export default function VolunteerCalendar() {
                     }
                     
                     if (dayEvents.length === 1) {
-                      // If only one event, open it directly
                       handleEventClick(dayEvents[0]);
                     } else {
-                      // If multiple events, show the first one
-                      handleEventClick(dayEvents[0]);
-                      showToast("info", `📅 ${dayEvents.length} events on this day. Click again to see more.`);
+                      setEventsOnDate(dayEvents);
+                      setShowEventListModal(true);
                     }
                   }}
-                  />
+                />
               </div>
             )}
 
@@ -551,7 +718,8 @@ export default function VolunteerCalendar() {
               borderRadius: "12px",
               border: "1px solid #e0e0e0",
               boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-              overflow: "hidden"
+              overflow: "hidden",
+              marginBottom: "32px"
             }}>
               <div style={{
                 padding: "20px 24px",
@@ -575,9 +743,9 @@ export default function VolunteerCalendar() {
                 </span>
               </div>
 
-              {!volunteerName ? (
+              {!isAuthenticated ? (
                 <div style={{ padding: "40px", textAlign: "center", color: "#999", fontSize: "14px" }}>
-                  Enter your name above to see your shifts
+                  🔒 Please log in to see your shifts
                 </div>
               ) : isLoading ? (
                 <div style={{ padding: "40px", textAlign: "center", color: "#666", fontSize: "14px" }}>
@@ -648,9 +816,336 @@ export default function VolunteerCalendar() {
                 </div>
               )}
             </div>
+
+            {/* MY PROGRESSION */}
+            <div style={{
+              background: "#fff",
+              borderRadius: "12px",
+              border: "1px solid #e0e0e0",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                padding: "20px 24px",
+                borderBottom: "1px solid #e0e0e0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}>
+                <h3 style={{
+                  fontSize: "18px",
+                  color: "#2b3336",
+                  margin: 0,
+                  fontWeight: "800"
+                }}>
+                  My Progression
+                </h3>
+              </div>
+
+              <table style={{
+                width: "100%",
+                borderCollapse: "collapse"
+              }}>
+                <thead>
+                  <tr style={{ background: "#f3f3f3" }}>
+                    <th style={{
+                      padding: "12px 24px",
+                      textAlign: "left",
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      color: "#2b3336",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px"
+                    }}>
+                      Progress
+                    </th>
+                    <th style={{
+                      padding: "12px 24px",
+                      textAlign: "right",
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      color: "#2b3336",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px"
+                    }}>
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{
+                    borderBottom: "1px solid #f3f3f3"
+                  }}>
+                    <td style={{
+                      padding: "16px 24px",
+                      fontSize: "13px",
+                      fontWeight: "600"
+                    }}>
+                      Hours Volunteered
+                    </td>
+                    <td style={{
+                      padding: "16px 24px",
+                      textAlign: "right",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      color: "#ef3a40"
+                    }}>
+                      {bookings
+                        .filter(b => b.status === "Completed" && b.user_id === user?.id)
+                        .reduce((total) => total + 2, 0)} hours
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{
+                      padding: "16px 24px",
+                      fontSize: "13px",
+                      fontWeight: "600"
+                    }}>
+                      Events Completed
+                    </td>
+                    <td style={{
+                      padding: "16px 24px",
+                      textAlign: "right",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      color: "#ef3a40"
+                    }}>
+                      {bookings.filter(b => b.status === "Completed" && b.user_id === user?.id).length}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{
+                padding: "12px 24px",
+                borderTop: "1px solid #e0e0e0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}>
+                <button
+                  onClick={() => printMyProgression()}
+                  style={{
+                    padding: "8px 18px",
+                    background: "#fff",
+                    color: "#2b3336",
+                    border: "1px solid #2b3336",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseOver={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "#2b3336";
+                    (e.currentTarget as HTMLButtonElement).style.color = "#fff";
+                  }}
+                  onMouseOut={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+                    (e.currentTarget as HTMLButtonElement).style.color = "#2b3336";
+                  }}
+                >
+                  🖨️ Print My Progression
+                </button>
+
+                <span style={{
+                  fontSize: "11px",
+                  color: "#999"
+                }}>
+                  {bookings.filter(b => b.status === "Completed" && b.user_id === user?.id).length} events completed
+                </span>
+              </div>
+            </div>
           </div>
 
         </div>
+
+        {/* EVENT LIST MODAL (Multiple Events on a Date) */}
+        {showEventListModal && eventsOnDate.length > 0 && (
+          <div style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            backdropFilter: "blur(4px)"
+          }}>
+            <div style={{
+              background: "#fff",
+              borderRadius: "16px",
+              padding: "32px",
+              maxWidth: "550px",
+              width: "90%",
+              maxHeight: "80vh",
+              overflow: "auto",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              animation: "slideUp 0.3s ease-out"
+            }}>
+              <button
+                onClick={() => {
+                  setShowEventListModal(false);
+                  setEventsOnDate([]);
+                }}
+                style={{
+                  float: "right",
+                  background: "none",
+                  border: "none",
+                  fontSize: "28px",
+                  color: "#999",
+                  cursor: "pointer",
+                  padding: "0 4px"
+                }}
+              >
+                ×
+              </button>
+
+              <h2 style={{ 
+                fontSize: "22px", 
+                color: "#2b3336", 
+                margin: "0 0 8px", 
+                fontWeight: "800" 
+              }}>
+                📅 Events on {moment(eventsOnDate[0]?.date).format("MMMM D, YYYY")}
+              </h2>
+              <p style={{ 
+                fontSize: "13px", 
+                color: "#666", 
+                marginBottom: "20px" 
+              }}>
+                {eventsOnDate.length} events available. Click one to sign up.
+              </p>
+
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px"
+              }}>
+                {eventsOnDate.map((event) => {
+                  const isBooked = isUserBookedForEvent(event.id);
+                  return (
+                    <div
+                      key={event.id}
+                      style={{
+                        padding: "16px 20px",
+                        borderRadius: "10px",
+                        border: "1.5px solid #e0e0e0",
+                        background: "#fafafa",
+                        cursor: isBooked ? "default" : "pointer",
+                        transition: "all 0.2s",
+                        opacity: isBooked ? 0.6 : 1,
+                      }}
+                      onClick={() => {
+                        if (!isBooked && isAuthenticated) {
+                          setShowEventListModal(false);
+                          handleEventClick(event);
+                        } else if (!isAuthenticated) {
+                          showToast("error", "Please log in first!");
+                        }
+                      }}
+                      onMouseOver={e => {
+                        if (!isBooked && isAuthenticated) {
+                          (e.currentTarget as HTMLDivElement).style.background = "#f3f3f3";
+                          (e.currentTarget as HTMLDivElement).style.borderColor = "#ef3a40";
+                        }
+                      }}
+                      onMouseOut={e => {
+                        if (!isBooked && isAuthenticated) {
+                          (e.currentTarget as HTMLDivElement).style.background = "#fafafa";
+                          (e.currentTarget as HTMLDivElement).style.borderColor = "#e0e0e0";
+                        }
+                      }}
+                    >
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: "12px"
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{
+                            fontSize: "16px",
+                            fontWeight: "700",
+                            color: isBooked ? "#999" : "#2b3336",
+                            marginBottom: "4px"
+                          }}>
+                            {event.title}
+                            {isBooked && (
+                              <span style={{
+                                fontSize: "11px",
+                                color: "#16a34a",
+                                background: "#dcfce7",
+                                padding: "2px 10px",
+                                borderRadius: "12px",
+                                marginLeft: "10px",
+                                fontWeight: "600"
+                              }}>
+                                ✅ Signed up
+                              </span>
+                            )}
+                          </div>
+                          <div style={{
+                            fontSize: "13px",
+                            color: "#666",
+                            marginBottom: "4px"
+                          }}>
+                            📍 {event.location}
+                          </div>
+                          <div style={{
+                            fontSize: "12px",
+                            color: "#888"
+                          }}>
+                            ⏱️ {event.time_slots} · 👥 {event.total_slots} spots
+                          </div>
+                        </div>
+                        {!isBooked && isAuthenticated && (
+                          <div style={{
+                            padding: "6px 14px",
+                            background: "#ef3a40",
+                            color: "#fff",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            whiteSpace: "nowrap"
+                          }}>
+                            Sign Up →
+                          </div>
+                        )}
+                        {!isAuthenticated && (
+                          <div style={{
+                            padding: "6px 14px",
+                            background: "#999",
+                            color: "#fff",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            whiteSpace: "nowrap"
+                          }}>
+                            🔒 Login
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{
+                marginTop: "20px",
+                padding: "12px 16px",
+                background: "#f8f8f8",
+                borderRadius: "8px",
+                fontSize: "12px",
+                color: "#666",
+                textAlign: "center"
+              }}>
+                💡 Click any event above to sign up for a time slot
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* EVENT DETAIL MODAL */}
@@ -676,7 +1171,6 @@ export default function VolunteerCalendar() {
             boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
             animation: "slideUp 0.3s ease-out"
           }}>
-            {/* Close Button */}
             <button
               onClick={() => {
                 setShowEventModal(false);
@@ -757,6 +1251,18 @@ export default function VolunteerCalendar() {
                       );
                     })}
                   </select>
+                </div>
+
+                {/* Show user info being used */}
+                <div style={{
+                  padding: "10px 14px",
+                  background: "#f8f8f8",
+                  borderRadius: "6px",
+                  marginBottom: "16px",
+                  fontSize: "13px",
+                  color: "#666"
+                }}>
+                  👤 Signing up as: <strong>{profile?.full_name || user?.email}</strong>
                 </div>
 
                 {bookingMessage && (
