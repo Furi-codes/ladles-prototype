@@ -1,23 +1,36 @@
 "use client";
 import { Event, Booking, Volunteer } from "../../../lib/types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { updateBookingAttendance } from "@/lib/actions/admin";
 
 export default function VolunteerView({ volunteers, events, bookings }: { volunteers: Volunteer[], events: Event[], bookings: Booking[] }) {
-  // State to track which event the admin selects from the dropdown
   const [selectedEventId, setSelectedEventId] = useState<string>("");
-  const [localBookings, setLocalBookings] = useState<any[]>(bookings);
+  const [localBookings, setLocalBookings] = useState<Booking[]>(bookings);
+
+  useEffect(() => {
+    setLocalBookings(bookings);
+  }, [bookings]);
 
   const currentRoster = localBookings.filter(
     (booking) => booking.event_id.toString() === selectedEventId
   );
 
-  function handleToggleAttendance(bookingId: number, currentStatus: string) {
+  async function handleToggleAttendance(bookingId: number, currentStatus: string) {
     const newStatus = currentStatus === "Present" ? "Confirmed" : "Present";
-    setLocalBookings(prev => 
+    const previous = localBookings;
+
+    setLocalBookings(prev =>
       prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b)
     );
 
-    //Add Supabase code here to save to the database permanently
+    try {
+      const { error } = await updateBookingAttendance(bookingId, newStatus as 'Present' | 'Confirmed');
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Failed to update attendance:", error);
+      setLocalBookings(previous);
+    }
   }
 
   return (

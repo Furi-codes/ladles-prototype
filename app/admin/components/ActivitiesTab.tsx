@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Event } from "../../../lib/types";
-import { upsertEvent, deleteEvent as removeEventFromDB } from "../../../lib/admin-actions";
+import { deleteEvent, upsertEvent } from "@/lib/actions/admin";
 
 export default function ActivitiesTab({ events, isLoading, fetchData }: { events: Event[], isLoading: boolean, fetchData: () => void }) {
   // --- FORM STATE ---
@@ -64,7 +64,7 @@ export default function ActivitiesTab({ events, isLoading, fetchData }: { events
       title: "Delete Event",
       message: "Are you sure you want to delete this event? This action cannot be undone.",
       onConfirm: async () => {
-        await removeEventFromDB(id);
+        await deleteEvent(id);
         fetchData(); 
         setShowPopup(false); 
       }
