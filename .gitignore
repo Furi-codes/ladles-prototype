@@ -20,6 +20,11 @@
 # production
 /build
 
+# export / demo handout files
+/exports
+/.exports
+/.demo-assets
+
 # misc
 .DS_Store
 *.pem

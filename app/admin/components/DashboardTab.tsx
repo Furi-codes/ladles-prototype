@@ -1,60 +1,29 @@
 "use client";
 import { Event, Booking, Volunteer } from "../../../lib/types";
+import styles from "../admin.module.css";
+import Icon from "./Icon";
+import { getLocalDateString } from "../date-utils";
 
-export default function DashboardTab({ bookings, events, volunteers, isLoading }: { bookings: Booking[], events: Event[], volunteers: Volunteer[], isLoading: boolean }) {
-  
-  function getEventName(eventId: number) {
-    const evt = events.find((e) => e.id === eventId);
-    return evt ? evt.title : "Unknown Event";
-  }
+function StatusBadge({ status }: { status: Booking["status"] }) {
+  const className = status === "Present" ? styles.statusPresent : status === "Completed" ? styles.statusCompleted : styles.statusConfirmed;
+  return <span className={`${styles.status} ${className}`}>{status}</span>;
+}
 
-  return (
-    <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "32px" }}>
-        {[
-          { label: "Total Bookings", value: bookings.length.toString(), icon: "👥", change: "Live Sync", up: true },
-          { label: "Active Events", value: events.length.toString(), icon: "📋", change: "In database", up: true },
-          { label: "Registered Volunteers", value: volunteers.length.toString(), icon: "❤️", change: "Community", up: true },
-          { label: "System Status", value: isLoading ? "Syncing" : "Ready", icon: "⚡", change: "Supabase connected", up: true },
-        ].map((stat) => (
-          <div key={stat.label} style={{ background: "#fff", borderRadius: "12px", padding: "20px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontSize: "22px", marginBottom: "8px" }}>{stat.icon}</div>
-            <div style={{ fontSize: "26px", fontWeight: "800", color: "#1a1a1a", lineHeight: 1, marginBottom: "4px" }}>{stat.value}</div>
-            <div style={{ fontSize: "12px", color: "#64748b", fontWeight: "600", marginBottom: "2px" }}>{stat.label}</div>
-            <div style={{ fontSize: "11px", color: stat.up ? "#16a34a" : "#64748b", fontWeight: "700" }}>{stat.change}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid #e2e8f0" }}>
-          <h3 style={{ fontSize: "16px", color: "#1a1a1a", margin: 0, fontWeight: "700" }}>Live Bookings Feed</h3>
-        </div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#f8fafc" }}>
-              {["Volunteer", "Event", "Slot", "Status"].map((col) => (
-                <th key={col} style={{ padding: "12px 24px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>{col}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {bookings.slice(0, 5).map((row: any, index: number) => (
-              <tr key={row.id} style={{ borderBottom: index < 4 ? "1px solid #f1f5f9" : "none" }}>
-                <td style={{ padding: "14px 24px", fontSize: "13px", fontWeight: "600", color: "#1a1a1a" }}>{row.volunteer_name}</td>
-                <td style={{ padding: "14px 24px", fontSize: "13px", color: "#475569" }}>{getEventName(row.event_id)}</td>
-                <td style={{ padding: "14px 24px", fontSize: "12px", color: "#64748b" }}>{row.selected_slot}</td>
-                <td style={{ padding: "14px 24px" }}>
-                  <span style={{ padding: "4px 8px", background: "#dcfce7", color: "#16a34a", borderRadius: "4px", fontSize: "11px", fontWeight: "700" }}>Confirmed</span>
-                </td>
-              </tr>
-            ))}
-            {bookings.length === 0 && (
-              <tr><td colSpan={4} style={{ padding: "20px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No recent bookings.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
+export default function DashboardTab({ bookings, events, volunteers, isLoading, hasError }: { bookings: Booking[]; events: Event[]; volunteers: Volunteer[]; isLoading: boolean; hasError: boolean }) {
+  const today = getLocalDateString();
+  const upcomingEvents = events.filter((event) => event.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const getEvent = (id: number) => events.find((event) => event.id === id);
+  const stats = [
+    { label: "Total bookings", value: bookings.length, note: "Across all activities", icon: "users" as const },
+    { label: "Upcoming events", value: upcomingEvents.length, note: "From today onward", icon: "calendar" as const },
+    { label: "Registered volunteers", value: volunteers.length, note: "Active profiles", icon: "users" as const },
+    { label: "System status", value: isLoading ? "Syncing" : hasError ? "Error" : "Ready", note: hasError ? "Check data connection" : "Data is up to date", icon: "activity" as const },
+  ];
+  return <>
+    <section className={styles.stats} aria-label="Summary statistics">{stats.map((stat) => <div key={stat.label} className={`${styles.card} ${styles.stat}`}><div className={styles.statTop}><span className={styles.statLabel}>{stat.label}</span><span className={styles.statIcon}><Icon name={stat.icon} size={16} /></span></div><div className={styles.statValue}>{stat.value}</div><div className={styles.statNote}>{stat.note}</div></div>)}</section>
+    <div className={styles.dashboardGrid}>
+      <section className={styles.card} aria-labelledby="recent-bookings"><div className={styles.cardHeader}><div><h2 id="recent-bookings" className={styles.cardTitle}>Recent bookings</h2><p className={styles.cardHint}>The latest volunteer reservations</p></div></div><div className={styles.tableWrap}><table className={styles.table}><thead><tr>{["Volunteer", "Event", "Time", "Status"].map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{bookings.slice(0, 5).map((booking) => <tr key={booking.id}><td>{booking.volunteer_name}</td><td>{getEvent(booking.event_id)?.title ?? "Unknown event"}</td><td>{booking.selected_slot}</td><td><StatusBadge status={booking.status} /></td></tr>)}{bookings.length === 0 && <tr><td colSpan={4}><div className={styles.empty}>No bookings have been created yet.</div></td></tr>}</tbody></table></div></section>
+      <section className={styles.card} aria-labelledby="upcoming-events"><div className={styles.cardHeader}><div><h2 id="upcoming-events" className={styles.cardTitle}>Upcoming events</h2><p className={styles.cardHint}>Next events on the calendar</p></div></div><div className={styles.activityList}>{upcomingEvents.slice(0, 5).map((event) => { const count = bookings.filter((booking) => booking.event_id === event.id).length; return <div className={styles.activityRow} key={event.id}><div><div className={styles.activityName}>{event.title}</div><div className={styles.activityMeta}>{event.date} · {event.location}</div></div><div className={styles.activityCount}>{count} / {event.total_slots}<br /><span style={{ color: "#8a94a1", fontWeight: 500 }}>booked</span></div></div>; })}{upcomingEvents.length === 0 && <div className={styles.empty}>No upcoming events.</div>}</div></section>
+    </div>
+  </>;
 }

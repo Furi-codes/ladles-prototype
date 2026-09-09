@@ -1,12 +1,13 @@
 /** The lifecycle states a volunteer booking can have. */
 export type BookingStatus = 'Confirmed' | 'Present' | 'Completed';
+export type UserRole = 'admin' | 'volunteer';
 
 /** A record from the `profiles` table for an authenticated user. */
 export interface Profile {
   id: string;
   full_name: string;
   email: string;
-  role?: string;
+  role?: UserRole;
   phone?: string;
   is_present?: boolean;
 }
@@ -29,7 +30,7 @@ export interface Booking {
   event_id: number;
   user_id: string;
   selected_slot: string;
-  status: BookingStatus | string;
+  status: BookingStatus;
   volunteer_email?: string;
 }
 
@@ -38,7 +39,7 @@ export interface Volunteer extends Profile {
   id: string;
   full_name: string;
   email: string;
-  role: string;
+  role: UserRole;
   is_present?: boolean;
 }
 

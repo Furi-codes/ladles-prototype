@@ -1,186 +1,41 @@
 "use client";
 import { useState } from "react";
-import { Event } from "../../../lib/types";
+import type { Event } from "../../../lib/types";
 import { deleteEvent, upsertEvent } from "@/lib/actions/admin";
+import styles from "../admin.module.css";
+import Icon from "./Icon";
+import { getLocalDateString } from "../date-utils";
 
-export default function ActivitiesTab({ events, isLoading, fetchData }: { events: Event[], isLoading: boolean, fetchData: () => void }) {
-  // --- FORM STATE ---
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [location, setLocation] = useState("");
-  const [timeSlots, setTimeSlots] = useState("");
-  const [slots, setSlots] = useState("");
-  const [editingEventId, setEditingEventId] = useState<number | null>(null); // If empty means creating new event, if filled means editing existing event
+type TimeRange = { start: string; end: string };
+const TIME_OPTIONS = Array.from({ length: 33 }, (_, index) => { const total = 6 * 60 + index * 30; return `${Math.floor(total / 60).toString().padStart(2, "0")}:${(total % 60).toString().padStart(2, "0")}`; });
+const toMinutes = (value: string) => { const [hours, minutes] = value.split(":").map(Number); return hours * 60 + minutes; };
+const formatSlots = (value: string) => value.split(",").map((slot) => slot.trim()).filter(Boolean).join(", ");
 
-  // --- POP-UP STATE ---
-  const [showPopup, setShowPopup] = useState(false); // Controls visibility of the confirmation pop-up
-  const [popupSettings, setPopupSettings] = useState({ // Settings for the pop-up
-    title: "",
-    message: "",
-    onConfirm: () => {},
-  });
+function parseSlots(value: string) {
+  const ranges: TimeRange[] = []; const legacy: string[] = [];
+  value.split(",").map((slot) => slot.trim()).filter(Boolean).forEach((slot) => { const match = slot.match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/); if (match) ranges.push({ start: match[1], end: match[2] }); else legacy.push(slot); });
+  return { ranges, legacy };
+}
 
-  const today = new Date().toISOString().split("T")[0]; // Used to set the minimum date (today) for the date input field, ensuring users cannot select past dates.
+export default function ActivitiesTab({ events, isLoading, fetchData }: { events: Event[]; isLoading: boolean; fetchData: () => void }) {
+  const [title, setTitle] = useState(""); const [date, setDate] = useState(""); const [location, setLocation] = useState(""); const [slots, setSlots] = useState("");
+  const [ranges, setRanges] = useState<TimeRange[]>([]); const [legacy, setLegacy] = useState<string[]>([]); const [start, setStart] = useState("09:00"); const [end, setEnd] = useState("10:00");
+  const [editingId, setEditingId] = useState<number | null>(null); const [drawerOpen, setDrawerOpen] = useState(false); const [error, setError] = useState<string | null>(null); const [confirm, setConfirm] = useState<{ title: string; message: string; action: () => void } | null>(null); const [showPast, setShowPast] = useState(false);
+  const today = getLocalDateString();
+  const upcomingEvents = events.filter((event) => event.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const pastEvents = events.filter((event) => event.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  const displayedEvents = showPast ? pastEvents : upcomingEvents;
 
-  // --- EVENT CRUD ---
-  function handleFormSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const actionText = editingEventId ? "save these changes" : "publish this new event";
-    
-    setPopupSettings({
-      title: editingEventId ? "Confirm Changes" : "Confirm Publication",
-      message: `Are you sure you want to ${actionText}?`,
-      onConfirm: async () => {
-        const eventData = { title, date, location, time_slots: timeSlots, total_slots: parseInt(slots) };
-        await upsertEvent(eventData, editingEventId);
-        setTitle(""); setDate(""); setLocation(""); setTimeSlots(""); setSlots(""); setEditingEventId(null);
-        fetchData(); 
-        setShowPopup(false); 
-      }
-    });
-    setShowPopup(true);
-  }
+  function resetForm() { setTitle(""); setDate(""); setLocation(""); setSlots(""); setRanges([]); setLegacy([]); setStart("09:00"); setEnd("10:00"); setEditingId(null); setDrawerOpen(false); setError(null); }
+  function openCreate() { resetForm(); setDrawerOpen(true); }
+  function openEdit(event: Event) { const parsed = parseSlots(event.time_slots); setEditingId(event.id); setTitle(event.title); setDate(event.date); setLocation(event.location); setSlots(String(event.total_slots)); setRanges(parsed.ranges); setLegacy(parsed.legacy); if (parsed.ranges[0]) { setStart(parsed.ranges[0].start); setEnd(parsed.ranges[0].end); } setError(null); setDrawerOpen(true); }
+  function addRange() { const startMinutes = toMinutes(start); const endMinutes = toMinutes(end); if (endMinutes <= startMinutes) { setError("Each time range must end after it starts."); return; } if (ranges.some((range) => startMinutes < toMinutes(range.end) && endMinutes > toMinutes(range.start))) { setError("Time ranges cannot overlap."); return; } setRanges((current) => [...current, { start, end }].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))); setError(null); }
+  function submit(event: React.FormEvent) { event.preventDefault(); if (!title || !date || !location || !Number(slots) || ranges.length + legacy.length === 0) { setError("Complete all fields and add at least one time range."); return; } const action = async () => { try { const timeSlots = [...legacy, ...ranges.map((range) => `${range.start}-${range.end}`)].join(","); const { error: saveError } = await upsertEvent({ title, date, location, time_slots: timeSlots, total_slots: Number(slots) }, editingId); if (saveError) throw saveError; resetForm(); fetchData(); } catch (saveError) { console.error("Failed to save event:", saveError); setError("The event could not be saved. Please try again."); } }; setConfirm({ title: editingId ? "Save event changes?" : "Create this event?", message: editingId ? "The updated event will be visible to volunteers immediately." : "This event will be published for volunteers to book.", action: () => { void action(); setConfirm(null); } }); }
+  function removeActivity(id: number) { setConfirm({ title: "Delete event?", message: "This cannot be undone. Existing bookings may prevent deletion.", action: () => { void (async () => { try { const { error: deleteError } = await deleteEvent(id); if (deleteError) throw deleteError; fetchData(); } catch (deleteError) { console.error("Failed to delete event:", deleteError); setError("The event could not be deleted. Existing bookings may need to be handled first."); } setConfirm(null); })(); } }); }
 
-  function triggerEditEvent(evt: any) {
-    // Triggers pop-up before pulling data into the form
-    setPopupSettings({
-      title: "Edit Event",
-      message: "Are you sure you want to edit this event? This will load its details into the form.",
-      onConfirm: () => {
-        setEditingEventId(evt.id);
-        setTitle(evt.title);
-        setDate(evt.date);
-        setLocation(evt.location);
-        setTimeSlots(evt.time_slots);
-        setSlots(evt.total_slots.toString());
-        setShowPopup(false); // Close pop-up after loading
-      }
-    });
-    setShowPopup(true);
-  }
-
-  function triggerDelete(id: number) {
-    setPopupSettings({
-      title: "Delete Event",
-      message: "Are you sure you want to delete this event? This action cannot be undone.",
-      onConfirm: async () => {
-        await deleteEvent(id);
-        fetchData(); 
-        setShowPopup(false); 
-      }
-    });
-    setShowPopup(true);
-  }
-
-  return (
-    <>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "24px" }}>
-        
-        {/* EVENT LIST COLUMN */}
-        <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden", alignSelf: "start" }}>
-          <div style={{ padding: "16px 24px", borderBottom: "1px solid #e2e8f0" }}>
-            <h3 style={{ fontSize: "16px", color: "#1a1a1a", margin: 0, fontWeight: "700" }}>All Activities</h3>
-          </div>
-          {isLoading ? <div style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>Loading events...</div> : (
-            <div style={{ padding: "8px 24px" }}>
-              {events.map((evt) => (
-                <div key={evt.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", borderBottom: "1px solid #f1f5f9" }}>
-                  <div>
-                    <div style={{ fontSize: "15px", fontWeight: "700", color: "#1a1a1a", marginBottom: "6px" }}>{evt.title}</div>
-                    <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px" }}>📍 {evt.location} &nbsp;|&nbsp; 📅 {evt.date}</div>
-                    <div style={{ fontSize: "12px", color: "#475569", background: "#f1f5f9", display: "inline-block", padding: "4px 10px", borderRadius: "6px", fontWeight: "600" }}>
-                      Shifts: {evt.time_slots} (Max: {evt.total_slots})
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button onClick={() => triggerEditEvent(evt)} style={{ padding: "6px 12px", background: "#f8fafc", color: "#333", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>Edit</button>
-                    <button onClick={() => triggerDelete(evt.id)} style={{ padding: "6px 12px", background: "#fef2f2", color: "#e62b32", border: "1px solid #fecaca", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>Delete</button>
-                  </div>
-                </div>
-              ))}
-              {events.length === 0 && <p style={{ fontSize: "13px", color: "#64748b", textAlign: "center", padding: "20px" }}>No events created yet.</p>}
-            </div>
-          )}
-        </div>
-
-        {/* CREATE/EDIT FORM COLUMN */}
-        <div>
-          <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", padding: "24px", position: "sticky", top: "90px" }}>
-            <h3 style={{ fontSize: "16px", color: "#1a1a1a", margin: "0 0 20px", fontWeight: "700" }}>
-              {editingEventId ? "✏️ Edit Event" : "➕ Create Event"}
-            </h3>
-            <form onSubmit={handleFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", fontWeight: "700", letterSpacing: "0.5px" }}>TITLE</label>
-                <input required value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px", boxSizing: "border-box", fontSize: "13px" }} />
-              </div>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", fontWeight: "700", letterSpacing: "0.5px" }}>DATE</label>
-                <input required type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px", boxSizing: "border-box", fontSize: "13px" }} />
-              </div>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", fontWeight: "700", letterSpacing: "0.5px" }}>LOCATION</label>
-                <input required value={location} onChange={(e) => setLocation(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px", boxSizing: "border-box", fontSize: "13px" }} />
-              </div>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", fontWeight: "700", letterSpacing: "0.5px" }}>TIME SLOTS</label>
-                <input 
-                  required 
-                  placeholder="09:00, 13:00" 
-                  value={timeSlots} 
-                  onChange={(e) => {
-                    const cleanedInput = e.target.value.replace(/[^0-9:, ]/g, '');
-                    setTimeSlots(cleanedInput);
-                  }} 
-                  style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px", boxSizing: "border-box", fontSize: "13px" }} 
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", fontWeight: "700", letterSpacing: "0.5px" }}>CAPACITY</label>
-                {/* Added min="1" to permanently block zero or negative numbers */}
-                <input required type="number" min="1" value={slots} onChange={(e) => setSlots(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", marginTop: "4px", boxSizing: "border-box", fontSize: "13px" }} />
-              </div>
-              
-              <button type="submit" style={{ marginTop: "8px", width: "100%", padding: "12px", borderRadius: "8px", background: "#e62b32", color: "white", border: "none", fontSize: "13px", fontWeight: "700", cursor: "pointer", transition: "background 0.2s" }}>
-                {editingEventId ? "Save Changes" : "Publish Event"}
-              </button>
-              {editingEventId && (
-                <button type="button" onClick={() => { setEditingEventId(null); setTitle(""); setDate(""); setLocation(""); setTimeSlots(""); setSlots(""); }} style={{ width: "100%", padding: "8px", background: "transparent", color: "#64748b", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
-                  Cancel
-                </button>
-              )}
-            </form>
-          </div>
-        </div>
-      </div>
-
-      {/* POP-UP */}
-      {showPopup && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "20px" }}>
-          <div style={{ background: "#fff", borderRadius: "12px", width: "100%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.15)", overflow: "hidden" }}>
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid #e2e8f0" }}>
-              <h3 style={{ fontSize: "18px", color: "#1a1a1a", margin: 0, fontWeight: "800" }}>{popupSettings.title}</h3>
-            </div>
-            <div style={{ padding: "24px", fontSize: "14px", color: "#475569", lineHeight: "1.5" }}>
-              {popupSettings.message}
-            </div>
-            <div style={{ padding: "16px 24px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-              <button 
-                onClick={() => setShowPopup(false)}
-                style={{ padding: "10px 16px", borderRadius: "6px", background: "#fff", border: "1px solid #cbd5e1", color: "#475569", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={popupSettings.onConfirm}
-                style={{ padding: "10px 16px", borderRadius: "6px", background: "#e62b32", border: "none", color: "#fff", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  return <>
+    <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>{showPast ? "Past events" : "Upcoming and current events"}</h2><p className={styles.cardHint}>{showPast ? "Previously published events, newest first" : "Events happening today or in the future"}</p></div><div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}><div className={styles.filterGroup} role="tablist" aria-label="Event date filter"><button type="button" role="tab" aria-selected={!showPast} className={`${styles.filterButton} ${!showPast ? styles.filterButtonActive : ""}`} onClick={() => setShowPast(false)}>Upcoming & current ({upcomingEvents.length})</button><button type="button" role="tab" aria-selected={showPast} className={`${styles.filterButton} ${showPast ? styles.filterButtonActive : ""}`} onClick={() => setShowPast(true)}>Past events ({pastEvents.length})</button></div><button type="button" className={styles.primaryButton} onClick={openCreate}><Icon name="plus" size={15} /> New event</button></div></div>{isLoading ? <div className={styles.empty}>Loading events...</div> : <div className={styles.tableWrap}><table className={styles.table}><thead><tr>{["Event", "Date", "Location", "Time ranges", "Capacity", "Actions"].map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{displayedEvents.map((event) => <tr key={event.id}><td>{event.title}</td><td>{event.date}{event.date === today && <span className={`${styles.status} ${styles.statusPresent}`} style={{ marginLeft: 7 }}>Today</span>}</td><td>{event.location}</td><td>{formatSlots(event.time_slots)}</td><td>{event.total_slots}</td><td><div style={{ display: "flex", gap: 7 }}><button type="button" className={styles.secondaryButton} onClick={() => openEdit(event)} aria-label={`Edit ${event.title}`}><Icon name="edit" size={14} /> Edit</button><button type="button" className={styles.dangerButton} onClick={() => removeActivity(event.id)} aria-label={`Delete ${event.title}`}><Icon name="trash" size={14} /></button></div></td></tr>)}{displayedEvents.length === 0 && <tr><td colSpan={6}><div className={styles.empty}>{showPast ? "No past events yet." : "No upcoming events."}</div></td></tr>}</tbody></table></div>}</section>
+    {drawerOpen && <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) resetForm(); }}><aside className={styles.drawer} role="dialog" aria-modal="true" aria-labelledby="event-form-title"><div className={styles.drawerHeader}><div><h2 id="event-form-title" className={styles.cardTitle}>{editingId ? "Edit event" : "Create event"}</h2><p className={styles.cardHint}>{editingId ? "Update the event details below." : "Publish a new event for volunteers."}</p></div><button type="button" className={styles.closeButton} onClick={resetForm} aria-label="Close"><Icon name="close" size={17} /></button></div>{error && <div className={styles.error} role="alert">{error}</div>}<form onSubmit={submit} className={styles.formGrid}><div className={`${styles.field} ${styles.fieldFull}`}><label className={styles.fieldLabel} htmlFor="event-title">Title</label><input className={styles.input} id="event-title" required value={title} onChange={(event) => setTitle(event.target.value)} /></div><div className={styles.field}><label className={styles.fieldLabel} htmlFor="event-date">Date</label><input className={styles.input} id="event-date" required type="date" min={today} value={date} onChange={(event) => setDate(event.target.value)} /></div><div className={styles.field}><label className={styles.fieldLabel} htmlFor="event-capacity">Capacity</label><input className={styles.input} id="event-capacity" required type="number" min="1" value={slots} onChange={(event) => setSlots(event.target.value)} /></div><div className={`${styles.field} ${styles.fieldFull}`}><label className={styles.fieldLabel} htmlFor="event-location">Location</label><input className={styles.input} id="event-location" required value={location} onChange={(event) => setLocation(event.target.value)} /></div><div className={`${styles.field} ${styles.fieldFull}`}><span className={styles.fieldLabel}>Time ranges</span><div className={styles.rangeBuilder}><div className={styles.field}><label className={styles.cardHint} htmlFor="range-start">Start</label><select className={styles.select} id="range-start" value={start} onChange={(event) => setStart(event.target.value)}>{TIME_OPTIONS.map((time) => <option key={`start-${time}`}>{time}</option>)}</select></div><div className={styles.field}><label className={styles.cardHint} htmlFor="range-end">End</label><select className={styles.select} id="range-end" value={end} onChange={(event) => setEnd(event.target.value)}>{TIME_OPTIONS.map((time) => <option key={`end-${time}`}>{time}</option>)}</select></div><button type="button" className={styles.secondaryButton} onClick={addRange}><Icon name="plus" size={14} /> Add</button></div><div className={styles.rangeTags}>{legacy.map((slot, index) => <span className={`${styles.rangeTag} ${styles.legacyTag}`} key={`${slot}-${index}`}>Legacy: {slot}<button type="button" className={styles.tagRemove} onClick={() => setLegacy((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${slot}`}>×</button></span>)}{ranges.map((range) => { const label = `${range.start}-${range.end}`; return <span className={styles.rangeTag} key={label}>{label}<button type="button" className={styles.tagRemove} onClick={() => setRanges((current) => current.filter((item) => item !== range))} aria-label={`Remove ${label}`}>×</button></span>; })}</div>{legacy.length > 0 ? <p className={`${styles.helper} ${styles.helperWarning}`}>Legacy single-time values are preserved. Remove them and add ranges to convert this event.</p> : <p className={styles.helper}>Use 30-minute increments. Ranges cannot overlap.</p>}</div><div className={`${styles.field} ${styles.fieldFull}`}><div className={styles.formActions}><button type="button" className={styles.secondaryButton} onClick={resetForm}>Cancel</button><button type="submit" className={styles.primaryButton}>{editingId ? "Save changes" : "Create event"}</button></div></div></form></aside></div>}
+    {confirm && <div className={styles.modalBackdrop} role="presentation"><div className={styles.card} role="dialog" aria-modal="true" aria-labelledby="confirm-title" style={{ width: "min(400px, calc(100% - 32px))" }}><div className={styles.cardHeader}><h2 id="confirm-title" className={styles.cardTitle}>{confirm.title}</h2></div><div style={{ padding: "22px", color: "#657180", fontSize: 13, lineHeight: 1.55 }}>{confirm.message}</div><div className={styles.formActions} style={{ padding: "0 22px 20px" }}><button type="button" className={styles.secondaryButton} onClick={() => setConfirm(null)}>Cancel</button><button type="button" className={styles.primaryButton} onClick={confirm.action}>Confirm</button></div></div></div>}
+  </>;
 }

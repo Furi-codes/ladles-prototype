@@ -1,0 +1,7 @@
+{
+  "files.exclude": {
+    "**/exports": true,
+    "**/.exports": true,
+    "**/.demo-assets": true
+  }
+}
