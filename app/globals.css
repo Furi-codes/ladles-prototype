@@ -267,3 +267,21 @@ body {
     font-size: 6px !important;
   }
 }
+
+.calendar-wrapper .has-booked-event {
+  background: #e9eef3 !important;
+  color: #17202a !important;
+}
+
+.calendar-wrapper .has-booked-event:hover {
+  background: #dfe6ed !important;
+}
+
+.calendar-wrapper .has-booked-event .event-dot {
+  background: #17202a;
+}
+
+.calendar-wrapper .has-booked-event .event-count {
+  color: #17202a;
+  background: rgba(23, 32, 42, 0.1);
+}
