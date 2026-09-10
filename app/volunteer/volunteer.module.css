@@ -42,12 +42,19 @@
 .welcomeCard { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding: 20px 24px; }
 .welcomeText { margin: 0; color: #3d4a56; font-size: 14px; line-height: 1.55; }
 .eventCount { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: #f2f4f6; color: #5e6975; font-size: 12px; font-weight: 750; }
-.calendarBody { padding: 24px; }
-.calendarLegend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; padding: 12px 14px; border-radius: 7px; background: #f8f9fa; color: #657180; font-size: 12px; }
-.legendItem { display: inline-flex; align-items: center; gap: 7px; }
-.legendDot, .legendBookedDot { width: 10px; height: 10px; border-radius: 50%; }
-.legendDot { background: #d92732; }
-.legendBookedDot { background: #17202a; }
+.upcomingList { display: grid; }
+.upcomingEvent { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 18px 24px; border-top: 1px solid #edf0f2; }
+.eventDate { display: grid; width: 48px; height: 52px; place-content: center; border: 1px solid #f2c7ca; border-radius: 8px; background: #fff6f6; color: #d92732; text-align: center; }
+.eventDateDay { font-size: 18px; font-weight: 800; line-height: 1; }
+.eventDateMonth { margin-top: 4px; font-size: 10px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; }
+.upcomingDetails { min-width: 0; }
+.upcomingTitle { margin: 0; color: #24303b; font-size: 15px; font-weight: 800; }
+.upcomingMeta, .upcomingSlots { margin: 5px 0 0; color: #707b87; font-size: 12px; line-height: 1.45; }
+.upcomingSlots { color: #4e5a67; font-weight: 700; }
+.eventAction { display: grid; justify-items: end; gap: 8px; }
+.availableStatus, .bookedStatus { padding: 5px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.availableStatus { background: #e9f8ef; color: #18733c; }
+.bookedStatus { background: #eaf0f6; color: #3f5267; }
 .empty { padding: 44px 24px; color: #7f8995; font-size: 14px; line-height: 1.55; text-align: center; }
 .emptySmall { padding: 24px 0; color: #7f8995; font-size: 13px; text-align: center; }
 .shiftList { display: grid; }
@@ -96,4 +103,4 @@
 .errorCard p { margin: 9px 0 20px; color: #657180; font-size: 14px; line-height: 1.55; }
 
 @media (max-width: 850px) { .content { width: min(100% - 32px, 680px); padding-top: 26px; } .dashboardGrid { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .topbar { min-height: 64px; padding: 0 16px; } .brandName { font-size: 14px; } .brandSub { font-size: 9px; } .accountDetails { display: none; } .topActions { gap: 8px; } .signOut { min-height: 36px; padding: 0 10px; font-size: 12px; } .pageHeading, .welcomeCard, .progressFooter { align-items: flex-start; flex-direction: column; } .toolbar { width: 100%; justify-content: space-between; } .cardHeader, .calendarBody, .shiftRow, .table th, .table td, .progressFooter { padding-left: 16px; padding-right: 16px; } .shiftRow { align-items: flex-start; flex-direction: column; } .modal { padding: 20px; } .modalActions { flex-direction: column-reverse; } .modalActions > button { width: 100%; } }
+@media (max-width: 600px) { .topbar { min-height: 64px; padding: 0 16px; } .brandName { font-size: 14px; } .brandSub { font-size: 9px; } .accountDetails { display: none; } .topActions { gap: 8px; } .signOut { min-height: 36px; padding: 0 10px; font-size: 12px; } .pageHeading, .welcomeCard, .progressFooter { align-items: flex-start; flex-direction: column; } .toolbar { width: 100%; justify-content: space-between; } .cardHeader, .upcomingEvent, .shiftRow, .table th, .table td, .progressFooter { padding-left: 16px; padding-right: 16px; } .upcomingEvent { grid-template-columns: auto minmax(0, 1fr); align-items: start; } .eventAction { grid-column: 2; justify-items: start; } .shiftRow { align-items: flex-start; flex-direction: column; } .modal { padding: 20px; } .modalActions { flex-direction: column-reverse; } .modalActions > button { width: 100%; } }
