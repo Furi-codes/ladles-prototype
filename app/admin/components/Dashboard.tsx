@@ -2,14 +2,14 @@
 import { Event, Booking, Volunteer } from "../../../lib/types";
 import styles from "../admin.module.css";
 import Icon from "./Icon";
-import { getLocalDateString } from "../date-utils";
+import { getLocalDateString } from "@/lib/date-utils";
 
 function StatusBadge({ status }: { status: Booking["status"] }) {
   const className = status === "Present" ? styles.statusPresent : status === "Completed" ? styles.statusCompleted : styles.statusConfirmed;
   return <span className={`${styles.status} ${className}`}>{status}</span>;
 }
 
-export default function DashboardTab({ bookings, events, volunteers, isLoading, hasError }: { bookings: Booking[]; events: Event[]; volunteers: Volunteer[]; isLoading: boolean; hasError: boolean }) {
+export default function Dashboard({ bookings, events, volunteers, isLoading, hasError }: { bookings: Booking[]; events: Event[]; volunteers: Volunteer[]; isLoading: boolean; hasError: boolean }) {
   const today = getLocalDateString();
   const upcomingEvents = events.filter((event) => event.date >= today).sort((a, b) => a.date.localeCompare(b.date));
   const getEvent = (id: number) => events.find((event) => event.id === id);

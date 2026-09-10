@@ -4,7 +4,7 @@ import { useState } from "react";
 import { updateBookingAttendance } from "@/lib/actions/admin";
 import styles from "../admin.module.css";
 
-export default function VolunteerView({ events, bookings }: { events: Event[]; bookings: Booking[] }) {
+export default function VolunteerAttendance({ events, bookings }: { events: Event[]; bookings: Booking[] }) {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [attendanceOverrides, setAttendanceOverrides] = useState<Record<number, "Present" | "Confirmed">>({});
   const currentRoster = bookings.map((booking) => ({ ...booking, status: attendanceOverrides[booking.id] ?? booking.status })).filter((booking) => booking.event_id.toString() === selectedEventId);

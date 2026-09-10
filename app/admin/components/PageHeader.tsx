@@ -2,8 +2,8 @@
 import styles from "../admin.module.css";
 
 const content: Record<string, { title: string; description: string }> = {
-  Dashboard: { title: "Dashboard", description: "Monitor activities, bookings, and volunteer attendance." },
-  "Manage Events": { title: "Events", description: "Create and manage upcoming volunteer events." },
+  Dashboard: { title: "Dashboard", description: "Monitor events, bookings, and volunteer attendance." },
+  Events: { title: "Events", description: "Create and manage upcoming volunteer events." },
   Volunteers: { title: "Volunteers", description: "Review rosters and record attendance for each event." },
   "Corporate CSR": { title: "Corporate CSR", description: "Manage corporate volunteering partnerships and activity requests." },
   "Export Reports": { title: "Export Reports", description: "Generate attendance and activity reports for your organisation." },

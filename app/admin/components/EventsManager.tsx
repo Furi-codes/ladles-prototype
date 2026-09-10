@@ -4,7 +4,7 @@ import type { Event } from "../../../lib/types";
 import { deleteEvent, upsertEvent } from "@/lib/actions/admin";
 import styles from "../admin.module.css";
 import Icon from "./Icon";
-import { getLocalDateString } from "../date-utils";
+import { getLocalDateString } from "@/lib/date-utils";
 
 type TimeRange = { start: string; end: string };
 const TIME_OPTIONS = Array.from({ length: 33 }, (_, index) => { const total = 6 * 60 + index * 30; return `${Math.floor(total / 60).toString().padStart(2, "0")}:${(total % 60).toString().padStart(2, "0")}`; });
@@ -17,7 +17,7 @@ function parseSlots(value: string) {
   return { ranges, legacy };
 }
 
-export default function ActivitiesTab({ events, isLoading, fetchData }: { events: Event[]; isLoading: boolean; fetchData: () => void }) {
+export default function EventsManager({ events, isLoading, fetchData }: { events: Event[]; isLoading: boolean; fetchData: () => void }) {
   const [title, setTitle] = useState(""); const [date, setDate] = useState(""); const [location, setLocation] = useState(""); const [slots, setSlots] = useState("");
   const [ranges, setRanges] = useState<TimeRange[]>([]); const [legacy, setLegacy] = useState<string[]>([]); const [start, setStart] = useState("09:00"); const [end, setEnd] = useState("10:00");
   const [editingId, setEditingId] = useState<number | null>(null); const [drawerOpen, setDrawerOpen] = useState(false); const [error, setError] = useState<string | null>(null); const [confirm, setConfirm] = useState<{ title: string; message: string; action: () => void } | null>(null); const [showPast, setShowPast] = useState(false);
