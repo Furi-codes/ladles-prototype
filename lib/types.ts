@@ -14,6 +14,17 @@ export interface Profile {
   is_present?: boolean;
 }
 
+/** The current recorded acceptance of the volunteer onboarding agreements. */
+export interface VolunteerConsent {
+  user_id: string;
+  code_of_conduct_accepted: boolean;
+  data_use_accepted: boolean;
+  information_accuracy_accepted: boolean;
+  consent_version: string;
+  accepted_at: string;
+  updated_at?: string;
+}
+
 /** An activity that volunteers can book, from the `events` table. */
 export interface Event {
   id: number;
@@ -27,7 +38,12 @@ export interface Event {
   cancellation_message?: string | null;
   cancelled_at?: string | null;
   cancelled_by?: string | null;
+  category?: EventCategory;
+  location_url?: string | null;
 }
+
+/** Categories reflect Ladles of Love's regular volunteer programmes and reporting needs. */
+export type EventCategory = 'Dignity Kitchen' | 'Warehouse HQ' | 'Feed The Soil' | 'Campaign / Special Event' | 'Other';
 
 /** A bookable time range with its own capacity for one event. */
 export interface EventSlot {

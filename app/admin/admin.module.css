@@ -77,6 +77,9 @@
 .field { display: flex; flex-direction: column; gap: 6px; }
 .fieldFull { grid-column: 1 / -1; }
 .fieldLabel { color: #5d6874; font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; }
+.optionalLabel { color: #87919c; font-weight: 650; letter-spacing: 0; text-transform: none; }
+.mapLink { display: inline-block; margin-top: 5px; color: #b4232d; font-size: 12px; font-weight: 750; text-decoration: none; }
+.mapLink:hover { text-decoration: underline; }
 .input, .select { width: 100%; min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #d7dce1; border-radius: 7px; background: #fff; color: #26323d; font: inherit; font-size: 14px; }
 .input:focus, .select:focus { outline: 3px solid rgba(217,39,50,.12); border-color: #d92732; }
 .textarea { width: 100%; min-height: 100px; box-sizing: border-box; margin-top: 7px; padding: 10px 12px; border: 1px solid #d7dce1; border-radius: 7px; color: #26323d; font: inherit; font-size: 14px; line-height: 1.45; resize: vertical; }

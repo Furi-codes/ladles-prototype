@@ -1,6 +1,6 @@
 import type { PostgrestResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { AttendanceCheckpoint, Event, EventSlot } from '@/lib/types'
+import type { AttendanceCheckpoint, Event, EventCategory, EventSlot } from '@/lib/types'
 
 export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'>
 
@@ -52,6 +52,14 @@ export async function saveEventWithSlots(
       p_slots: slots,
     })
     .single()
+}
+
+/** Saves event metadata that does not affect time-slot capacity calculations. */
+export async function updateEventMetadata(eventId: number, data: { category: EventCategory; location_url: string | null }) {
+  return supabase
+    .from('events')
+    .update(data)
+    .eq('id', eventId)
 }
 
 /** Permanently removes an event by its database id. */

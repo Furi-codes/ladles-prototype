@@ -7,6 +7,7 @@ import type { Event } from "@/lib/types";
 import styles from "../volunteer.module.css";
 import ActiveShifts from "./ActiveShifts";
 import ConfirmDialog from "./ConfirmDialog";
+import ConsentPrompt from "./ConsentPrompt";
 import DateOfBirthPrompt from "./DateOfBirthPrompt";
 import EventModal from "./EventModal";
 import NotificationPanel from "./NotificationPanel";
@@ -19,7 +20,7 @@ export default function VolunteerDashboard() {
   const router = useRouter();
   const {
     user, profile, events, eventSlots, bookings, notifications, isLoading,
-    createUserBooking, cancelBooking, dismissNotification, updateDateOfBirth,
+    createUserBooking, cancelBooking, dismissNotification, saveProfile, acceptConsent, consent,
   } = useVolunteerData();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<number | null>(null);
@@ -50,7 +51,8 @@ export default function VolunteerDashboard() {
       </div>
     </div>
     <EventModal key={selectedEvent?.id ?? "no-event"} event={selectedEvent} eventSlots={eventSlots.filter((slot) => slot.event_id === selectedEvent?.id)} bookings={bookings} profile={profile} onClose={() => setSelectedEvent(null)} onBook={createUserBooking} />
-    {!profile?.date_of_birth && <DateOfBirthPrompt onSave={updateDateOfBirth} />}
+    {!profile?.date_of_birth && <DateOfBirthPrompt onSave={(dateOfBirth) => saveProfile({ full_name: profile?.full_name ?? "Volunteer", date_of_birth: dateOfBirth })} />}
+    {profile?.date_of_birth && !consent && <ConsentPrompt onAccept={acceptConsent} />}
     {bookingToCancel !== null && <ConfirmDialog title="Cancel booking?" message="Are you sure you want to cancel this booking? This action cannot be undone." confirmLabel="Cancel booking" onCancel={() => setBookingToCancel(null)} onConfirm={() => { void cancelBooking(bookingToCancel); setBookingToCancel(null); }} />}
   </>;
 }

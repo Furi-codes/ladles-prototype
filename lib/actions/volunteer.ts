@@ -60,8 +60,16 @@ export async function ensureUserProfile(
     return { data: null, error: selectError } as PostgrestSingleResponse<Profile>
   }
 
-  // Do not overwrite profile details when the user already has a profile.
+  // Keep the display email in sync after Supabase confirms an email change.
   if (existingProfile) {
+    if (email && existingProfile.email !== email) {
+      return await supabase
+        .from('profiles')
+        .update({ email })
+        .eq('id', userId)
+        .select()
+        .single() as PostgrestSingleResponse<Profile>
+    }
     return { data: existingProfile as Profile, error: null } as PostgrestSingleResponse<Profile>
   }
 
