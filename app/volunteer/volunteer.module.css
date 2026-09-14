@@ -69,6 +69,8 @@
 .shiftName { color: #24303b; font-size: 14px; font-weight: 750; }
 .shiftMeta { margin-top: 5px; color: #707b87; font-size: 12px; }
 .shiftTime { display: inline-flex; margin-top: 8px; padding: 4px 7px; border-radius: 5px; background: #f3f4f6; color: #4e5a67; font-size: 11px; font-weight: 750; }
+.liveShift { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: #18733c; font-size: 12px; font-weight: 800; }
+.clockedInStatus { display: inline-flex; padding: 7px 9px; border-radius: 6px; background: #e9f8ef; color: #18733c; font-size: 12px; font-weight: 800; }
 .table { width: 100%; border-collapse: collapse; }
 .table th { padding: 13px 24px; background: #fafbfc; color: #818b97; font-size: 11px; font-weight: 800; letter-spacing: .7px; text-align: left; text-transform: uppercase; }
 .table td { padding: 16px 24px; border-top: 1px solid #edf0f2; color: #4e5a67; font-size: 14px; }
@@ -124,3 +126,47 @@
 
 @media (max-width: 850px) { .content { width: min(100% - 32px, 680px); padding-top: 26px; } .dashboardGrid, .settingsGrid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .topbar { min-height: 64px; padding: 0 16px; } .brandName { font-size: 14px; } .brandSub { font-size: 9px; } .accountDetails { display: none; } .topActions { gap: 8px; } .signOut { min-height: 36px; padding: 0 10px; font-size: 12px; } .pageHeading, .welcomeCard, .progressFooter { align-items: flex-start; flex-direction: column; } .toolbar { width: 100%; justify-content: space-between; } .cardHeader, .upcomingEvent, .shiftRow, .table th, .table td, .progressFooter { padding-left: 16px; padding-right: 16px; } .upcomingEvent { grid-template-columns: auto minmax(0, 1fr); align-items: start; } .eventAction { grid-column: 2; justify-items: start; } .shiftRow { align-items: flex-start; flex-direction: column; } .modal { padding: 20px; } .modalActions { flex-direction: column-reverse; } .modalActions > button { width: 100%; } }
+
+/* Dark theme overrides for volunteer pages, dialogs, and the scanner surface. */
+:global(html[data-theme="dark"]) .shell,
+:global(html[data-theme="dark"]) .loadingScreen { background: #111820; color: #e8edf2; }
+:global(html[data-theme="dark"]) .topbar,
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .modal,
+:global(html[data-theme="dark"]) .errorCard { background: #1a2530; border-color: #354454; }
+:global(html[data-theme="dark"]) .topbar,
+:global(html[data-theme="dark"]) .cardHeader,
+:global(html[data-theme="dark"]) .notificationItem,
+:global(html[data-theme="dark"]) .upcomingEvent,
+:global(html[data-theme="dark"]) .shiftRow,
+:global(html[data-theme="dark"]) .table td,
+:global(html[data-theme="dark"]) .progressFooter { border-color: #354454; }
+:global(html[data-theme="dark"]) .brandName,
+:global(html[data-theme="dark"]) .pageTitle,
+:global(html[data-theme="dark"]) .cardTitle,
+:global(html[data-theme="dark"]) .upcomingTitle,
+:global(html[data-theme="dark"]) .shiftName,
+:global(html[data-theme="dark"]) .accountName { color: #f0f4f8; }
+:global(html[data-theme="dark"]) .pageDescription,
+:global(html[data-theme="dark"]) .cardHint,
+:global(html[data-theme="dark"]) .welcomeText,
+:global(html[data-theme="dark"]) .notificationMessage,
+:global(html[data-theme="dark"]) .upcomingMeta,
+:global(html[data-theme="dark"]) .shiftMeta,
+:global(html[data-theme="dark"]) .accountEmail,
+:global(html[data-theme="dark"]) .progressNote,
+:global(html[data-theme="dark"]) .table td { color: #aebdcb; }
+:global(html[data-theme="dark"]) .secondaryButton,
+:global(html[data-theme="dark"]) .select,
+:global(html[data-theme="dark"]) .input,
+:global(html[data-theme="dark"]) .closeButton { border-color: #465566; background: #16212c; color: #e2eaf1; }
+:global(html[data-theme="dark"]) .secondaryButton:hover,
+:global(html[data-theme="dark"]) .closeButton:hover { background: #243342; }
+:global(html[data-theme="dark"]) .eventCount,
+:global(html[data-theme="dark"]) .shiftTime,
+:global(html[data-theme="dark"]) .signedInAs { background: #243342; color: #d6e0e9; }
+:global(html[data-theme="dark"]) .table th { background: #16212c; color: #aebdcb; }
+:global(html[data-theme="dark"]) .eventOption { border-color: #465566; background: #1a2530; color: #e8edf2; }
+:global(html[data-theme="dark"]) .eventOption:hover { border-color: #e95b63; background: #342127; }
+:global(html[data-theme="dark"]) .eventOptionTitle { color: #f0f4f8; }
+:global(html[data-theme="dark"]) .eventOptionMeta { color: #aebdcb; }

@@ -66,12 +66,12 @@ export interface AttendanceCheckpoint {
 
 /** The actual attendance timestamps and calculated minutes for one booking. */
 export interface AttendanceRecord {
-  id: number;
+  id?: number;
   booking_id: number;
   clocked_in_at: string | null;
   clocked_out_at: string | null;
   worked_minutes: number | null;
-  created_at: string;
+  created_at?: string;
 }
 
 /** A volunteer's reservation for one time slot at an event. */

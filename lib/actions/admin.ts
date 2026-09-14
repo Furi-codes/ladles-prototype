@@ -1,6 +1,6 @@
 import type { PostgrestResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { AttendanceCheckpoint, Event, EventCategory, EventSlot } from '@/lib/types'
+import type { AttendanceCheckpoint, AttendanceRecord, Event, EventCategory, EventSlot } from '@/lib/types'
 
 export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'>
 
@@ -25,6 +25,11 @@ export async function fetchAdminAttendanceCheckpoints(): Promise<PostgrestRespon
     .from('event_attendance_checkpoints')
     .select('*')
     .order('action', { ascending: true })
+}
+
+/** Loads attendance records. The database function permits all rows only to admins. */
+export async function fetchAdminAttendanceRecords(): Promise<PostgrestResponse<AttendanceRecord>> {
+  return supabase.rpc('get_attendance_records')
 }
 
 /** Finalizes missed bookings for finished events so they can be reported as no-shows. */

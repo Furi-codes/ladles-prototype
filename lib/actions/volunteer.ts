@@ -39,6 +39,11 @@ export async function recordEventAttendance(checkpointId: string): Promise<Postg
   return supabase.rpc('record_event_attendance', { p_checkpoint_id: checkpointId }).single()
 }
 
+/** Loads attendance for the signed-in volunteer, including any live clock-in. */
+export async function fetchVolunteerAttendanceRecords(): Promise<PostgrestResponse<AttendanceRecord>> {
+  return supabase.rpc('get_attendance_records')
+}
+
 /**
  * Returns an existing profile, or creates a volunteer profile for a newly
  * authenticated user who does not yet have one.

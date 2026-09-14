@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import Script from "next/script";
+import "./globals.css";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Ladles of Love – Volunteer Portal",
@@ -11,9 +14,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head><Script id="theme-initializer" strategy="beforeInteractive">{`try { const saved = localStorage.getItem('ladles-theme'); const theme = saved === 'dark' || saved === 'light' ? saved : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); document.documentElement.dataset.theme = theme; } catch {}`}</Script></head>
       <body style={{ margin: 0, padding: 0, boxSizing: "border-box" }}>
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

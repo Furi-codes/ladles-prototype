@@ -2,15 +2,16 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AttendanceCheckpoint, Booking, Event, EventSlot, Volunteer } from "../../../lib/types";
+import type { AttendanceCheckpoint, AttendanceRecord, Booking, Event, EventSlot, Volunteer } from "../../../lib/types";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { fetchUserRole } from "@/lib/actions/profile";
-import { fetchAdminAttendanceCheckpoints, fetchAdminBookings, fetchAdminEvents, fetchAdminEventSlots, fetchVolunteers, markMissedBookingsNoShow } from "@/lib/actions/admin";
+import { fetchAdminAttendanceCheckpoints, fetchAdminAttendanceRecords, fetchAdminBookings, fetchAdminEvents, fetchAdminEventSlots, fetchVolunteers, markMissedBookingsNoShow } from "@/lib/actions/admin";
 
 type AdminProfile = { full_name?: string; email?: string };
 type AdminContextValue = {
   events: Event[];
   bookings: Booking[];
+  attendanceRecords: AttendanceRecord[];
   eventSlots: EventSlot[];
   attendanceCheckpoints: AttendanceCheckpoint[];
   volunteers: Volunteer[];
@@ -27,6 +28,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [eventSlots, setEventSlots] = useState<EventSlot[]>([]);
   const [attendanceCheckpoints, setAttendanceCheckpoints] = useState<AttendanceCheckpoint[]>([]);
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
@@ -66,22 +68,24 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         console.error("Failed to finalize no-shows:", noShowError);
       }
 
-      const [eventsResult, bookingsResult, eventSlotsResult, volunteersResult, checkpointsResult] = await Promise.all([
+      const [eventsResult, bookingsResult, eventSlotsResult, volunteersResult, checkpointsResult, attendanceResult] = await Promise.all([
         fetchAdminEvents(),
         fetchAdminBookings(),
         fetchAdminEventSlots(),
         fetchVolunteers(),
         fetchAdminAttendanceCheckpoints(),
+        fetchAdminAttendanceRecords(),
       ]);
 
-      if (eventsResult.error || bookingsResult.error || eventSlotsResult.error || volunteersResult.error || checkpointsResult.error) {
-        throw eventsResult.error ?? bookingsResult.error ?? eventSlotsResult.error ?? volunteersResult.error ?? checkpointsResult.error;
+      if (eventsResult.error || bookingsResult.error || eventSlotsResult.error || volunteersResult.error || checkpointsResult.error || attendanceResult.error) {
+        throw eventsResult.error ?? bookingsResult.error ?? eventSlotsResult.error ?? volunteersResult.error ?? checkpointsResult.error ?? attendanceResult.error;
       }
 
       setEvents(eventsResult.data ?? []);
       setBookings(bookingsResult.data ?? []);
       setEventSlots(eventSlotsResult.data ?? []);
       setAttendanceCheckpoints(checkpointsResult.data ?? []);
+      setAttendanceRecords(attendanceResult.data ?? []);
       setVolunteers(volunteersResult.data ?? []);
     } catch (error) {
       console.error("Failed to load admin data:", error);
@@ -107,15 +111,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       .channel("admin-event-slots")
       .on("postgres_changes", { event: "*", schema: "public", table: "event_slots" }, () => void fetchData())
       .subscribe();
+    const attendanceSubscription = supabase
+      .channel("admin-attendance")
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records" }, () => void fetchData())
+      .subscribe();
 
     return () => {
       void bookingSubscription.unsubscribe();
       void eventSubscription.unsubscribe();
       void eventSlotSubscription.unsubscribe();
+      void attendanceSubscription.unsubscribe();
     };
   }, [fetchData, isCheckingAccess]);
 
-  return <AdminContext.Provider value={{ events, bookings, eventSlots, attendanceCheckpoints, volunteers, adminProfile, isLoading, isCheckingAccess, loadError, fetchData }}>{children}</AdminContext.Provider>;
+  return <AdminContext.Provider value={{ events, bookings, attendanceRecords, eventSlots, attendanceCheckpoints, volunteers, adminProfile, isLoading, isCheckingAccess, loadError, fetchData }}>{children}</AdminContext.Provider>;
 }
 
 export function useAdminData() {

@@ -67,6 +67,7 @@
 .statusPresent { background: #e9f8ef; color: #18733c; }
 .statusCompleted { background: #eaf2ff; color: #2b63ad; }
 .statusCancelled { background: #fff0f1; color: #b4232d; }
+.liveAttendance { color: #18733c; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .activityList { display: grid; gap: 0; }
 .activityRow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px 22px; border-top: 1px solid #f0f2f4; }
 .activityRow:first-child { border-top: 0; }
@@ -112,3 +113,52 @@
 .mobileMenuButton { display: none; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 1px solid #d7dce1; border-radius: 7px; background: #fff; color: #465260; cursor: pointer; }
 @media (max-width: 1050px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dashboardGrid { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .sidebar { transform: translateX(-100%); transition: transform .2s; } .sidebarOpen { transform: translateX(0); box-shadow: 12px 0 30px rgba(23,32,42,.15); } .main { margin-left: 0; } .content { padding: 24px 16px 36px; } .topbar { padding: 0 16px; } .headerAccountDetails { display: none; } .pageHeading { align-items: flex-start; flex-direction: column; } .mobileMenuButton { display: inline-flex; } .formGrid { grid-template-columns: 1fr; } .fieldFull { grid-column: auto; } .rangeBuilder { grid-template-columns: 1fr 1fr; } .rangeBuilder button { grid-column: 1 / -1; } }
+
+/* Dark theme: keep the existing hierarchy while lowering glare and preserving the red brand accent. */
+:global(html[data-theme="dark"]) .shell,
+:global(html[data-theme="dark"]) .loadingScreen { background: #111820; color: #e8edf2; }
+:global(html[data-theme="dark"]) .sidebar,
+:global(html[data-theme="dark"]) .topbar,
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .drawer,
+:global(html[data-theme="dark"]) .dialog { background: #1a2530; border-color: #354454; }
+:global(html[data-theme="dark"]) .brand,
+:global(html[data-theme="dark"]) .topbar,
+:global(html[data-theme="dark"]) .cardHeader { border-color: #354454; }
+:global(html[data-theme="dark"]) .brandName,
+:global(html[data-theme="dark"]) .pageTitle,
+:global(html[data-theme="dark"]) .cardTitle,
+:global(html[data-theme="dark"]) .placeholderTitle,
+:global(html[data-theme="dark"]) .headerAccountName,
+:global(html[data-theme="dark"]) .activityName,
+:global(html[data-theme="dark"]) .table td:first-child,
+:global(html[data-theme="dark"]) .statValue { color: #f0f4f8; }
+:global(html[data-theme="dark"]) .navButton,
+:global(html[data-theme="dark"]) .cardHint,
+:global(html[data-theme="dark"]) .pageDescription,
+:global(html[data-theme="dark"]) .statLabel,
+:global(html[data-theme="dark"]) .statNote,
+:global(html[data-theme="dark"]) .activityMeta,
+:global(html[data-theme="dark"]) .table td,
+:global(html[data-theme="dark"]) .helper,
+:global(html[data-theme="dark"]) .placeholderText,
+:global(html[data-theme="dark"]) .headerAccountEmail { color: #aebdcb; }
+:global(html[data-theme="dark"]) .navButton:hover,
+:global(html[data-theme="dark"]) .secondaryButton:hover,
+:global(html[data-theme="dark"]) .closeButton:hover,
+:global(html[data-theme="dark"]) .mobileMenuButton:hover { background: #243342; color: #f0f4f8; }
+:global(html[data-theme="dark"]) .navButtonActive,
+:global(html[data-theme="dark"]) .navButtonActive:hover { background: #4a252b; color: #ff9fa7; }
+:global(html[data-theme="dark"]) .secondaryButton,
+:global(html[data-theme="dark"]) .input,
+:global(html[data-theme="dark"]) .select,
+:global(html[data-theme="dark"]) .textarea,
+:global(html[data-theme="dark"]) .closeButton,
+:global(html[data-theme="dark"]) .mobileMenuButton { border-color: #465566; background: #16212c; color: #e2eaf1; }
+:global(html[data-theme="dark"]) .table th,
+:global(html[data-theme="dark"]) .filterGroup { background: #16212c; color: #aebdcb; border-color: #354454; }
+:global(html[data-theme="dark"]) .table td,
+:global(html[data-theme="dark"]) .activityRow,
+:global(html[data-theme="dark"]) .cardHeader { border-color: #354454; }
+:global(html[data-theme="dark"]) .filterButtonActive { background: #243342; color: #ff9fa7; }
+:global(html[data-theme="dark"]) .rangeTag { border-color: #465566; background: #243342; color: #dbe5ee; }

@@ -5,8 +5,8 @@ import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { fetchUserRole, fetchVolunteerConsent, requestVolunteerEmailChange, saveVolunteerConsent, updateVolunteerProfile } from "@/lib/actions/profile";
-import { bookEventSlot, cancelUserBooking, ensureUserProfile, fetchBookingsForVolunteer, fetchEventsForVolunteer, fetchEventSlotsForVolunteer, fetchVolunteerNotifications, markVolunteerNotificationRead } from "@/lib/actions/volunteer";
-import type { Booking, Event, EventSlot, Notification, Profile, VolunteerConsent } from "@/lib/types";
+import { bookEventSlot, cancelUserBooking, ensureUserProfile, fetchBookingsForVolunteer, fetchEventsForVolunteer, fetchEventSlotsForVolunteer, fetchVolunteerAttendanceRecords, fetchVolunteerNotifications, markVolunteerNotificationRead } from "@/lib/actions/volunteer";
+import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile, VolunteerConsent } from "@/lib/types";
 
 type Toast = { id: number; type: "success" | "error" | "info"; message: string };
 type VolunteerContextValue = {
@@ -16,6 +16,7 @@ type VolunteerContextValue = {
   events: Event[];
   eventSlots: EventSlot[];
   bookings: Booking[];
+  attendanceRecords: AttendanceRecord[];
   notifications: Notification[];
   isLoading: boolean;
   isCheckingAccess: boolean;
@@ -42,6 +43,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventSlots, setEventSlots] = useState<EventSlot[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
@@ -98,18 +100,20 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [eventsResult, eventSlotsResult, bookingsResult, notificationsResult] = await Promise.all([
+      const [eventsResult, eventSlotsResult, bookingsResult, attendanceResult, notificationsResult] = await Promise.all([
         fetchEventsForVolunteer(),
         fetchEventSlotsForVolunteer(),
         fetchBookingsForVolunteer(),
+        fetchVolunteerAttendanceRecords(),
         fetchVolunteerNotifications(),
       ]);
-      if (eventsResult.error || eventSlotsResult.error || bookingsResult.error || notificationsResult.error) {
-        throw eventsResult.error ?? eventSlotsResult.error ?? bookingsResult.error ?? notificationsResult.error;
+      if (eventsResult.error || eventSlotsResult.error || bookingsResult.error || attendanceResult.error || notificationsResult.error) {
+        throw eventsResult.error ?? eventSlotsResult.error ?? bookingsResult.error ?? attendanceResult.error ?? notificationsResult.error;
       }
       setEvents(eventsResult.data ?? []);
       setEventSlots(eventSlotsResult.data ?? []);
       setBookings(bookingsResult.data ?? []);
+      setAttendanceRecords(attendanceResult.data ?? []);
       setNotifications(notificationsResult.data ?? []);
     } catch (error) {
       console.error("Failed to load volunteer data:", error);
@@ -125,10 +129,12 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     const bookingsChannel = supabase.channel("volunteer-bookings").on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => void refreshData()).subscribe();
     const eventsChannel = supabase.channel("volunteer-events").on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => void refreshData()).subscribe();
     const eventSlotsChannel = supabase.channel("volunteer-event-slots").on("postgres_changes", { event: "*", schema: "public", table: "event_slots" }, () => void refreshData()).subscribe();
+    const attendanceChannel = supabase.channel("volunteer-attendance").on("postgres_changes", { event: "*", schema: "public", table: "attendance_records" }, () => void refreshData()).subscribe();
     return () => {
       void bookingsChannel.unsubscribe();
       void eventsChannel.unsubscribe();
       void eventSlotsChannel.unsubscribe();
+      void attendanceChannel.unsubscribe();
     };
   }, [isCheckingAccess, refreshData, user]);
 
@@ -200,7 +206,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [showToast]);
 
-  return <VolunteerContext.Provider value={{ user, profile, consent, events, eventSlots, bookings, notifications, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
+  return <VolunteerContext.Provider value={{ user, profile, consent, events, eventSlots, bookings, attendanceRecords, notifications, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
 }
 
 export function useVolunteerData() {

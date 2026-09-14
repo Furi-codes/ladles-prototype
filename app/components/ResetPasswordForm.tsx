@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import ThemeToggle from "./ThemeToggle";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
@@ -52,15 +53,16 @@ export default function ResetPasswordForm() {
 
   if (isChecking) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="authChecking" style={{ minHeight: "100vh", background: "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center" }}>
         Verifying secure link...
       </div>
     );
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Arial, sans-serif", position: "relative", overflow: "hidden" }}>
+    <main className="authPage" style={{ minHeight: "100vh", background: "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Arial, sans-serif", position: "relative", overflow: "hidden" }}>
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: "6px", background: "#ef3a40", zIndex: 100 }} />
+      <ThemeToggle className="authThemeToggle" />
 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "440px", padding: "0 20px", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
@@ -69,7 +71,7 @@ export default function ResetPasswordForm() {
           </div>
         </div>
 
-        <div style={{ background: "#ffffff", borderRadius: "12px", padding: "40px 36px", width: "100%", boxShadow: "0 8px 40px rgba(43,51,54,0.10)", border: "1px solid #e0e0e0" }}>
+        <div className="authCard" style={{ background: "#ffffff", borderRadius: "12px", padding: "40px 36px", width: "100%", boxShadow: "0 8px 40px rgba(43,51,54,0.10)", border: "1px solid #e0e0e0" }}>
           <h2 style={{ fontSize: "22px", color: "#2b3336", margin: "0 0 4px", fontWeight: "800" }}>Set New Password</h2>
           <p style={{ fontSize: "13px", color: "#666", margin: "0 0 28px" }}>Please enter your new secure password.</p>
 

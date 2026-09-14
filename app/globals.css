@@ -5,6 +5,12 @@
   --foreground: #171717;
 }
 
+:root[data-theme="dark"] {
+  --background: #111820;
+  --foreground: #e8edf2;
+  color-scheme: dark;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -18,3 +24,24 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.themeToggle { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 7px; padding: 0 11px; border: 1px solid #d7dce1; border-radius: 7px; background: #fff; color: #465260; font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.themeToggle:hover { background: #f6f7f9; }
+.themeToggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.authThemeToggle { position: fixed; top: 18px; right: 18px; z-index: 110; }
+
+:root[data-theme="dark"] .themeToggle { border-color: #465566; background: #1a2530; color: #e5edf5; }
+:root[data-theme="dark"] .themeToggle:hover { background: #243342; }
+
+/* The authentication screens still use inline layout styles, so these rules
+   intentionally override only their colour values in dark mode. */
+:root[data-theme="dark"] .authPage,
+:root[data-theme="dark"] .authChecking { background: #111820 !important; color: #e8edf2; }
+:root[data-theme="dark"] .authCard { background: #1a2530 !important; border-color: #354454 !important; box-shadow: 0 8px 40px rgba(0,0,0,.28) !important; }
+:root[data-theme="dark"] .authPage h1,
+:root[data-theme="dark"] .authPage h2,
+:root[data-theme="dark"] .authPage label { color: #f4f7fa !important; }
+:root[data-theme="dark"] .authPage p { color: #aebdcb !important; }
+:root[data-theme="dark"] .authPage input { border-color: #465566 !important; background: #111820 !important; color: #edf3f8 !important; }
+:root[data-theme="dark"] .authPage button[type="button"] { color: #d7e2ec !important; }
+:root[data-theme="dark"] .authGoogleButton { border-color: #465566 !important; background: #16212c !important; color: #e2eaf1 !important; }

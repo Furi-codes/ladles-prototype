@@ -19,7 +19,7 @@ import { useVolunteerData } from "./VolunteerProvider";
 export default function VolunteerDashboard() {
   const router = useRouter();
   const {
-    user, profile, events, eventSlots, bookings, notifications, isLoading,
+    user, profile, events, eventSlots, bookings, attendanceRecords, notifications, isLoading,
     createUserBooking, cancelBooking, dismissNotification, saveProfile, acceptConsent, consent,
   } = useVolunteerData();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -29,7 +29,7 @@ export default function VolunteerDashboard() {
   const activeBookings = bookings.filter((booking) => {
     const event = getEventData(booking.event_id);
     return booking.user_id === user?.id
-      && booking.status === "Confirmed"
+      && (booking.status === "Confirmed" || booking.status === "Present")
       && event?.status !== "Cancelled"
       && event !== undefined
       && !hasEventFinished(event, eventSlots);
@@ -46,8 +46,8 @@ export default function VolunteerDashboard() {
     <div className={styles.dashboardGrid}>
       <UpcomingEvents events={events} eventSlots={eventSlots} isLoading={isLoading} isUserBookedForEvent={isUserBookedForEvent} onSelect={setSelectedEvent} />
       <div className={styles.rightColumn}>
-        <ActiveShifts userBookings={activeBookings} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} />
-        <ProgressionPanel bookings={bookings} userId={user?.id} />
+        <ActiveShifts userBookings={activeBookings} attendanceRecords={attendanceRecords} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} />
+        <ProgressionPanel bookings={bookings} attendanceRecords={attendanceRecords} userId={user?.id} />
       </div>
     </div>
     <EventModal key={selectedEvent?.id ?? "no-event"} event={selectedEvent} eventSlots={eventSlots.filter((slot) => slot.event_id === selectedEvent?.id)} bookings={bookings} profile={profile} onClose={() => setSelectedEvent(null)} onBook={createUserBooking} />

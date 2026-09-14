@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import ThemeToggle from "./ThemeToggle";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -158,7 +159,7 @@ export default function LoginForm() {
 
   if (isRedirecting) {
     return (
-      <main
+      <main className="authChecking"
         style={{
           minHeight: "100vh",
           background: "#f3f3f3",
@@ -198,8 +199,9 @@ export default function LoginForm() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Arial, sans-serif", position: "relative", overflow: "hidden" }}>
+    <main className="authPage" style={{ minHeight: "100vh", background: "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Arial, sans-serif", position: "relative", overflow: "hidden" }}>
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: "6px", background: "#ef3a40", zIndex: 100 }} />
+      <ThemeToggle className="authThemeToggle" />
 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "440px", padding: "0 20px", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
@@ -210,7 +212,7 @@ export default function LoginForm() {
           <p style={{ fontSize: "12px", color: "#ef3a40", margin: 0, letterSpacing: "2px", textTransform: "uppercase", fontStyle: "italic" }}>feeding the soul</p>
         </div>
 
-        <div style={{ background: "#ffffff", borderRadius: "12px", padding: "40px 36px", width: "100%", boxShadow: "0 8px 40px rgba(43,51,54,0.10)", border: "1px solid #e0e0e0" }}>
+        <div className="authCard" style={{ background: "#ffffff", borderRadius: "12px", padding: "40px 36px", width: "100%", boxShadow: "0 8px 40px rgba(43,51,54,0.10)", border: "1px solid #e0e0e0" }}>
           <h2 style={{ fontSize: "22px", color: "#2b3336", margin: "0 0 4px", fontWeight: "800" }}>
             {isForgotPassword ? "Reset Password" : isSignUp ? "Create an Account" : "Sign in"}
           </h2>
@@ -298,7 +300,7 @@ export default function LoginForm() {
                 <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
               </div>
 
-              <button onClick={handleGoogleLogin} type="button" style={{ width: "100%", padding: "13px", borderRadius: "6px", border: "1.5px solid #ddd", background: "#fff", color: "#2b3336", fontSize: "14px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "background 0.2s" }} onMouseOver={(e) => (e.currentTarget as HTMLButtonElement).style.background = "#f3f3f3"} onMouseOut={(e) => (e.currentTarget as HTMLButtonElement).style.background = "#fff"}>
+              <button className="authGoogleButton" onClick={handleGoogleLogin} type="button" style={{ width: "100%", padding: "13px", borderRadius: "6px", border: "1.5px solid #ddd", background: "#fff", color: "#2b3336", fontSize: "14px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "background 0.2s" }} onMouseOver={(e) => (e.currentTarget as HTMLButtonElement).style.background = "#f3f3f3"} onMouseOut={(e) => (e.currentTarget as HTMLButtonElement).style.background = "#fff"}>
                 <svg width="18" height="18" viewBox="0 0 48 48">
                   <path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.4c-.5 2.8-2.2 5.2-4.7 6.8v5.6h7.6c4.5-4.1 7-10.2 7-16.4z" />
                   <path fill="#34A853" d="M24 47c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.8 2.3-8.3 2.3-6.4 0-11.8-4.3-13.7-10.1H2.4v6.1C6.4 41.8 14.6 47 24 47z" />
