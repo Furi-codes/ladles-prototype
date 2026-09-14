@@ -1,18 +1,8 @@
 import type { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { Booking, BookingStatus, Event, Profile } from '@/lib/types'
+import type { Booking, Event, EventSlot, Notification, Profile } from '@/lib/types'
 
-/** The fields required to create a volunteer booking. */
-export interface CreateBookingInput {
-  event_id: number
-  user_id: string
-  volunteer_name: string
-  volunteer_email: string | null
-  selected_slot: string
-  status: BookingStatus
-}
-
-/** Loads events in chronological order for the volunteer calendar. */
+/** Loads events in chronological order for the volunteer dashboard. */
 export async function fetchEventsForVolunteer(): Promise<PostgrestResponse<Event>> {
   return supabase.from('events').select('*').order('date', { ascending: true })
 }
@@ -20,6 +10,28 @@ export async function fetchEventsForVolunteer(): Promise<PostgrestResponse<Event
 /** Loads booking records used to show slot availability and the user's shifts. */
 export async function fetchBookingsForVolunteer(): Promise<PostgrestResponse<Booking>> {
   return supabase.from('bookings').select('*').order('id', { ascending: false })
+}
+
+/** Loads the ranges and capacities available for volunteer booking. */
+export async function fetchEventSlotsForVolunteer(): Promise<PostgrestResponse<EventSlot>> {
+  return supabase.from('event_slots').select('*').order('start_time', { ascending: true })
+}
+
+/** Loads unread in-app notices for the signed-in volunteer. */
+export async function fetchVolunteerNotifications(): Promise<PostgrestResponse<Notification>> {
+  return supabase
+    .from('notifications')
+    .select('*')
+    .eq('is_read', false)
+    .order('created_at', { ascending: false })
+}
+
+/** Marks one notice as read for the signed-in volunteer. */
+export async function markVolunteerNotificationRead(notificationId: number) {
+  return supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId)
 }
 
 /**
@@ -70,9 +82,9 @@ export async function updateVolunteerDateOfBirth(userId: string, dateOfBirth: st
     .single()
 }
 
-/** Inserts a new booking and returns the created booking record. */
-export async function createBooking(payload: CreateBookingInput): Promise<PostgrestSingleResponse<Booking>> {
-  return supabase.from('bookings').insert([payload]).select().single()
+/** Books a slot through the database function that enforces capacity atomically. */
+export async function bookEventSlot(eventSlotId: number): Promise<PostgrestSingleResponse<Booking>> {
+  return supabase.rpc('book_event_slot', { p_event_slot_id: eventSlotId }).single()
 }
 
 /** Deletes one booking, restricted to the user who owns it. */

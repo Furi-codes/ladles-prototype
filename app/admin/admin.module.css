@@ -66,6 +66,7 @@
 .statusConfirmed { background: #f1f3f5; color: #5b6672; }
 .statusPresent { background: #e9f8ef; color: #18733c; }
 .statusCompleted { background: #eaf2ff; color: #2b63ad; }
+.statusCancelled { background: #fff0f1; color: #b4232d; }
 .activityList { display: grid; gap: 0; }
 .activityRow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px 22px; border-top: 1px solid #f0f2f4; }
 .activityRow:first-child { border-top: 0; }
@@ -78,7 +79,9 @@
 .fieldLabel { color: #5d6874; font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; }
 .input, .select { width: 100%; min-height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #d7dce1; border-radius: 7px; background: #fff; color: #26323d; font: inherit; font-size: 14px; }
 .input:focus, .select:focus { outline: 3px solid rgba(217,39,50,.12); border-color: #d92732; }
-.rangeBuilder { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; }
+.textarea { width: 100%; min-height: 100px; box-sizing: border-box; margin-top: 7px; padding: 10px 12px; border: 1px solid #d7dce1; border-radius: 7px; color: #26323d; font: inherit; font-size: 14px; line-height: 1.45; resize: vertical; }
+.textarea:focus { outline: 3px solid rgba(217,39,50,.12); border-color: #d92732; }
+.rangeBuilder { display: grid; grid-template-columns: 1fr 1fr .8fr auto; gap: 8px; align-items: end; }
 .rangeTags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .rangeTag { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border: 1px solid #d7dce1; border-radius: 5px; background: #f7f8f9; color: #40505e; font-size: 12px; }
 .legacyTag { border-color: #f0d0a8; background: #fff8ed; color: #955a17; }

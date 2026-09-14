@@ -1,6 +1,7 @@
 /** The lifecycle states a volunteer booking can have. */
 export type BookingStatus = 'Confirmed' | 'Present' | 'Completed';
 export type UserRole = 'admin' | 'volunteer';
+export type EventStatus = 'Scheduled' | 'Cancelled';
 
 /** A record from the `profiles` table for an authenticated user. */
 export interface Profile {
@@ -22,6 +23,20 @@ export interface Event {
   time_slots: string;
   total_slots: number;
   description?: string;
+  status: EventStatus;
+  cancellation_message?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+}
+
+/** A bookable time range with its own capacity for one event. */
+export interface EventSlot {
+  id: number;
+  event_id: number;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  created_at?: string;
 }
 
 /** A volunteer's reservation for one time slot at an event. */
@@ -30,9 +45,22 @@ export interface Booking {
   volunteer_name: string;
   event_id: number;
   user_id: string;
+  event_slot_id?: number | null;
   selected_slot: string;
   status: BookingStatus;
   volunteer_email?: string;
+}
+
+/** An in-app update sent to a volunteer about one of their events. */
+export interface Notification {
+  id: number;
+  user_id: string;
+  event_id: number;
+  type: 'event_cancelled';
+  title: string;
+  message: string | null;
+  is_read: boolean;
+  created_at: string;
 }
 
 /** A profile shown in the admin volunteer list, where the role is required. */

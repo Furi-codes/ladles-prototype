@@ -11,7 +11,7 @@ function StatusBadge({ status }: { status: Booking["status"] }) {
 
 export default function Dashboard({ bookings, events, volunteers, isLoading, hasError }: { bookings: Booking[]; events: Event[]; volunteers: Volunteer[]; isLoading: boolean; hasError: boolean }) {
   const today = getLocalDateString();
-  const upcomingEvents = events.filter((event) => event.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const upcomingEvents = events.filter((event) => event.status !== "Cancelled" && event.date >= today).sort((a, b) => a.date.localeCompare(b.date));
   const getEvent = (id: number) => events.find((event) => event.id === id);
   const stats = [
     { label: "Total bookings", value: bookings.length, note: "Across all activities", icon: "users" as const },

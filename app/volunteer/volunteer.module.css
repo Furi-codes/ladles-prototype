@@ -41,6 +41,11 @@
 .cardHint { margin: 5px 0 0; color: #87919c; font-size: 13px; line-height: 1.45; }
 .welcomeCard { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding: 20px 24px; }
 .welcomeText { margin: 0; color: #3d4a56; font-size: 14px; line-height: 1.55; }
+.notificationPanel { margin-bottom: 20px; }
+.notificationList { display: grid; }
+.notificationItem { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 24px; border-top: 1px solid #edf0f2; }
+.notificationTitle { margin: 0; color: #b4232d; font-size: 14px; font-weight: 800; }
+.notificationMessage { margin: 5px 0 0; color: #657180; font-size: 13px; line-height: 1.5; }
 .eventCount { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: #f2f4f6; color: #5e6975; font-size: 12px; font-weight: 750; }
 .upcomingList { display: grid; }
 .upcomingEvent { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 18px 24px; border-top: 1px solid #edf0f2; }

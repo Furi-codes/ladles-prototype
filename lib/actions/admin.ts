@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase'
-import type { Event } from '@/lib/types'
+import type { Event, EventSlot } from '@/lib/types'
+
+export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'>
 
 /** Loads events for the admin dashboard, newest records first. */
 export async function fetchAdminEvents() {
@@ -11,23 +13,43 @@ export async function fetchAdminBookings() {
   return supabase.from('bookings').select('*').order('id', { ascending: false })
 }
 
+/** Loads the time slots used to staff each event. */
+export async function fetchAdminEventSlots() {
+  return supabase.from('event_slots').select('*').order('start_time', { ascending: true })
+}
+
 /** Loads profiles alphabetically for the admin volunteer view. */
 export async function fetchVolunteers() {
   return supabase.from('profiles').select('*').order('full_name', { ascending: true })
 }
 
-/** Creates an event when no id is supplied, otherwise updates the existing event. */
-export async function upsertEvent(data: Partial<Event>, id: number | null) {
-  if (id !== null) {
-    return supabase.from('events').update(data).eq('id', id)
-  }
-
-  return supabase.from('events').insert([data])
+/** Atomically saves an event and all of its capacity-controlled time slots. */
+export async function saveEventWithSlots(
+  eventId: number | null,
+  data: Pick<Event, 'title' | 'date' | 'location'>,
+  slots: EventSlotInput[]
+) {
+  return supabase
+    .rpc('save_event_with_slots', {
+      p_event_id: eventId,
+      p_title: data.title,
+      p_date: data.date,
+      p_location: data.location,
+      p_slots: slots,
+    })
+    .single()
 }
 
 /** Permanently removes an event by its database id. */
 export async function deleteEvent(id: number) {
   return supabase.from('events').delete().eq('id', id)
+}
+
+/** Cancels a future event without deleting its bookings or attendance history. */
+export async function cancelEvent(eventId: number, message: string) {
+  return supabase
+    .rpc('cancel_event', { p_event_id: eventId, p_message: message || null })
+    .single()
 }
 
 /** Permanently removes a booking by its database id. */
