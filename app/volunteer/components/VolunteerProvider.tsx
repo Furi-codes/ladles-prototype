@@ -58,15 +58,18 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function guardVolunteerAccess() {
+      let isRedirecting = false;
       try {
         const currentUser = await getCurrentUser();
         if (!currentUser) {
+          isRedirecting = true;
           router.replace("/");
           return;
         }
 
         const { data: roleProfile, error: roleError } = await fetchUserRole(currentUser.id);
         if (roleProfile?.role === "admin") {
+          isRedirecting = true;
           router.replace("/admin");
           return;
         }
@@ -76,6 +79,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
         const { data: resolvedProfile, error: profileError } = await ensureUserProfile(currentUser.id, currentUser.email, currentUser.user_metadata.full_name, metadataDateOfBirth);
         if (profileError) throw profileError;
         if (!resolvedProfile || resolvedProfile.role !== "volunteer") {
+          isRedirecting = true;
           router.replace("/");
           return;
         }
@@ -87,9 +91,10 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
         setConsent(savedConsent);
       } catch (error) {
         console.error("Failed to verify volunteer access:", error);
+        isRedirecting = true;
         router.replace("/");
       } finally {
-        setIsCheckingAccess(false);
+        if (!isRedirecting) setIsCheckingAccess(false);
       }
     }
 

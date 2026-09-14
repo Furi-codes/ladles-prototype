@@ -1,5 +1,5 @@
-import styles from "../volunteer.module.css";
+import PortalLoadingScreen from "@/app/components/PortalLoadingScreen";
 
 export default function VolunteerLoadingScreen({ message = "Loading volunteer portal..." }: { message?: string }) {
-  return <main className={styles.loadingScreen}><div className={styles.loadingSpinner} aria-hidden="true" /><p className={styles.loadingMessage}>{message}</p></main>;
+  return <PortalLoadingScreen message={message === "Loading volunteer portal..." || message === "Checking volunteer access..." ? "Ladles of Love is preparing your volunteer portal…" : message} />;
 }

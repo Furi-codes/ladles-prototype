@@ -1,0 +1,7 @@
+.screen { display: grid; min-height: 100dvh; place-content: center; gap: 20px; padding: 32px 24px; background: #f1f3ef; color: #24303b; font-family: "Montserrat", "Segoe UI", sans-serif; text-align: center; }
+.content { display: grid; justify-items: center; gap: 14px; }
+.title { margin: 0; font-size: clamp(21px, 5vw, 28px); font-weight: 800; letter-spacing: -.5px; }
+.message { max-width: 360px; margin: 0; color: #66727e; font-size: 14px; line-height: 1.55; }
+:global(html[data-theme="dark"]) .screen { background: #111820; color: #edf3f8; }
+:global(html[data-theme="dark"]) .message { color: #aebdcb; }
+@media (max-width: 420px) { .screen { padding: 24px 18px; } .message { font-size: 13px; } }
