@@ -64,8 +64,8 @@ export default function ResetPasswordForm() {
 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "440px", padding: "0 20px", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div style={{ width: "90px", height: "90px", borderRadius: "50%", margin: "0 auto 16px", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
-            <Image src="/ladles-logo.png" alt="Ladles of Love" width={90} height={90} style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+          <div style={{ width: "90px", height: "90px", margin: "0 auto 16px" }}>
+            <Image src="/Ladles-logo.png" alt="Ladles of Love" width={90} height={90} style={{ objectFit: "contain", width: "100%", height: "100%" }} />
           </div>
         </div>
 

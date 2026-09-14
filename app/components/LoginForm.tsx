@@ -203,8 +203,8 @@ export default function LoginForm() {
 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "440px", padding: "0 20px", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div style={{ width: "90px", height: "90px", borderRadius: "50%", margin: "0 auto 16px", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
-            <Image src="/ladles-logo.png" alt="Ladles of Love" width={90} height={90} style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+          <div style={{ width: "90px", height: "90px", margin: "0 auto 16px" }}>
+            <Image src="/Ladles-logo.png" alt="Ladles of Love" width={90} height={90} style={{ objectFit: "contain", width: "100%", height: "100%" }} />
           </div>
           <h1 style={{ fontSize: "28px", fontWeight: "800", color: "#2b3336", margin: "0 0 4px", letterSpacing: "-0.5px" }}>LADLES OF LOVE</h1>
           <p style={{ fontSize: "12px", color: "#ef3a40", margin: 0, letterSpacing: "2px", textTransform: "uppercase", fontStyle: "italic" }}>feeding the soul</p>

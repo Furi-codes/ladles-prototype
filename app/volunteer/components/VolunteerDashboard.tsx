@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getLocalDateString } from "@/lib/date-utils";
+import { hasEventFinished } from "@/lib/date-utils";
 import type { Event } from "@/lib/types";
 import styles from "../volunteer.module.css";
 import ActiveShifts from "./ActiveShifts";
@@ -25,8 +25,15 @@ export default function VolunteerDashboard() {
   const [bookingToCancel, setBookingToCancel] = useState<number | null>(null);
   const getEventData = (eventId: number) => events.find((event) => event.id === eventId);
   const isUserBookedForEvent = (eventId: number) => bookings.some((booking) => booking.event_id === eventId && booking.user_id === user?.id);
-  const activeBookings = bookings.filter((booking) => booking.user_id === user?.id && booking.status === "Confirmed" && getEventData(booking.event_id)?.status !== "Cancelled");
-  const activeEventCount = events.filter((event) => event.status !== "Cancelled" && event.date >= getLocalDateString()).length;
+  const activeBookings = bookings.filter((booking) => {
+    const event = getEventData(booking.event_id);
+    return booking.user_id === user?.id
+      && booking.status === "Confirmed"
+      && event?.status !== "Cancelled"
+      && event !== undefined
+      && !hasEventFinished(event, eventSlots);
+  });
+  const activeEventCount = events.filter((event) => event.status !== "Cancelled" && !hasEventFinished(event, eventSlots)).length;
 
   return <>
     <section className={styles.pageHeading}>

@@ -1,17 +1,16 @@
 "use client";
-import { Event, Booking, Volunteer } from "../../../lib/types";
+import { Event, Booking, EventSlot, Volunteer } from "../../../lib/types";
 import styles from "../admin.module.css";
 import Icon from "./Icon";
-import { getLocalDateString } from "@/lib/date-utils";
+import { hasEventFinished } from "@/lib/date-utils";
 
 function StatusBadge({ status }: { status: Booking["status"] }) {
-  const className = status === "Present" ? styles.statusPresent : status === "Completed" ? styles.statusCompleted : styles.statusConfirmed;
+  const className = status === "Present" ? styles.statusPresent : status === "Completed" ? styles.statusCompleted : status === "No show" ? styles.statusCancelled : styles.statusConfirmed;
   return <span className={`${styles.status} ${className}`}>{status}</span>;
 }
 
-export default function Dashboard({ bookings, events, volunteers, isLoading, hasError }: { bookings: Booking[]; events: Event[]; volunteers: Volunteer[]; isLoading: boolean; hasError: boolean }) {
-  const today = getLocalDateString();
-  const upcomingEvents = events.filter((event) => event.status !== "Cancelled" && event.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+export default function Dashboard({ bookings, events, eventSlots, volunteers, isLoading, hasError }: { bookings: Booking[]; events: Event[]; eventSlots: EventSlot[]; volunteers: Volunteer[]; isLoading: boolean; hasError: boolean }) {
+  const upcomingEvents = events.filter((event) => event.status !== "Cancelled" && !hasEventFinished(event, eventSlots)).sort((a, b) => a.date.localeCompare(b.date));
   const getEvent = (id: number) => events.find((event) => event.id === id);
   const stats = [
     { label: "Total bookings", value: bookings.length, note: "Across all activities", icon: "users" as const },

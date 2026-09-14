@@ -27,6 +27,11 @@ export async function fetchAdminAttendanceCheckpoints(): Promise<PostgrestRespon
     .order('action', { ascending: true })
 }
 
+/** Finalizes missed bookings for finished events so they can be reported as no-shows. */
+export async function markMissedBookingsNoShow() {
+  return supabase.rpc('mark_missed_bookings_no_show')
+}
+
 /** Loads profiles alphabetically for the admin volunteer view. */
 export async function fetchVolunteers() {
   return supabase.from('profiles').select('*').order('full_name', { ascending: true })

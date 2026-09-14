@@ -1,5 +1,5 @@
 /** The lifecycle states a volunteer booking can have. */
-export type BookingStatus = 'Confirmed' | 'Present' | 'Completed';
+export type BookingStatus = 'Confirmed' | 'Present' | 'Completed' | 'No show';
 export type UserRole = 'admin' | 'volunteer';
 export type EventStatus = 'Scheduled' | 'Cancelled';
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { AttendanceCheckpoint, Booking, Event, EventSlot, Volunteer } from "../../../lib/types";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { fetchUserRole } from "@/lib/actions/profile";
-import { fetchAdminAttendanceCheckpoints, fetchAdminBookings, fetchAdminEvents, fetchAdminEventSlots, fetchVolunteers } from "@/lib/actions/admin";
+import { fetchAdminAttendanceCheckpoints, fetchAdminBookings, fetchAdminEvents, fetchAdminEventSlots, fetchVolunteers, markMissedBookingsNoShow } from "@/lib/actions/admin";
 
 type AdminProfile = { full_name?: string; email?: string };
 type AdminContextValue = {
@@ -60,6 +60,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setLoadError(null);
     try {
+      // Safe to run repeatedly: it only changes still-confirmed bookings for finished events.
+      const { error: noShowError } = await markMissedBookingsNoShow();
+      if (noShowError && noShowError.code !== "PGRST202") {
+        console.error("Failed to finalize no-shows:", noShowError);
+      }
+
       const [eventsResult, bookingsResult, eventSlotsResult, volunteersResult, checkpointsResult] = await Promise.all([
         fetchAdminEvents(),
         fetchAdminBookings(),
