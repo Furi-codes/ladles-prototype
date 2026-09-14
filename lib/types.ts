@@ -39,6 +39,25 @@ export interface EventSlot {
   created_at?: string;
 }
 
+/** One of the two event QR checkpoints used to record attendance. */
+export interface AttendanceCheckpoint {
+  id: string;
+  event_id: number;
+  action: 'clock_in' | 'clock_out';
+  is_active: boolean;
+  created_at: string;
+}
+
+/** The actual attendance timestamps and calculated minutes for one booking. */
+export interface AttendanceRecord {
+  id: number;
+  booking_id: number;
+  clocked_in_at: string | null;
+  clocked_out_at: string | null;
+  worked_minutes: number | null;
+  created_at: string;
+}
+
 /** A volunteer's reservation for one time slot at an event. */
 export interface Booking {
   id: number;

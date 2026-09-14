@@ -1,6 +1,6 @@
 import type { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { Booking, Event, EventSlot, Notification, Profile } from '@/lib/types'
+import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile } from '@/lib/types'
 
 /** Loads events in chronological order for the volunteer dashboard. */
 export async function fetchEventsForVolunteer(): Promise<PostgrestResponse<Event>> {
@@ -32,6 +32,11 @@ export async function markVolunteerNotificationRead(notificationId: number) {
     .from('notifications')
     .update({ is_read: true })
     .eq('id', notificationId)
+}
+
+/** Records a validated clock-in or clock-out through the attendance QR function. */
+export async function recordEventAttendance(checkpointId: string): Promise<PostgrestSingleResponse<AttendanceRecord>> {
+  return supabase.rpc('record_event_attendance', { p_checkpoint_id: checkpointId }).single()
 }
 
 /**

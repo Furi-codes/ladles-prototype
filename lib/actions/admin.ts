@@ -1,5 +1,6 @@
+import type { PostgrestResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { Event, EventSlot } from '@/lib/types'
+import type { AttendanceCheckpoint, Event, EventSlot } from '@/lib/types'
 
 export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'>
 
@@ -16,6 +17,14 @@ export async function fetchAdminBookings() {
 /** Loads the time slots used to staff each event. */
 export async function fetchAdminEventSlots() {
   return supabase.from('event_slots').select('*').order('start_time', { ascending: true })
+}
+
+/** Loads the protected QR checkpoint identifiers used for event attendance. */
+export async function fetchAdminAttendanceCheckpoints(): Promise<PostgrestResponse<AttendanceCheckpoint>> {
+  return supabase
+    .from('event_attendance_checkpoints')
+    .select('*')
+    .order('action', { ascending: true })
 }
 
 /** Loads profiles alphabetically for the admin volunteer view. */

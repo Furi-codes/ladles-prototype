@@ -1,36 +1,13 @@
 "use client";
-
 import { useState } from "react";
 import type { Booking, Event, EventSlot, Profile } from "@/lib/types";
 import styles from "../volunteer.module.css";
-
 const formatTime = (value: string) => value.slice(0, 5);
-
 export default function EventModal({ event, eventSlots, bookings, profile, onClose, onBook }: { event: Event | null; eventSlots: EventSlot[]; bookings: Booking[]; profile: Profile | null; onClose: () => void; onBook: (slot: EventSlot) => Promise<string | null> }) {
-  const [selectedSlotId, setSelectedSlotId] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [selectedSlotId, setSelectedSlotId] = useState(""); const [message, setMessage] = useState<string | null>(null); const [isSubmitting, setIsSubmitting] = useState(false);
   if (!event) return null;
-
   const existingBooking = bookings.find((booking) => booking.event_id === event.id);
-
-  async function submit(formEvent: React.FormEvent) {
-    formEvent.preventDefault();
-    const selectedSlot = eventSlots.find((slot) => slot.id === Number(selectedSlotId));
-    if (!selectedSlot) return;
-
-    setIsSubmitting(true);
-    const error = await onBook(selectedSlot);
-    setIsSubmitting(false);
-
-    if (error) {
-      setMessage(error);
-      return;
-    }
-
-    onClose();
-  }
-
-  return <div className={styles.backdrop} role="presentation" onMouseDown={(clickEvent) => { if (clickEvent.target === clickEvent.currentTarget) onClose(); }}><section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="event-modal-title"><div className={styles.modalHeader}><div><h2 id="event-modal-title" className={styles.cardTitle}>{event.title}</h2><p className={styles.cardHint}>{event.date} · {event.location}</p></div><button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close event">×</button></div>{event.description && <p className={styles.description}>{event.description}</p>}{existingBooking ? <><div className={styles.messageSuccess}>You already have a confirmed shift: <strong>{existingBooking.selected_slot}</strong></div><div className={styles.modalActions}><button type="button" className={styles.secondaryButton} onClick={onClose}>Close</button></div></> : eventSlots.length === 0 ? <><div className={styles.messageError}>Booking is not available yet because this event has no published time ranges.</div><div className={styles.modalActions}><button type="button" className={styles.secondaryButton} onClick={onClose}>Close</button></div></> : <form onSubmit={submit}><div className={styles.field}><label className={styles.fieldLabel} htmlFor="time-range">Choose a time range</label><select id="time-range" className={styles.select} required value={selectedSlotId} onChange={(changeEvent) => setSelectedSlotId(changeEvent.target.value)}><option value="">Select a time range</option>{eventSlots.map((slot) => <option key={slot.id} value={slot.id}>{formatTime(slot.start_time)}-{formatTime(slot.end_time)} · capacity {slot.capacity}</option>)}</select></div><div className={styles.signedInAs}>Booking as <strong>{profile?.full_name || profile?.email || "Volunteer"}</strong></div>{message && <div className={styles.messageError} role="alert">{message}</div>}<div className={styles.modalActions}><button type="button" className={styles.secondaryButton} onClick={onClose}>Cancel</button><button type="submit" className={styles.primaryButton} disabled={isSubmitting}>{isSubmitting ? "Booking..." : "Book this shift"}</button></div></form>}</section></div>;
+  const slotsRemaining = (slot: EventSlot) => Math.max(0, slot.capacity - bookings.filter((booking) => booking.event_slot_id === slot.id).length);
+  async function submit(formEvent: React.FormEvent) { formEvent.preventDefault(); const selectedSlot = eventSlots.find((slot) => slot.id === Number(selectedSlotId)); if (!selectedSlot) return; setIsSubmitting(true); const error = await onBook(selectedSlot); setIsSubmitting(false); if (error) { setMessage(error); return; } onClose(); }
+  return <div className={styles.backdrop} role="presentation" onMouseDown={(clickEvent) => { if (clickEvent.target === clickEvent.currentTarget) onClose(); }}><section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="event-modal-title"><div className={styles.modalHeader}><div><h2 id="event-modal-title" className={styles.cardTitle}>{event.title}</h2><p className={styles.cardHint}>{event.date} · {event.location}</p></div><button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close event">×</button></div>{event.description && <p className={styles.description}>{event.description}</p>}{existingBooking ? <><div className={styles.messageSuccess}>You already have a confirmed shift: <strong>{existingBooking.selected_slot}</strong></div><div className={styles.modalActions}><button type="button" className={styles.secondaryButton} onClick={onClose}>Close</button></div></> : eventSlots.length === 0 ? <><div className={styles.messageError}>Booking is not available yet because this event has no published time ranges.</div><div className={styles.modalActions}><button type="button" className={styles.secondaryButton} onClick={onClose}>Close</button></div></> : <form onSubmit={submit}><div className={styles.field}><label className={styles.fieldLabel} htmlFor="time-range">Choose a time range</label><select id="time-range" className={styles.select} required value={selectedSlotId} onChange={(changeEvent) => setSelectedSlotId(changeEvent.target.value)}><option value="">Select a time range</option>{eventSlots.map((slot) => { const remaining = slotsRemaining(slot); return <option key={slot.id} value={slot.id} disabled={remaining === 0}>{formatTime(slot.start_time)}-{formatTime(slot.end_time)} · {remaining} slot{remaining === 1 ? "" : "s"} still available</option>; })}</select></div><div className={styles.signedInAs}>Booking as <strong>{profile?.full_name || profile?.email || "Volunteer"}</strong></div>{message && <div className={styles.messageError} role="alert">{message}</div>}<div className={styles.modalActions}><button type="button" className={styles.secondaryButton} onClick={onClose}>Cancel</button><button type="submit" className={styles.primaryButton} disabled={isSubmitting}>{isSubmitting ? "Booking..." : "Book this shift"}</button></div></form>}</section></div>;
 }

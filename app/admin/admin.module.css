@@ -81,6 +81,14 @@
 .input:focus, .select:focus { outline: 3px solid rgba(217,39,50,.12); border-color: #d92732; }
 .textarea { width: 100%; min-height: 100px; box-sizing: border-box; margin-top: 7px; padding: 10px 12px; border: 1px solid #d7dce1; border-radius: 7px; color: #26323d; font: inherit; font-size: 14px; line-height: 1.45; resize: vertical; }
 .textarea:focus { outline: 3px solid rgba(217,39,50,.12); border-color: #d92732; }
+.qrPrintSheet { width: min(820px, 100%); }
+.qrGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 20px 0; }
+.qrCard { padding: 18px; border: 1px solid #e2e6ea; border-radius: 8px; text-align: center; }
+.qrCard h3 { margin: 0; color: #24303b; font-size: 16px; }
+.qrCard img { width: min(100%, 340px); height: auto; margin: 12px auto; }
+.qrCard p { margin: 0; color: #657180; font-size: 12px; line-height: 1.5; }
+.qrEventDetails { display: none; }
+@media print { @page { size: A4 portrait; margin: 12mm; } .sidebar, .topbar, .content > :not(.dialogBackdrop) { display: none !important; } .main { margin: 0; } .content { padding: 0; } .dialogBackdrop { position: static; display: block; padding: 0; background: none; } .qrPrintSheet { width: 100%; padding: 0; border: 0; box-shadow: none; } .qrPrintSheet > .dialogTitle, .qrPrintSheet > .dialogText, .qrPrintSheet .formActions { display: none; } .qrGrid { display: block; padding: 0; } .qrCard { min-height: 255mm; box-sizing: border-box; padding: 18mm 12mm; border: 0; border-radius: 0; } .qrCard + .qrCard { break-before: page; page-break-before: always; } .qrCard h3 { font-size: 28px; } .qrCard .qrEventDetails { display: block; margin: 8px 0 18px; color: #40505e; font-size: 16px; font-weight: 700; } .qrCard img { width: min(150mm, 100%); height: auto; margin: 18px auto; } .qrCard p { font-size: 14px; } }
 .rangeBuilder { display: grid; grid-template-columns: 1fr 1fr .8fr auto; gap: 8px; align-items: end; }
 .rangeTags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .rangeTag { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border: 1px solid #d7dce1; border-radius: 5px; background: #f7f8f9; color: #40505e; font-size: 12px; }
