@@ -29,7 +29,8 @@ export async function fetchBookingsForVolunteer(): Promise<PostgrestResponse<Boo
 export async function ensureUserProfile(
   userId: string,
   email: string | undefined,
-  fullName?: string
+  fullName?: string,
+  dateOfBirth?: string
 ): Promise<PostgrestSingleResponse<Profile>> {
   const { data: existingProfile, error: selectError } = await supabase
     .from('profiles')
@@ -53,9 +54,20 @@ export async function ensureUserProfile(
     full_name: fullName || email?.split('@')[0] || 'Volunteer',
     email: email || `${userId}@placeholder.local`,
     role: 'volunteer',
+    date_of_birth: dateOfBirth,
   }
 
   return supabase.from('profiles').insert([profilePayload]).select().single()
+}
+
+/** Saves the volunteer's date of birth to their own profile. */
+export async function updateVolunteerDateOfBirth(userId: string, dateOfBirth: string) {
+  return supabase
+    .from('profiles')
+    .update({ date_of_birth: dateOfBirth })
+    .eq('id', userId)
+    .select()
+    .single()
 }
 
 /** Inserts a new booking and returns the created booking record. */

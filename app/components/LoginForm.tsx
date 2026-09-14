@@ -12,6 +12,7 @@ export default function LoginForm() {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +34,11 @@ export default function LoginForm() {
         .eq("id", session.user.id)
         .single();
 
-      if (profileError || !profileData) return;
+      if (profileError || !profileData) {
+        setIsRedirecting(true);
+        router.replace("/volunteer");
+        return;
+      }
 
       setIsRedirecting(true);
       router.replace(profileData.role === "admin" ? "/admin" : "/volunteer");
@@ -65,14 +70,14 @@ export default function LoginForm() {
         .eq("id", authData.user.id)
         .single();
 
-      if (profileError) {
+      if (profileError && profileError.code !== "PGRST116") {
         setMessage(`Logged in, but couldn't fetch role: ${profileError.message}`);
         setIsLoading(false);
         return;
       }
 
       setIsRedirecting(true);
-      router.replace(profileData.role === "admin" ? "/admin" : "/volunteer");
+      router.replace(profileData?.role === "admin" ? "/admin" : "/volunteer");
     }
   }
 
@@ -82,8 +87,8 @@ export default function LoginForm() {
     const cleanFirst = firstName.trim();
     const cleanLast = lastName.trim();
 
-    if (!cleanFirst || !cleanLast || !email || !password) {
-      setMessage("Please fill out your First Name, Last Name, Email, and Password.");
+    if (!cleanFirst || !cleanLast || !dateOfBirth || !email || !password) {
+      setMessage("Please fill out your First Name, Last Name, Date of Birth, Email, and Password.");
       return;
     }
 
@@ -98,6 +103,7 @@ export default function LoginForm() {
       options: {
         data: {
           full_name: combinedFullName,
+          date_of_birth: dateOfBirth,
         },
       },
     });
@@ -108,6 +114,7 @@ export default function LoginForm() {
       setMessage("Success! Please check your email for a confirmation link before logging in.");
       setFirstName("");
       setLastName("");
+      setDateOfBirth("");
       setPassword("");
       setIsSignUp(false);
     }
@@ -213,16 +220,22 @@ export default function LoginForm() {
 
           <form onSubmit={isForgotPassword ? handleResetPassword : isSignUp ? handleSignUp : handleLogin}>
             {isSignUp && !isForgotPassword && (
-              <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#2b3336", marginBottom: "6px", letterSpacing: "1px", textTransform: "uppercase" }}>First Name</label>
-                  <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" style={{ width: "100%", padding: "12px 14px", borderRadius: "6px", border: "1.5px solid #ddd", background: "#f3f3f3", fontSize: "14px", color: "#2b3336", outline: "none", boxSizing: "border-box" }} />
+              <>
+                <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#2b3336", marginBottom: "6px", letterSpacing: "1px", textTransform: "uppercase" }}>First Name</label>
+                    <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jane" style={{ width: "100%", padding: "12px 14px", borderRadius: "6px", border: "1.5px solid #ddd", background: "#f3f3f3", fontSize: "14px", color: "#2b3336", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#2b3336", marginBottom: "6px", letterSpacing: "1px", textTransform: "uppercase" }}>Last Name</label>
+                    <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" style={{ width: "100%", padding: "12px 14px", borderRadius: "6px", border: "1.5px solid #ddd", background: "#f3f3f3", fontSize: "14px", color: "#2b3336", outline: "none", boxSizing: "border-box" }} />
+                  </div>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#2b3336", marginBottom: "6px", letterSpacing: "1px", textTransform: "uppercase" }}>Last Name</label>
-                  <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" style={{ width: "100%", padding: "12px 14px", borderRadius: "6px", border: "1.5px solid #ddd", background: "#f3f3f3", fontSize: "14px", color: "#2b3336", outline: "none", boxSizing: "border-box" }} />
+                <div style={{ marginBottom: "16px" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#2b3336", marginBottom: "6px", letterSpacing: "1px", textTransform: "uppercase" }}>Date of Birth</label>
+                  <input type="date" required max={new Date().toISOString().slice(0, 10)} value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={{ width: "100%", padding: "12px 14px", borderRadius: "6px", border: "1.5px solid #ddd", background: "#f3f3f3", fontSize: "14px", color: "#2b3336", outline: "none", boxSizing: "border-box" }} />
                 </div>
-              </div>
+              </>
             )}
 
             <div style={{ marginBottom: "16px" }}>

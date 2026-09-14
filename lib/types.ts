@@ -8,6 +8,7 @@ export interface Profile {
   full_name: string;
   email: string;
   role?: UserRole;
+  date_of_birth?: string;
   phone?: string;
   is_present?: boolean;
 }

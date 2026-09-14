@@ -80,8 +80,8 @@
 .description { margin: 6px 0 0; color: #596572; line-height: 1.6; }
 .field { display: grid; gap: 7px; margin-top: 18px; }
 .fieldLabel { color: #5d6874; font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; }
-.select { width: 100%; min-height: 43px; box-sizing: border-box; padding: 0 12px; border: 1px solid #d7dce1; border-radius: 7px; background: #fff; color: #26323d; font: inherit; font-size: 14px; }
-.select:focus { outline: 3px solid rgba(217,39,50,.12); border-color: #d92732; }
+.select, .input { width: 100%; min-height: 43px; box-sizing: border-box; padding: 0 12px; border: 1px solid #d7dce1; border-radius: 7px; background: #fff; color: #26323d; font: inherit; font-size: 14px; }
+.select:focus, .input:focus { outline: 3px solid rgba(217,39,50,.12); border-color: #d92732; }
 .signedInAs, .messageSuccess, .messageError { margin-top: 16px; padding: 11px 13px; border-radius: 7px; font-size: 13px; line-height: 1.45; }
 .signedInAs { background: #f6f7f9; color: #5d6874; }
 .messageSuccess { background: #e9f8ef; color: #18733c; }
