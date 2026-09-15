@@ -108,6 +108,8 @@ type EventsManagerProps = {
   fetchData: () => void;
 };
 
+type LocationSearchResult = { label: string; mapUrl: string };
+
 export default function EventsManager({
   events,
   eventSlots,
@@ -119,6 +121,10 @@ export default function EventsManager({
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
   const [locationUrl, setLocationUrl] = useState("");
+  const [locationSearchQuery, setLocationSearchQuery] = useState("");
+  const [locationResults, setLocationResults] = useState<LocationSearchResult[]>([]);
+  const [locationSearchError, setLocationSearchError] = useState<string | null>(null);
+  const [isSearchingLocations, setIsSearchingLocations] = useState(false);
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<EventCategory>("Other");
   const [templateId, setTemplateId] = useState("custom");
@@ -157,6 +163,9 @@ export default function EventsManager({
     setDate("");
     setLocation("");
     setLocationUrl("");
+    setLocationSearchQuery("");
+    setLocationResults([]);
+    setLocationSearchError(null);
     setDescription("");
     setCategory("Other");
     setTemplateId("custom");
@@ -181,6 +190,9 @@ export default function EventsManager({
     setDate(event.date);
     setLocation(event.location);
     setLocationUrl(event.location_url ?? "");
+    setLocationSearchQuery(event.location);
+    setLocationResults([]);
+    setLocationSearchError(null);
     setDescription(event.description ?? "");
     setCategory(event.category ?? "Other");
     setTemplateId("custom");
@@ -203,6 +215,9 @@ export default function EventsManager({
     setDescription(template.description);
     setLocation(template.location);
     setLocationUrl(template.locationUrl ?? "");
+    setLocationSearchQuery("");
+    setLocationResults([]);
+    setLocationSearchError(null);
     setStart(template.start);
     setEnd(template.end);
     setCapacity(template.capacity);
@@ -227,6 +242,36 @@ export default function EventsManager({
     setRanges((current) => [...current, { start_time: start, end_time: end, capacity: rangeCapacity }]
       .sort((first, second) => toMinutes(first.start_time) - toMinutes(second.start_time)));
     setError(null);
+  }
+
+  async function searchLocations() {
+    const query = locationSearchQuery.trim();
+    if (query.length < 3) {
+      setLocationSearchError("Enter at least three characters to search.");
+      return;
+    }
+    setIsSearchingLocations(true);
+    setLocationSearchError(null);
+    setLocationResults([]);
+    try {
+      const response = await fetch(`/api/location-search?q=${encodeURIComponent(query)}`);
+      const payload = await response.json() as { results?: LocationSearchResult[]; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Location search is unavailable.");
+      setLocationResults(payload.results ?? []);
+      if ((payload.results ?? []).length === 0) setLocationSearchError("No South African addresses matched that search. Try a street, suburb, or city.");
+    } catch (searchError) {
+      setLocationSearchError(searchError instanceof Error ? searchError.message : "Location search is unavailable.");
+    } finally {
+      setIsSearchingLocations(false);
+    }
+  }
+
+  function chooseLocation(result: LocationSearchResult) {
+    setLocation(result.label);
+    setLocationUrl(result.mapUrl);
+    setLocationSearchQuery(result.label);
+    setLocationResults([]);
+    setLocationSearchError(null);
   }
 
   function submit(event: React.FormEvent) {
@@ -373,6 +418,13 @@ export default function EventsManager({
           </div>
           <div className={`${styles.field} ${styles.fieldFull}`}>
             <label className={styles.fieldLabel} htmlFor="event-location">Location</label>
+            {!locationIsLocked && <div className={styles.locationSearch}>
+              <input className={styles.input} value={locationSearchQuery} onChange={(event) => setLocationSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchLocations(); } }} placeholder="Search an address or place in South Africa" aria-label="Search for an event location" />
+              <button type="button" className={styles.secondaryButton} onClick={() => void searchLocations()} disabled={isSearchingLocations}>{isSearchingLocations ? "Searching…" : "Search address"}</button>
+            </div>}
+            {!locationIsLocked && <p className={styles.helper}>Choose a result to fill the address and Google Maps link automatically. Search data © OpenStreetMap contributors.</p>}
+            {!locationIsLocked && locationSearchError && <p className={styles.locationSearchError} role="status">{locationSearchError}</p>}
+            {!locationIsLocked && locationResults.length > 0 && <div className={styles.locationResults} role="listbox" aria-label="Location search results">{locationResults.map((result) => <button type="button" className={styles.locationResult} role="option" key={result.mapUrl} onClick={() => chooseLocation(result)}>{result.label}</button>)}</div>}
             <input className={styles.input} id="event-location" list={locationIsLocked ? undefined : "location-presets"} required disabled={locationIsLocked} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Choose a suggested location or type a new one" />
             <datalist id="location-presets">{LOCATION_PRESETS.map((preset) => <option key={preset} value={preset} />)}</datalist>
             {locationIsLocked && <p className={`${styles.helper} ${styles.lockedHelper}`}><Icon name="lock" size={13} /><span><strong>Location locked for this programme.</strong><br />{selectedTemplate?.locationDetail}</span></p>}
