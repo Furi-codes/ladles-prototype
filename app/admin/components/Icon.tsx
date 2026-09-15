@@ -1,6 +1,6 @@
 "use client";
 
-type IconName = "dashboard" | "calendar" | "users" | "building" | "download" | "settings" | "plus" | "edit" | "trash" | "logout" | "menu" | "close" | "activity";
+type IconName = "dashboard" | "calendar" | "users" | "building" | "download" | "settings" | "plus" | "edit" | "trash" | "logout" | "menu" | "close" | "activity" | "lock";
 
 export default function Icon({ name, size = 17 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -18,6 +18,7 @@ export default function Icon({ name, size = 17 }: { name: IconName; size?: numbe
     menu: <><path d="M4 6h16M4 12h16M4 18h16" /></>,
     close: <><path d="M6 6l12 12M18 6 6 18" /></>,
     activity: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
+    lock: <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
   };
   return <svg {...common}>{paths[name]}</svg>;
 }

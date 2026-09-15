@@ -30,6 +30,11 @@ body {
 .themeToggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .authThemeToggle { position: fixed; top: 18px; right: 18px; z-index: 110; }
 
+/* The supplied PNG wordmarks have an opaque white background. In dark mode,
+   inversion plus screen blending turns that background into the page colour
+   while preserving a high-contrast white and red mark. */
+:root[data-theme="dark"] .brandLogoImage { filter: invert(1) hue-rotate(180deg); mix-blend-mode: screen; }
+
 :root[data-theme="dark"] .themeToggle { border-color: #465566; background: #1a2530; color: #e5edf5; }
 :root[data-theme="dark"] .themeToggle:hover { background: #243342; }
 

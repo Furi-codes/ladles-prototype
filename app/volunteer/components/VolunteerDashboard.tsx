@@ -46,7 +46,7 @@ export default function VolunteerDashboard() {
     <div className={styles.dashboardGrid}>
       <UpcomingEvents events={events} eventSlots={eventSlots} isLoading={isLoading} isUserBookedForEvent={isUserBookedForEvent} onSelect={setSelectedEvent} />
       <div className={styles.rightColumn}>
-        <ActiveShifts userBookings={activeBookings} attendanceRecords={attendanceRecords} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} />
+        <ActiveShifts userBookings={activeBookings} attendanceRecords={attendanceRecords} eventSlots={eventSlots} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} />
         <ProgressionPanel bookings={bookings} attendanceRecords={attendanceRecords} userId={user?.id} />
       </div>
     </div>

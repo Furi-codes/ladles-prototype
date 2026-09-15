@@ -25,7 +25,7 @@ export default function Sidebar({ isOpen = false, onClose }: { isOpen?: boolean;
   };
 
   return <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ""}`}>
-    <div className={styles.brand}><Image src="/newLogo.png" alt="Ladles of Love" width={68} height={42} style={{ objectFit: "contain" }} /><div><div className={styles.brandName}>Ladles of Love</div><div className={styles.brandSub}>Administration</div></div></div>
+    <div className={styles.brand}><Image className="brandLogoImage" src="/newLogo.png" alt="Ladles of Love" width={68} height={42} style={{ objectFit: "contain" }} /><div><div className={styles.brandName}>Ladles of Love</div><div className={styles.brandSub}>Administration</div></div></div>
     <nav className={styles.nav} aria-label="Admin navigation"><div className={styles.navSection}>Workspace</div>{navLinks.map(renderLink)}<div className={styles.navSection} style={{ marginTop: 24 }}>More</div>{extraLinks.map(renderLink)}</nav>
   </aside>;
 }
