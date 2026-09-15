@@ -73,6 +73,7 @@
 .rosterTitle { margin: 0; color: #24303b; font-size: 19px; font-weight: 850; letter-spacing: -.35px; }
 .rosterSelector { display: grid; width: min(410px, 100%); gap: 6px; color: #697582; font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
 .rosterSelector .select { min-height: 46px; font-weight: 700; text-transform: none; letter-spacing: 0; }
+.rosterControls { display: grid; justify-items: end; gap: 12px; }
 .rosterSummary { display: grid; grid-template-columns: repeat(3, minmax(92px, auto)) 1fr; align-items: center; gap: 18px; padding: 16px 24px; border-bottom: 1px solid #edf0f2; background: #fafbfc; }
 .rosterSummary div { display: grid; gap: 3px; }
 .rosterSummary strong { color: #d92732; font-size: 20px; line-height: 1; }
@@ -115,18 +116,20 @@
 .helper { margin: 7px 0 0; color: #87919c; font-size: 12px; line-height: 1.45; }
 .helperWarning { color: #955a17; }
 .formActions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 4px; }
-.modalBackdrop { position: fixed; inset: 0; z-index: 100; display: flex; justify-content: flex-end; background: rgba(23,32,42,.35); }
+.modalBackdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 32px; box-sizing: border-box; background: rgba(23,32,42,.35); }
 .dialogBackdrop { position: fixed; inset: 0; z-index: 110; display: grid; place-items: center; padding: 20px; background: rgba(23,32,42,.35); }
 .dialog { width: min(400px, 100%); padding: 24px; border: 1px solid #e2e6ea; border-radius: 10px; background: #fff; box-shadow: 0 18px 42px rgba(23,32,42,.18); }
 .dialogTitle { margin: 0; color: #24303b; font-size: 18px; font-weight: 800; }
 .dialogText { margin: 9px 0 0; color: #657180; font-size: 14px; line-height: 1.55; }
-.drawer { width: min(560px, 100%); height: 100%; overflow-y: auto; padding: 28px; box-sizing: border-box; background: #fff; box-shadow: -8px 0 30px rgba(23,32,42,.12); }
-.drawerHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.drawer { display: flex; width: min(820px, 100%); max-height: calc(100dvh - 64px); flex-direction: column; overflow: hidden; padding: 28px; box-sizing: border-box; border: 1px solid #e2e6ea; border-radius: 12px; background: #fff; box-shadow: 0 20px 54px rgba(23,32,42,.22); }
+.drawerHeader { display: flex; flex: 0 0 auto; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.drawer > .error { flex: 0 0 auto; margin-bottom: 16px; }
+.drawer .formGrid { min-height: 0; overflow-y: auto; padding: 2px 4px 4px 0; }
 .closeButton { width: 32px; height: 32px; border: 1px solid #d7dce1; border-radius: 7px; background: #fff; color: #657180; font-size: 20px; line-height: 1; cursor: pointer; }
 .closeButton:hover { background: #f5f6f7; }
 .mobileMenuButton { display: none; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 1px solid #d7dce1; border-radius: 7px; background: #fff; color: #465260; cursor: pointer; }
 @media (max-width: 1050px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dashboardGrid { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .sidebar { transform: translateX(-100%); transition: transform .2s; } .sidebarOpen { transform: translateX(0); box-shadow: 12px 0 30px rgba(23,32,42,.15); } .main { margin-left: 0; } .content { padding: 24px 16px 36px; } .topbar { padding: 0 16px; } .headerAccountDetails { display: none; } .pageHeading { align-items: flex-start; flex-direction: column; } .mobileMenuButton { display: inline-flex; } .formGrid { grid-template-columns: 1fr; } .fieldFull { grid-column: auto; } .rangeBuilder { grid-template-columns: 1fr 1fr; } .rangeBuilder button { grid-column: 1 / -1; } .rosterIntro { align-items: stretch; flex-direction: column; } .rosterSelector { width: 100%; } .rosterSummary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; } .rosterSummary p { grid-column: 1 / -1; justify-self: start; text-align: left; } .eventFilters { justify-content: flex-start; } }
+@media (max-width: 760px) { .sidebar { transform: translateX(-100%); transition: transform .2s; } .sidebarOpen { transform: translateX(0); box-shadow: 12px 0 30px rgba(23,32,42,.15); } .main { margin-left: 0; } .content { padding: 24px 16px 36px; } .topbar { padding: 0 16px; } .headerAccountDetails { display: none; } .pageHeading { align-items: flex-start; flex-direction: column; } .mobileMenuButton { display: inline-flex; } .formGrid { grid-template-columns: 1fr; } .fieldFull { grid-column: auto; } .rangeBuilder { grid-template-columns: 1fr 1fr; } .rangeBuilder button { grid-column: 1 / -1; } .rosterIntro { align-items: stretch; flex-direction: column; } .rosterControls { justify-items: stretch; } .rosterSelector { width: 100%; } .rosterSummary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; } .rosterSummary p { grid-column: 1 / -1; justify-self: start; text-align: left; } .eventFilters { justify-content: flex-start; } .modalBackdrop { align-items: flex-start; padding: 12px; overflow-y: auto; } .drawer { width: 100%; max-height: none; min-height: calc(100dvh - 24px); padding: 20px; } }
 
 /* Dark theme: keep the existing hierarchy while lowering glare and preserving the red brand accent. */
 :global(html[data-theme="dark"]) .shell,

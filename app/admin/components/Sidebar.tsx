@@ -9,7 +9,7 @@ type NavLink = { label: string; href: string; icon: "dashboard" | "calendar" | "
 const navLinks: NavLink[] = [
   { label: "Dashboard", href: "/admin", icon: "dashboard" as const },
   { label: "Manage Events", href: "/admin/events", icon: "calendar" as const },
-  { label: "Volunteers", href: "/admin/volunteers", icon: "users" as const },
+  { label: "Volunteer rosters", href: "/admin/volunteers", icon: "users" as const },
 ];
 const extraLinks: NavLink[] = [
   { label: "Corporate CSR", href: "/admin/csr", icon: "building" as const },

@@ -62,9 +62,13 @@ export async function saveEventWithSlots(
 /** Saves event metadata that does not affect time-slot capacity calculations. */
 export async function updateEventMetadata(eventId: number, data: { category: EventCategory; location_url: string | null; description: string | null }) {
   return supabase
-    .from('events')
-    .update(data)
-    .eq('id', eventId)
+    .rpc('save_event_metadata', {
+      p_event_id: eventId,
+      p_category: data.category,
+      p_location_url: data.location_url,
+      p_description: data.description,
+    })
+    .single()
 }
 
 /** Permanently removes an event by its database id. */

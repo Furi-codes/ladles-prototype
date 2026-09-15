@@ -6,5 +6,5 @@ import { useAdminData } from "../components/AdminProvider";
 
 export default function VolunteersPage() {
   const { events, eventSlots, bookings, attendanceRecords } = useAdminData();
-  return <><PageHeader activeNav="Volunteers" /><VolunteerAttendance events={events} eventSlots={eventSlots} bookings={bookings} attendanceRecords={attendanceRecords} /></>;
+  return <><PageHeader activeNav="Volunteer rosters" /><VolunteerAttendance events={events} eventSlots={eventSlots} bookings={bookings} attendanceRecords={attendanceRecords} /></>;
 }
