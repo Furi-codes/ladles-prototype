@@ -8,7 +8,7 @@ import {
   updateEventMetadata,
   type EventSlotInput,
 } from "@/lib/actions/admin";
-import { getLocalDateString, hasEventFinished } from "@/lib/date-utils";
+import { getLocalDateString, getLocalTimeString, hasEventFinished } from "@/lib/date-utils";
 import type { AttendanceCheckpoint, Event, EventCategory, EventSlot } from "@/lib/types";
 import styles from "../admin.module.css";
 import AttendanceQrDialog from "./AttendanceQrDialog";
@@ -105,7 +105,7 @@ type EventsManagerProps = {
   eventSlots: EventSlot[];
   attendanceCheckpoints: AttendanceCheckpoint[];
   isLoading: boolean;
-  fetchData: () => void;
+  fetchData: () => Promise<void>;
 };
 
 type LocationSearchResult = { label: string; mapUrl: string };
@@ -136,6 +136,7 @@ export default function EventsManager({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [confirm, setConfirm] = useState<{ title: string; message: string; action: () => void } | null>(null);
   const [showPast, setShowPast] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
@@ -227,6 +228,11 @@ export default function EventsManager({
 
   function addRange() {
     const rangeCapacity = Number(capacity);
+    const currentTime = getLocalTimeString();
+    if (date === today && toMinutes(start) <= toMinutes(currentTime)) {
+      setError("For an event today, each new time range must start later than the current time.");
+      return;
+    }
     if (toMinutes(end) <= toMinutes(start)) {
       setError("Each time range must end after it starts.");
       return;
@@ -280,8 +286,18 @@ export default function EventsManager({
       setError("Complete all fields and add at least one time range.");
       return;
     }
+    if (date < today) {
+      setError("Events cannot be created in the past.");
+      return;
+    }
+    if (!editingId && date === today && ranges.some((range) => toMinutes(range.start_time) <= toMinutes(getLocalTimeString()))) {
+      setError("An event created for today must use time ranges that start later than the current time.");
+      return;
+    }
 
     const action = async () => {
+      const wasEditing = editingId !== null;
+      setIsSaving(true);
       try {
         const mapUrl = locationUrl.trim();
         if (mapUrl && !/^https?:\/\//i.test(mapUrl)) throw new Error("Map link must start with https:// or http://.");
@@ -297,11 +313,25 @@ export default function EventsManager({
           location_url: mapUrl || null,
           description: description.trim() || null,
         });
-        if (metadataError) throw metadataError;
+        // The core event and slots are already committed at this point. Metadata is
+        // saved separately because it uses an admin-only database function.
+        // Do not incorrectly tell an admin that their event failed to save when the
+        // primary event was successfully created/updated.
+        if (metadataError) console.error("Event metadata could not be saved:", metadataError);
+        await fetchData();
         resetForm();
-        fetchData();
+        setNotice(metadataError
+          ? "The event was saved and the list has been refreshed. Please reopen it and check its category, description and map link."
+          : wasEditing ? "Event changes saved. The event list is up to date." : "Event created. The event list is up to date.");
       } catch (saveError) {
-        setError(saveError instanceof Error ? saveError.message : "The event could not be saved. Please try again.");
+        const message = saveError instanceof Error
+          ? saveError.message
+          : typeof saveError === "object" && saveError && "message" in saveError && typeof saveError.message === "string"
+            ? saveError.message
+            : "The event could not be saved. Please try again.";
+        setError(message);
+      } finally {
+        setIsSaving(false);
       }
     };
 
@@ -424,7 +454,7 @@ export default function EventsManager({
             </div>}
             {!locationIsLocked && <p className={styles.helper}>Choose a result to fill the address and Google Maps link automatically. Search data © OpenStreetMap contributors.</p>}
             {!locationIsLocked && locationSearchError && <p className={styles.locationSearchError} role="status">{locationSearchError}</p>}
-            {!locationIsLocked && locationResults.length > 0 && <div className={styles.locationResults} role="listbox" aria-label="Location search results">{locationResults.map((result) => <button type="button" className={styles.locationResult} role="option" key={result.mapUrl} onClick={() => chooseLocation(result)}>{result.label}</button>)}</div>}
+            {!locationIsLocked && locationResults.length > 0 && <div className={styles.locationResults} role="listbox" aria-label="Location search results">{locationResults.map((result) => <button type="button" className={styles.locationResult} role="option" aria-selected={false} key={result.mapUrl} onClick={() => chooseLocation(result)}>{result.label}</button>)}</div>}
             <input className={styles.input} id="event-location" list={locationIsLocked ? undefined : "location-presets"} required disabled={locationIsLocked} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Choose a suggested location or type a new one" />
             <datalist id="location-presets">{LOCATION_PRESETS.map((preset) => <option key={preset} value={preset} />)}</datalist>
             {locationIsLocked && <p className={`${styles.helper} ${styles.lockedHelper}`}><Icon name="lock" size={13} /><span><strong>Location locked for this programme.</strong><br />{selectedTemplate?.locationDetail}</span></p>}
@@ -445,7 +475,7 @@ export default function EventsManager({
             <div className={styles.rangeTags}>{ranges.map((range) => { const label = `${range.start_time}-${range.end_time} · ${range.capacity} spots`; return <span className={styles.rangeTag} key={label}>{label}<button type="button" className={styles.tagRemove} onClick={() => setRanges((current) => current.filter((item) => item !== range))} aria-label={`Remove ${label}`}>×</button></span>; })}</div>
             <p className={styles.helper}>Each range has its own capacity. Ranges cannot overlap.</p>
           </div>
-          <div className={`${styles.field} ${styles.fieldFull}`}><div className={styles.formActions}><button type="button" className={styles.secondaryButton} onClick={resetForm}>Cancel</button><button type="submit" className={styles.primaryButton}>{editingId ? "Save changes" : "Create event"}</button></div></div>
+          <div className={`${styles.field} ${styles.fieldFull}`}><div className={styles.formActions}><button type="button" className={styles.secondaryButton} onClick={resetForm} disabled={isSaving}>Cancel</button><button type="submit" className={styles.primaryButton} disabled={isSaving}>{isSaving ? "Saving…" : editingId ? "Save changes" : "Create event"}</button></div></div>
         </form>
       </aside>
     </div>}
