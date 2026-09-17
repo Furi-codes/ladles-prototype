@@ -5,12 +5,15 @@ const sql = readFileSync(new URL('../supabase/migrations/20260916190557_csr_repo
 const functionBody = name => sql.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\([\\s\\S]*?\\$function\\$;`, 'i'))?.[0];
 test('individual RPC preserves all verified validations and shared slot locking', () => {
  const body = functionBody('book_event_slot');
- for (const fragment of ['v_user_id is null','for update',"v_event_status = 'Cancelled'",'v_event_date < current_date',"role = 'volunteer'",'b.user_id = v_user_id','v_booking_count + public.csr_reserved_spaces(v_slot.id)',"'Confirmed'"]) assert.ok(body.includes(fragment),fragment);
+ for (const fragment of ['v_user_id is null','for update',"v_event_status = 'Cancelled'",'v_event_date < (now() at time zone \'Africa/Johannesburg\')::date',"role = 'volunteer'",'b.user_id = v_user_id','v_booking_count + public.csr_reserved_spaces(v_slot.id)',"'Confirmed'"]) assert.ok(body.includes(fragment),fragment);
+ assert.match(body, /v_slot\.end_time <= \(now\(\) at time zone 'Africa\/Johannesburg'\)::time/);
 });
-test('slot editing retains individual protection and protects all corporate history', () => {
+test('slot editing preserves booked identities and rejects invalidating changes', () => {
  const body = functionBody('save_event_with_slots');
- assert.ok(body.includes('and event_slot_id is not null'));
- assert.ok(body.includes('select 1 from public.corporate_bookings where event_id = p_event_id'));
+ assert.ok(body.includes('An event date cannot change after bookings exist.'));
+ assert.ok(body.includes('A booked slot cannot change its times.'));
+ assert.ok(body.includes('A booked slot cannot be removed.'));
+ assert.ok(body.includes('where id = v_slot_id and event_id = v_event.id'));
  assert.ok(body.includes('sum(capacity)'));
 });
 test('corporate RPC grants execution only to authenticated and has no direct write policy', () => {

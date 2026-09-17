@@ -197,7 +197,8 @@ export default function EventsManager({
     setDescription(event.description ?? "");
     setCategory(event.category ?? "Other");
     setTemplateId("custom");
-    setRanges(existingSlots.map(({ start_time, end_time, capacity: slotCapacity }) => ({
+    setRanges(existingSlots.map(({ id, start_time, end_time, capacity: slotCapacity }) => ({
+      id,
       start_time: formatTime(start_time),
       end_time: formatTime(end_time),
       capacity: slotCapacity,

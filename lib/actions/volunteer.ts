@@ -15,9 +15,13 @@ export async function fetchBookingsForVolunteer(): Promise<PostgrestResponse<Boo
 
 /** Loads the ranges and capacities available for volunteer booking. */
 export async function fetchEventSlotsForVolunteer(): Promise<PostgrestResponse<EventSlot>> {
+  const availabilityRequest = fetchSlotAvailability().catch((error: unknown) => {
+    console.error("Unexpected slot availability failure:", error);
+    throw new Error("Availability could not be loaded. Please try again.");
+  });
   const [result, availability] = await Promise.all([
     supabase.from('event_slots').select('*').order('start_time', { ascending: true }),
-    fetchSlotAvailability().catch(() => null),
+    availabilityRequest,
   ]);
   if (result.error) return result;
   const remaining = new Map(availability?.map(row => [row.event_slot_id, Number(row.remaining)]));

@@ -156,7 +156,12 @@ begin
     or p_team_size > v_old.team_size or (v_old.status = 'Cancelled' and p_status <> 'Cancelled');
   if v_new_reservation then
     if v_event.status = 'Cancelled' then raise exception 'This event has been cancelled and can no longer be booked.'; end if;
-    if v_event.date is null or v_event.date::date < current_date then raise exception 'Past event slots cannot be booked.'; end if;
+    if v_event.date is null
+      or v_event.date::date < (now() at time zone 'Africa/Johannesburg')::date
+      or (v_event.date::date = (now() at time zone 'Africa/Johannesburg')::date
+        and v_slot.end_time <= (now() at time zone 'Africa/Johannesburg')::time) then
+      raise exception 'This event slot has already ended and cannot be booked.';
+    end if;
   end if;
   if p_status = 'Completed' then
     if v_event.status = 'Cancelled' or v_event.date is null
@@ -241,8 +246,10 @@ begin
     raise exception 'This event has been cancelled and can no longer be booked.';
   end if;
 
-  if v_event_date < current_date then
-    raise exception 'Past event slots cannot be booked.';
+  if v_event_date < (now() at time zone 'Africa/Johannesburg')::date
+    or (v_event_date = (now() at time zone 'Africa/Johannesburg')::date
+      and v_slot.end_time <= (now() at time zone 'Africa/Johannesburg')::time) then
+    raise exception 'This event slot has already ended and cannot be booked.';
   end if;
 
   select *
@@ -317,6 +324,10 @@ declare
   v_start_time time;
   v_end_time time;
   v_capacity integer;
+  v_slot_id bigint;
+  v_reserved bigint;
+  v_seen_ids bigint[] := ARRAY[]::bigint[];
+  v_existing_slot public.event_slots%rowtype;
   v_time_slots text;
   v_total_slots integer;
 begin
@@ -366,19 +377,15 @@ begin
       raise exception 'The event no longer exists.';
     end if;
 
-    -- Current behaviour:
-    -- slots with individual bookings cannot be replaced.
+    -- Serialize slot edits with both individual and corporate reservations.
+    perform id from public.event_slots where event_id = p_event_id order by id for update;
 
-    if exists (
-      select 1
-      from public.bookings
-      where event_id = p_event_id
-        and event_slot_id is not null
-    ) or exists (
-      select 1 from public.corporate_bookings where event_id = p_event_id
+    -- Metadata and non-invalidating slot edits remain possible after bookings.
+    if v_event.date::date is distinct from p_date and (
+      exists (select 1 from public.bookings where event_id = p_event_id)
+      or exists (select 1 from public.corporate_bookings where event_id = p_event_id)
     ) then
-      raise exception
-        'Slots cannot be changed after individual or corporate bookings exist for this event.';
+      raise exception 'An event date cannot change after bookings exist.';
     end if;
 
     update public.events
@@ -389,9 +396,6 @@ begin
     where id = p_event_id
     returning *
     into v_event;
-
-    delete from public.event_slots
-    where event_id = p_event_id;
 
   end if;
 
@@ -409,6 +413,8 @@ begin
     v_capacity :=
       (v_slot ->> 'capacity')::integer;
 
+    v_slot_id := nullif(v_slot ->> 'id', '')::bigint;
+
     if v_end_time <= v_start_time then
       raise exception
         'Each time slot must end after it starts.';
@@ -420,20 +426,55 @@ begin
         'Each time slot must have a capacity of at least one.';
     end if;
 
-    insert into public.event_slots (
-      event_id,
-      start_time,
-      end_time,
-      capacity
-    )
-    values (
-      v_event.id,
-      v_start_time,
-      v_end_time,
-      v_capacity
-    );
+    if v_event.id is not null and v_slot_id is not null then
+      if v_slot_id = any(v_seen_ids) then
+        raise exception 'Each event slot can appear only once.';
+      end if;
+      v_seen_ids := array_append(v_seen_ids, v_slot_id);
+      select * into v_existing_slot
+      from public.event_slots
+      where id = v_slot_id and event_id = v_event.id
+      for update;
+      if not found then
+        raise exception 'The event slot does not belong to this event.';
+      end if;
+      select count(*) + public.csr_reserved_spaces(v_slot_id)
+      into v_reserved
+      from public.bookings
+      where event_slot_id = v_slot_id;
+      if v_reserved > 0 and (
+        v_existing_slot.start_time is distinct from v_start_time
+        or v_existing_slot.end_time is distinct from v_end_time
+      ) then
+        raise exception 'A booked slot cannot change its times.';
+      end if;
+      if v_capacity < v_reserved then
+        raise exception 'Capacity cannot be reduced below reserved places.';
+      end if;
+      update public.event_slots
+      set start_time = v_start_time, end_time = v_end_time, capacity = v_capacity
+      where id = v_slot_id;
+    else
+      insert into public.event_slots (event_id, start_time, end_time, capacity)
+      values (v_event.id, v_start_time, v_end_time, v_capacity);
+    end if;
 
   end loop;
+
+  if p_event_id is not null then
+    for v_existing_slot in
+      select * from public.event_slots
+      where event_id = v_event.id
+        and not (id = any(v_seen_ids))
+      for update
+    loop
+      if exists (select 1 from public.bookings where event_slot_id = v_existing_slot.id)
+        or exists (select 1 from public.corporate_bookings where event_slot_id = v_existing_slot.id) then
+        raise exception 'A booked slot cannot be removed.';
+      end if;
+      delete from public.event_slots where id = v_existing_slot.id;
+    end loop;
+  end if;
 
   select
     string_agg(

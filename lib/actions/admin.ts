@@ -2,7 +2,7 @@ import type { PostgrestResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { AttendanceCheckpoint, AttendanceRecord, Event, EventCategory, EventSlot } from '@/lib/types'
 
-export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'>
+export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'> & { id?: number }
 
 /** Loads events for the admin dashboard, newest records first. */
 export async function fetchAdminEvents() {
