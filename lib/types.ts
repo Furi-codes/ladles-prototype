@@ -126,7 +126,7 @@ export type CompanyInput = Omit<CorporateCompany, 'id' | 'created_at' | 'updated
 export interface CorporateBooking {
   id: number; company_id: number; event_id: number; event_slot_id: number;
   contact_name: string | null; contact_email: string | null; team_size: number;
-  status: CorporateStatus; notes: string | null; attendance_count: number | null;
+  status: CorporateStatus; notes: string | null; cancellation_reason?: string | null; attendance_count: number | null;
   volunteer_hours: number | null; created_at: string; updated_at: string;
 }
 export type CorporateBookingInput = Omit<CorporateBooking, 'id' | 'event_id' | 'created_at' | 'updated_at'>;

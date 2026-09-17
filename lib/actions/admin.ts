@@ -79,7 +79,7 @@ export async function deleteEvent(id: number) {
 /** Cancels a future event without deleting its bookings or attendance history. */
 export async function cancelEvent(eventId: number, message: string) {
   return supabase
-    .rpc('cancel_event', { p_event_id: eventId, p_message: message || null })
+    .rpc('cancel_event_with_corporate_bookings', { p_event_id: eventId, p_message: message || null })
     .single()
 }
 

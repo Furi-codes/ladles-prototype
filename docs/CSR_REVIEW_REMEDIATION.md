@@ -8,6 +8,8 @@ The migration keeps the existing booking RPC checks for authentication, voluntee
 
 Corporate booking saves use the same slot lock and aggregate calculation. Pending, Confirmed, and Completed corporate rows reserve their full `team_size`; Cancelled rows reserve zero and remain as history. Cancellation therefore releases capacity after the transaction commits. Completed rows retain their reservation and require completed attendance values.
 
+Event cancellation now runs through an admin-only transactional wrapper. It locks the event and corporate rows, rejects events containing Completed corporate history, changes only Pending and Confirmed rows to Cancelled with `cancellation_reason = 'Parent event cancelled'`, and then invokes the existing event cancellation function. Any failure rolls the whole operation back. Individual corporate cancellations record `Company/admin cancelled`.
+
 Event saves still require an administrator, non-empty event data, at least one valid range, end time after start time, and positive capacity. Existing slot IDs are now sent by the admin UI. Safe title, location, description/category metadata, and capacity changes remain possible. For a slot with booking history, the RPC rejects time changes and removal; capacity cannot fall below active reserved places. An event date cannot change after bookings exist. Cancelled corporate history also prevents deleting its slot. Existing slot rows are locked before reconciliation so event edits serialize with reservation writers.
 
 No SQL was applied to production. No production database was accessed.
@@ -16,7 +18,7 @@ No SQL was applied to production. No production database was accessed.
 
 Availability keeps the expected missing-RPC migration fallback. Unexpected availability RPC/database failures are logged and surface as `Availability could not be loaded. Please try again.` rather than being treated as zero or unknown availability. The volunteer modal also disables slots whose end time has passed in `Africa/Johannesburg`; the database remains authoritative.
 
-Settings already label notification switches as stored preferences only: automated email/message delivery is not enabled. Event cancellation currently retains historical bookings, stops new bookings through the event status, and creates in-app cancellation notifications through the existing database behavior. The migration does not silently delete historical records.
+Settings already label notification switches as stored preferences only: automated email/message delivery is not enabled. Event cancellation retains historical bookings, stops new bookings through the event status, and creates in-app cancellation notifications through the existing database behavior. Completed corporate history blocks cancellation instead of being rewritten.
 
 ## Verification status
 

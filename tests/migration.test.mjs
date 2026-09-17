@@ -42,7 +42,7 @@ test('new functions have explicit search paths and only the two public RPCs rece
   assert.ok(sql.includes(`revoke all on function public.${name}(${args}) from public, anon, authenticated;`), name);
  }
  const granted = [...sql.matchAll(/grant execute on function public\.([a-z_]+)\([^;]*?\) to authenticated;/g)].map(m => m[1]).sort();
- assert.deepEqual(granted, ['get_slot_availability', 'save_corporate_booking']);
+ assert.deepEqual(granted, ['cancel_event_with_corporate_bookings', 'get_slot_availability', 'save_corporate_booking']);
  assert.match(sql, /revoke all on sequence public\.corporate_companies_id_seq,\s+public\.corporate_bookings_id_seq, public\.corporate_notes_id_seq\s+from public, anon, authenticated;/);
  assert.match(sql, /grant usage on sequence public\.corporate_companies_id_seq, public\.corporate_notes_id_seq to authenticated;/);
  assert.doesNotMatch(sql, /grant[^;]*corporate_bookings_id_seq[^;]*to authenticated/);
@@ -61,4 +61,18 @@ test('raw corporate hours are validated before rounding and migration has no des
  assert.ok(body.indexOf('p_volunteer_hours < 0') < body.indexOf('insert into public.corporate_bookings'));
  assert.doesNotMatch(sql, /\bdrop\s+(table|function|policy|trigger)\b/i);
  assert.doesNotMatch(sql, /alter table public\.(events|profiles)\b/i);
+});
+test('event cancellation atomically protects completed history and cancels reserving corporate rows', () => {
+ const body = newFunction('cancel_event_with_corporate_bookings');
+ assert.ok(body.includes('for update'));
+ assert.ok(body.includes("status = 'Completed'"));
+ assert.ok(body.includes('completed attendance records and cannot be cancelled'));
+ assert.ok(body.includes("status in ('Pending', 'Confirmed')"));
+ assert.ok(body.includes("cancellation_reason = 'Parent event cancelled'"));
+ assert.ok(body.includes('perform public.cancel_event(p_event_id, p_message)'));
+ assert.ok(sql.includes('grant execute on function public.cancel_event_with_corporate_bookings(bigint,text) to authenticated;'));
+});
+test('corporate cancellation keeps an audit reason without changing completed rows', () => {
+ assert.match(sql, /alter table public\.corporate_bookings add column cancellation_reason text;/);
+ assert.ok(sql.includes("'Company/admin cancelled'"));
 });

@@ -45,6 +45,8 @@ where s.id = :staging_slot_id;
 - Test multi-row direct admin INSERT/slot UPDATE in one statement; preceding own changes must be included in later checks.
 - For two individual bookings by the same volunteer in different slots of one event, the unique constraint still prevents the second event booking.
 - Cancel a group: retain its row, clear attendance results, and restore availability. Reactivate it after another booking fills the slot: reject reactivation.
+- Cancel an event with Pending and Confirmed corporate rows: the atomic event cancellation must change only those rows to Cancelled, set `cancellation_reason` to `Parent event cancelled`, retain rows, and release capacity.
+- Cancel an event with Completed corporate attendance/hours: reject with the completed-history error; event and booking rows must remain unchanged.
 - Increase team size beyond remaining capacity: reject. Decrease it: release only the difference.
 - Move a group into a full slot: reject without losing the original reservation. Move successfully into another slot: event id must be derived from the new slot.
 - Opposing moves between the two slots: no overbooking or lost reservation; retry any transaction-abort errors.

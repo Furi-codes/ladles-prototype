@@ -10,7 +10,7 @@ export function performanceRows(events: Event[], slots: EventSlot[], bookings: B
     const individual = bookings.filter(b => b.event_id === event.id);
     const ids = new Set(individual.map(b => b.id));
     const records = attendance.filter(a => ids.has(a.booking_id));
-    const groups = corporate.filter(b => b.event_id === event.id && b.status !== 'Cancelled');
+    const groups = corporate.filter(b => b.event_id === event.id && event.status !== 'Cancelled' && b.status !== 'Cancelled');
     const total = individual.length + groups.reduce((s, b) => s + b.team_size, 0);
     const attended = records.filter(a => a.clocked_in_at !== null).length + groups.reduce((s, b) => s + (b.status === 'Completed' ? b.attendance_count ?? 0 : 0), 0);
     return { id: event.id, event: event.title ?? 'Untitled event', date: event.date ?? '',
@@ -23,7 +23,7 @@ export function performanceRows(events: Event[], slots: EventSlot[], bookings: B
 }
 export function corporateImpact(bookings: CorporateBooking[], events: Event[], companyId: string, filter: ReportFilter) {
   const ids = new Set(events.filter(e => eventMatches(e, filter)).map(e => e.id));
-  const selected = bookings.filter(b => ids.has(b.event_id) && (!companyId || String(b.company_id) === companyId) && b.status !== 'Cancelled');
+  const selected = bookings.filter(b => ids.has(b.event_id) && events.find(e => e.id === b.event_id)?.status !== 'Cancelled' && (!companyId || String(b.company_id) === companyId) && b.status !== 'Cancelled');
   return { participating: selected.reduce((n, b) => n + b.team_size, 0), events: new Set(selected.map(b => b.event_id)).size,
     attendance: selected.reduce((n, b) => n + (b.status === 'Completed' ? b.attendance_count ?? 0 : 0), 0),
     hours: selected.reduce((n, b) => n + (b.status === 'Completed' ? Number(b.volunteer_hours ?? 0) : 0), 0) };
@@ -38,4 +38,4 @@ export function reportCsv(rows: PerformanceRow[]) {
   if (!rows.length) return null;
   const header = ['Event','Date','Capacity','Reserved places','Recorded attendance','Attendance rate (%)','Verified individual hours','Recorded corporate hours','Corporate groups','Confirmed booking records'];
   return '\uFEFF' + [header, ...rows.map(r => [r.event,r.date,r.capacity,r.bookings,r.attendance,r.rate === null ? null : r.rate.toFixed(2),r.individualHours.toFixed(2),r.corporateHours.toFixed(2),r.groups,r.confirmed])].map(r => r.map(csvCell).join(',')).join('\r\n');
-}
+}
