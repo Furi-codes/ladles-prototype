@@ -52,6 +52,8 @@ export interface EventSlot {
   start_time: string;
   end_time: string;
   capacity: number;
+  /** Privacy-safe aggregate; absent until the reviewed migration is installed. */
+  remaining?: number;
   created_at?: string;
 }
 
@@ -109,3 +111,30 @@ export interface Volunteer extends Profile {
 
 /** Semantic alias used when a profile is handled in volunteer-facing code. */
 export type VolunteerProfile = Profile;
+
+export type CorporateStatus = 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
+export type RelationshipStatus = 'Lead' | 'Contacted' | 'Interested' | 'Active Partner' | 'Inactive';
+export interface CorporateCompany {
+  id: number; name: string; industry: string | null; website: string | null;
+  location: string | null; contact_name: string | null; contact_email: string | null;
+  contact_phone: string | null; relationship_status: RelationshipStatus;
+  charities_supported: number | null; estimated_annual_csr: number | null;
+  csr_focus_areas: string | null; partnership_potential: 'Low' | 'Medium' | 'High';
+  notes: string | null; created_at: string; updated_at: string;
+}
+export type CompanyInput = Omit<CorporateCompany, 'id' | 'created_at' | 'updated_at'>;
+export interface CorporateBooking {
+  id: number; company_id: number; event_id: number; event_slot_id: number;
+  contact_name: string | null; contact_email: string | null; team_size: number;
+  status: CorporateStatus; notes: string | null; attendance_count: number | null;
+  volunteer_hours: number | null; created_at: string; updated_at: string;
+}
+export type CorporateBookingInput = Omit<CorporateBooking, 'id' | 'event_id' | 'created_at' | 'updated_at'>;
+export interface CorporateNote { id: number; company_id: number; body: string; created_by: string | null; created_at: string }
+export interface OrganisationSettings {
+  id: 1; organisation_name: string; default_location: string; contact_email: string;
+  timezone: 'Africa/Johannesburg'; booking_confirmation_enabled: boolean;
+  booking_cancellation_enabled: boolean; shift_reminder_enabled: boolean;
+  corporate_booking_confirmation_enabled: boolean; updated_at: string;
+}
+export interface SlotAvailability { event_slot_id: number; remaining: number }

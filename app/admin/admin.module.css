@@ -196,3 +196,8 @@
 :global(html[data-theme="dark"]) .rosterSummary p,
 :global(html[data-theme="dark"]) .rosterSummary span,
 :global(html[data-theme="dark"]) .rosterSelector { color: #aebdcb; }
+.featureStack { display: grid; gap: 20px; min-width: 0; }
+.featureBody { padding: 24px; min-width: 0; }
+.featureBody > .featureStack { margin: 20px 0; }
+.featureStack button:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 760px) { .featureBody { padding: 16px; } .featureStack .cardHeader { flex-wrap: wrap; } }
