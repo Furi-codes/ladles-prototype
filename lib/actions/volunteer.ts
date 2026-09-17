@@ -1,3 +1,4 @@
+import { fetchSlotAvailability } from '@/lib/actions/corporate'
 import type { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile } from '@/lib/types'
@@ -14,7 +15,17 @@ export async function fetchBookingsForVolunteer(): Promise<PostgrestResponse<Boo
 
 /** Loads the ranges and capacities available for volunteer booking. */
 export async function fetchEventSlotsForVolunteer(): Promise<PostgrestResponse<EventSlot>> {
-  return supabase.from('event_slots').select('*').order('start_time', { ascending: true })
+  const availabilityRequest = fetchSlotAvailability().catch((error: unknown) => {
+    console.error("Unexpected slot availability failure:", error);
+    throw new Error("Availability could not be loaded. Please try again.");
+  });
+  const [result, availability] = await Promise.all([
+    supabase.from('event_slots').select('*').order('start_time', { ascending: true }),
+    availabilityRequest,
+  ]);
+  if (result.error) return result;
+  const remaining = new Map(availability?.map(row => [row.event_slot_id, Number(row.remaining)]));
+  return { ...result, data: result.data.map(slot => ({ ...slot, remaining: remaining.get(slot.id) })) };
 }
 
 /** Loads unread in-app notices for the signed-in volunteer. */

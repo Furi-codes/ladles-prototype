@@ -2,7 +2,7 @@ import type { PostgrestResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { AttendanceCheckpoint, AttendanceRecord, Event, EventCategory, EventSlot } from '@/lib/types'
 
-export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'>
+export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'> & { id?: number }
 
 /** Loads events for the admin dashboard, newest records first. */
 export async function fetchAdminEvents() {
@@ -79,7 +79,7 @@ export async function deleteEvent(id: number) {
 /** Cancels a future event without deleting its bookings or attendance history. */
 export async function cancelEvent(eventId: number, message: string) {
   return supabase
-    .rpc('cancel_event', { p_event_id: eventId, p_message: message || null })
+    .rpc('cancel_event_with_corporate_bookings', { p_event_id: eventId, p_message: message || null })
     .single()
 }
 
