@@ -78,9 +78,19 @@ export async function deleteEvent(id: number) {
 
 /** Cancels a future event without deleting its bookings or attendance history. */
 export async function cancelEvent(eventId: number, message: string) {
-  return supabase
+  const parameters = { p_event_id: eventId, p_message: message || null }
+  const corporateCancellation = await supabase
     .rpc('cancel_event_with_corporate_bookings', { p_event_id: eventId, p_message: message || null })
     .single()
+
+  // Keep ordinary event cancellation working until the separately supplied
+  // CSR database SQL has been applied. Do not fall back for any other error:
+  // those errors may be enforcing the corporate cancellation rules.
+  if (corporateCancellation.error?.code === 'PGRST202') {
+    return supabase.rpc('cancel_event', parameters).single()
+  }
+
+  return corporateCancellation
 }
 
 /** Permanently removes a booking by its database id. */

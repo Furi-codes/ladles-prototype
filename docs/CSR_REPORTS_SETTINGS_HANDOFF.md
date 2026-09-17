@@ -2,8 +2,7 @@
 
 **REQUIRES DATABASE ADMIN REVIEW — NOT YET APPLIED**
 
-Migration: `supabase/migrations/20260916190557_csr_reports_settings_review.sql`.
-The complete SQL appears below and is also available in that standalone file. No migration or schema-changing SQL was executed against Supabase. No production booking, settings, profile or notification was changed during verification.
+Database SQL: supplied separately through the project handover process. It is intentionally not stored in this repository. No migration or schema-changing SQL was executed against Supabase. No production booking, settings, profile or notification was changed during verification.
 
 ## Repository reconciliation
 
@@ -27,9 +26,7 @@ The pre-existing Settings whitespace edit was retained when replacing its placeh
 - `app/admin/components/SettingsManager.tsx`
 - `lib/actions/corporate.ts`
 - `lib/reporting.ts`
-- `supabase/migrations/20260916190557_csr_reports_settings_review.sql`
 - `tests/data-pagination.test.mjs`
-- `tests/migration.test.mjs`
 - `tests/reporting.test.mjs`
 - `docs/CSR_REPORTS_SETTINGS_HANDOFF.md` (this document)
 - `docs/CSR_STAGING_CHECKLIST.md`
@@ -164,7 +161,7 @@ This is a static, source-based review of the revised draft. The migration has **
 3. **Isolation assumption:** an unchanged slot row can be locked after another reservation commits while a REPEATABLE READ transaction still sees its older reservation snapshot. Row locking alone does not invalidate that snapshot. The three new mutation entry points (`save_corporate_booking`, `csr_guard_individual_capacity`, `csr_guard_slot_capacity`) now reject non-READ-COMMITTED snapshot modes with SQLSTATE `25000`. PostgreSQL READ UNCOMMITTED is allowed because it has READ COMMITTED semantics. This is a fail-closed precondition, not a new locking model. Existing individual RPC code still has exactly the previously documented capacity-only edit; its INSERT trigger enforces the precondition. Individual DELETE and status-only attendance updates are not changed. All corporate RPC saves share the same isolation requirement, including edits that could reduce capacity. SERIALIZABLE is also rejected to keep every capacity writer on one supported snapshot strategy; callers must start a fresh READ COMMITTED transaction, not retry the same unsupported isolation level. The stale-snapshot finding is an inference from [PostgreSQL transaction isolation](https://www.postgresql.org/docs/current/transaction-iso.html); no concurrent database test was run.
 4. **Attendance rounding:** numeric(12,2) rounds before the table CHECK. A negative RPC input such as -0.001 could previously become stored zero; a zero-attendance input with +0.001 hours could do the same. The corporate RPC now rejects raw negative hours and any raw positive hours paired with zero attendance before storage coercion. The existing attendance CHECK remains unchanged.
 
-Only the migration, count field UI/type, static migration tests, this handoff and the staging checklist were changed for this review. No new RPC, table, dependency or migration filename was introduced.
+Only the separately supplied database SQL, count field UI/type, this handoff and the staging checklist were changed for this review. No new dependency was introduced.
 
 ### Corporate event/slot consistency — unchanged
 
