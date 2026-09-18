@@ -1,14 +1,16 @@
 "use client";
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from '../admin.module.css';
 export function useFeatureData<T>(loader: () => Promise<T>) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const request = useRef(0);
   const reload = useCallback(async () => {
+    const version = ++request.current;
     setLoading(true); setError('');
-    try { setData(await loader()); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load data.'); setData(null); }
-    finally { setLoading(false); }
+    try { const result = await loader(); if (version === request.current) setData(result); } catch (e) { if (version === request.current) { setError(e instanceof Error ? e.message : 'Unable to load data.'); setData(null); } }
+    finally { if (version === request.current) setLoading(false); }
   }, [loader]);
   useEffect(() => { let active = true; queueMicrotask(() => { if (active) void reload(); }); return () => { active = false; }; }, [reload]);
   return { data, error, loading, reload };
