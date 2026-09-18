@@ -3,6 +3,7 @@ import LiveShiftSchedule from "@/app/components/LiveShiftSchedule";
 import { getEventSlotEndAt, getEventSlotStartAt } from "@/lib/attendance-utils";
 import type { AttendanceRecord, Booking, Event, EventSlot } from "@/lib/types";
 import styles from "../volunteer.module.css";
+import EmptyState from "./EmptyState";
 
 type ActiveShiftsProps = {
   userBookings: Booking[];
@@ -26,7 +27,7 @@ export default function ActiveShifts({
       <div><h2 className={styles.cardTitle}>My active shifts</h2><p className={styles.cardHint}>Your confirmed bookings and any shift currently in progress.</p></div>
       <span className={styles.eventCount}>{userBookings.length}</span>
     </div>
-    {isLoading ? <div className={styles.emptySmall}>Loading your shifts...</div> : userBookings.length === 0 ? <div className={styles.empty}>You have no active shifts yet.<br />Select an upcoming event to sign up.</div> : <div className={styles.shiftList}>
+    {isLoading ? <div className={styles.emptySmall}>Loading your shifts...</div> : userBookings.length === 0 ? <EmptyState icon="checklist" title="No active shifts yet" description="Find an upcoming event and reserve a shift when you are ready." ctaLabel="Find a Shift" ctaHref="/volunteer#upcoming-events" /> : <div className={styles.shiftList}>
       {userBookings.map((booking) => {
         const event = getEventData(booking.event_id);
         const attendance = attendanceRecords.find((record) => record.booking_id === booking.id);

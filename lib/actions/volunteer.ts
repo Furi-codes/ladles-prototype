@@ -117,3 +117,10 @@ export async function cancelUserBooking(
     error: result.error ? { message: result.error.message } : null,
   }
 }
+
+export type CommunityParticipationMonth = { month_start: string; volunteer_count: number };
+
+/** Returns only monthly community totals, never other volunteers' records. */
+export async function fetchCommunityParticipation(): Promise<PostgrestResponse<CommunityParticipationMonth>> {
+  return supabase.rpc('get_community_participation')
+}

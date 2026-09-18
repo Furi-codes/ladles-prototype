@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ProfilePhotoEditor from "../components/ProfilePhotoEditor";
 import Link from "next/link";
 import { useVolunteerData } from "../components/VolunteerProvider";
 import styles from "../volunteer.module.css";
@@ -39,6 +40,7 @@ export default function VolunteerProfilePage() {
       <Link href="/volunteer" className={styles.secondaryButton}>Back to dashboard</Link>
     </section>
     <div className={styles.settingsGrid}>
+      <ProfilePhotoEditor />
       <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Personal details</h2><p className={styles.cardHint}>Keep these details accurate for bookings and attendance.</p></div></div><form className={styles.settingsBody} onSubmit={saveDetails}>
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-name">Full name</label><input id="profile-name" className={styles.input} required value={fullName} onChange={(event) => setFullName(event.target.value)} /></div>
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-dob">Date of birth</label><input id="profile-dob" className={styles.input} required type="date" max={new Date().toISOString().slice(0, 10)} value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} /></div>

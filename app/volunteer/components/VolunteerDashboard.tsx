@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { hasEventFinished } from "@/lib/date-utils";
 import type { Event } from "@/lib/types";
 import styles from "../volunteer.module.css";
+import CommunityParticipation from "./CommunityParticipation";
 import ActiveShifts from "./ActiveShifts";
 import ConfirmDialog from "./ConfirmDialog";
 import ConsentPrompt from "./ConsentPrompt";
 import DateOfBirthPrompt from "./DateOfBirthPrompt";
 import EventModal from "./EventModal";
 import NotificationPanel from "./NotificationPanel";
+import VolunteerLeaderboard from "./VolunteerLeaderboard";
+import { getLeaderboardPreview } from "./leaderboard-preview";
 import ProgressionPanel from "./ProgressionPanel";
 import UpcomingEvents from "./UpcomingEvents";
 import WelcomeCard from "./WelcomeCard";
@@ -43,12 +46,14 @@ export default function VolunteerDashboard() {
     </section>
     <NotificationPanel notifications={notifications} onDismiss={(notificationId) => void dismissNotification(notificationId)} />
     <WelcomeCard profile={profile} activeShifts={activeBookings.length} eventsCount={activeEventCount} />
+    <CommunityParticipation />
     <div className={styles.dashboardGrid}>
       <UpcomingEvents events={events} eventSlots={eventSlots} isLoading={isLoading} isUserBookedForEvent={isUserBookedForEvent} onSelect={setSelectedEvent} />
-      <div className={styles.rightColumn}>
-        <ActiveShifts userBookings={activeBookings} attendanceRecords={attendanceRecords} eventSlots={eventSlots} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} />
-        <ProgressionPanel bookings={bookings} attendanceRecords={attendanceRecords} userId={user?.id} />
-      </div>
+      <ActiveShifts userBookings={activeBookings} attendanceRecords={attendanceRecords} eventSlots={eventSlots} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} />
+    </div>
+    <div className={styles.progressGrid}>
+      <ProgressionPanel bookings={bookings} attendanceRecords={attendanceRecords} userId={user?.id} />
+      <VolunteerLeaderboard entries={getLeaderboardPreview(user?.id, profile?.full_name)} currentUserId={user?.id} isPreview />
     </div>
     <EventModal key={selectedEvent?.id ?? "no-event"} event={selectedEvent} eventSlots={eventSlots.filter((slot) => slot.event_id === selectedEvent?.id)} bookings={bookings} profile={profile} onClose={() => setSelectedEvent(null)} onBook={createUserBooking} />
     {!profile?.date_of_birth && <DateOfBirthPrompt onSave={(dateOfBirth) => saveProfile({ full_name: profile?.full_name ?? "Volunteer", date_of_birth: dateOfBirth })} />}
