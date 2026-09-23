@@ -1,6 +1,20 @@
 import type { AttendanceRecord, Booking, CorporateBooking, Event, EventSlot } from './types';
 export interface ReportFilter { from: string; to: string; location: string; event: string }
+export const reportPresets = ['Recent Activity', 'Monthly Volunteer Activity', 'Event Attendance', 'Volunteer Hours', 'Corporate Participation', 'Custom Report'] as const;
+export type ReportPreset = typeof reportPresets[number];
+export function presetFilter(preset: ReportPreset, now = new Date()): ReportFilter {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  const start = new Date(`${today}T12:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - (preset === 'Event Attendance' ? 89 : 29));
+  return { from: preset === 'Custom Report' ? '' : ['Monthly Volunteer Activity', 'Volunteer Hours', 'Corporate Participation'].includes(preset) ? `${today.slice(0, 7)}-01` : start.toISOString().slice(0, 10), to: preset === 'Custom Report' ? '' : today, location: '', event: '' };
+}
 export interface PerformanceRow { id: number; event: string; date: string; capacity: number; bookings: number; attendance: number; rate: number | null; individualHours: number; corporateHours: number; groups: number; confirmed: number }
+export function selectedReportRows(data: { events: Event[]; slots: EventSlot[]; bookings: Booking[]; attendance: AttendanceRecord[]; corporate: CorporateBooking[] }, filter: ReportFilter, corporateOnly = false, company = '') {
+  if (filter.from && filter.to && filter.from > filter.to) return [];
+  return performanceRows(data.events, data.slots, corporateOnly ? [] : data.bookings, data.attendance,
+    data.corporate.filter(b => !corporateOnly || !company || String(b.company_id) === company), filter)
+    .filter(row => !corporateOnly || row.groups > 0);
+}
 export function eventMatches(event: Event, filter: ReportFilter) {
   return (!filter.from || event.date >= filter.from) && (!filter.to || event.date <= filter.to)
     && (!filter.location || event.location === filter.location) && (!filter.event || String(event.id) === filter.event);

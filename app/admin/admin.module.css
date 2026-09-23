@@ -196,7 +196,8 @@
 :global(html[data-theme="dark"]) .rosterSummary p,
 :global(html[data-theme="dark"]) .rosterSummary span,
 :global(html[data-theme="dark"]) .rosterSelector { color: #aebdcb; }
-.featureStack { display: grid; gap: 20px; min-width: 0; }
+.featureStack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
+.featureStack .field { min-width: 0; }
 .featureBody { padding: 24px; min-width: 0; }
 .featureBody > .featureStack { margin: 20px 0; }
 .featureStack button:disabled { opacity: .6; cursor: wait; }

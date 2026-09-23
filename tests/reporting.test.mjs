@@ -5,7 +5,7 @@ import ts from 'typescript';
 // Use the project's compiler without adding a test runtime dependency.
 const source = readFileSync(new URL('../lib/reporting.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { performanceRows, corporateImpact, reportCsv, csvCell } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const { performanceRows, corporateImpact, reportCsv, csvCell, presetFilter, reportPresets, selectedReportRows } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const events = [{id:1,title:'Kitchen',date:'2026-09-01',location:'Cape Town',total_slots:999,status:'Scheduled'},{id:2,title:'Other',date:'2026-10-01',location:'Elsewhere',status:'Cancelled'}];
 const slots = [{id:10,event_id:1,capacity:10},{id:11,event_id:1,capacity:5}];
 const bookings = [{id:1,event_id:1,status:'Completed'},{id:2,event_id:1,status:'Present'},{id:3,event_id:1,status:'No show'}];
@@ -39,4 +39,32 @@ test('CSV quotes embedded delimiters, newlines and quotes, neutralizes formula t
   assert.equal(reportCsv([]),null);
   const csv = reportCsv(performanceRows(events,slots,bookings,attendance,corporate,filter));
   assert.ok(csv.startsWith('\uFEFF')); assert.ok(csv.includes('1.58')); assert.ok(csv.includes('7.50'));
+});
+test('all six presets use real adjustable date filters in Johannesburg time', () => {
+  const now = new Date('2026-09-30T23:00:00Z'); // October 1 in South Africa
+  const expected = {
+    'Recent Activity': ['2026-09-02','2026-10-01'],
+    'Monthly Volunteer Activity': ['2026-10-01','2026-10-01'],
+    'Event Attendance': ['2026-07-04','2026-10-01'],
+    'Volunteer Hours': ['2026-10-01','2026-10-01'],
+    'Corporate Participation': ['2026-10-01','2026-10-01'],
+    'Custom Report': ['',''],
+  };
+  assert.equal(reportPresets.length, 6);
+  for (const preset of reportPresets) {
+    const [from,to] = expected[preset];
+    assert.deepEqual(presetFilter(preset,now), {from,to,event:'',location:''});
+  }
+});
+test('active company and corporate scope drive the same rows used for CSV', () => {
+  const data = {events,slots,bookings,attendance,corporate};
+  const rows = selectedReportRows(data,filter,true,'4');
+  assert.equal(rows[0].individualHours,0);
+  assert.equal(rows[0].bookings,7);
+  assert.equal(rows[0].attendance,4);
+  assert.equal(rows[0].capacity,15);
+  assert.ok(reportCsv(rows).includes('7.50'));
+  assert.equal(reportCsv(selectedReportRows(data,filter,true,'99')),null);
+  assert.deepEqual(selectedReportRows(data,filter),performanceRows(events,slots,bookings,attendance,corporate,filter));
+  assert.deepEqual(selectedReportRows(data,{...filter,from:'2026-10-01'}),[]);
 });
