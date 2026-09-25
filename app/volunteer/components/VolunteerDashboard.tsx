@@ -14,6 +14,7 @@ import NotificationPanel from "./NotificationPanel";
 import ProgressionPanel from "./ProgressionPanel";
 import UpcomingEvents from "./UpcomingEvents";
 import WelcomeCard from "./WelcomeCard";
+import CommunityParticipation from "./CommunityParticipation";
 import { useVolunteerData } from "./VolunteerProvider";
 
 export default function VolunteerDashboard() {
@@ -43,6 +44,7 @@ export default function VolunteerDashboard() {
     </section>
     <NotificationPanel notifications={notifications} onDismiss={(notificationId) => void dismissNotification(notificationId)} />
     <WelcomeCard profile={profile} activeShifts={activeBookings.length} eventsCount={activeEventCount} />
+    <CommunityParticipation />
     <div className={styles.dashboardGrid}>
       <UpcomingEvents events={events} eventSlots={eventSlots} isLoading={isLoading} isUserBookedForEvent={isUserBookedForEvent} onSelect={setSelectedEvent} />
       <div className={styles.rightColumn}>

@@ -11,6 +11,7 @@ export interface Profile {
   role?: UserRole;
   date_of_birth?: string;
   phone?: string;
+  avatar_path?: string | null;
   is_present?: boolean;
 }
 

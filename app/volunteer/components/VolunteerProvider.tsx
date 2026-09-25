@@ -4,14 +4,16 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { supabase, getCurrentUser } from "@/lib/supabase";
-import { fetchUserRole, fetchVolunteerConsent, requestVolunteerEmailChange, saveVolunteerConsent, updateVolunteerProfile } from "@/lib/actions/profile";
+import { fetchUserRole, fetchVolunteerConsent, requestVolunteerEmailChange, saveVolunteerAvatar, saveVolunteerConsent, updateVolunteerProfile } from "@/lib/actions/profile";
 import { bookEventSlot, cancelUserBooking, ensureUserProfile, fetchBookingsForVolunteer, fetchEventsForVolunteer, fetchEventSlotsForVolunteer, fetchVolunteerAttendanceRecords, fetchVolunteerNotifications, markVolunteerNotificationRead } from "@/lib/actions/volunteer";
 import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile, VolunteerConsent } from "@/lib/types";
+import { useProfilePhotoUrl } from "./useProfilePhotoUrl";
 
 type Toast = { id: number; type: "success" | "error" | "info"; message: string };
 type VolunteerContextValue = {
   user: User | null;
   profile: Profile | null;
+  avatarUrl: string | null;
   consent: VolunteerConsent | null;
   events: Event[];
   eventSlots: EventSlot[];
@@ -26,6 +28,7 @@ type VolunteerContextValue = {
   cancelBooking: (bookingId: number) => Promise<void>;
   dismissNotification: (notificationId: number) => Promise<void>;
   saveProfile: (data: { full_name: string; date_of_birth: string }) => Promise<string | null>;
+  saveAvatar: (photo: Blob | null) => Promise<string | null>;
   requestEmailChange: (email: string) => Promise<string | null>;
   acceptConsent: () => Promise<string | null>;
   showToast: (type: Toast["type"], message: string) => void;
@@ -39,6 +42,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [savedAvatar, setSavedAvatar] = useState<{ path: string; url: string } | null>(null);
   const [consent, setConsent] = useState<VolunteerConsent | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [eventSlots, setEventSlots] = useState<EventSlot[]>([]);
@@ -49,6 +53,15 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const savedAvatarUrl = savedAvatar?.path === profile?.avatar_path ? savedAvatar?.url ?? null : null;
+  const avatarUrl = useProfilePhotoUrl(
+    profile?.avatar_path,
+    savedAvatarUrl,
+  );
+
+  useEffect(() => () => {
+    if (savedAvatar) URL.revokeObjectURL(savedAvatar.url);
+  }, [savedAvatar]);
 
   const showToast = useCallback((type: Toast["type"], message: string) => {
     const id = Date.now();
@@ -190,6 +203,25 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [showToast, user]);
 
+  const saveAvatar = useCallback(async (photo: Blob | null) => {
+    if (!user || !profile) return "Please sign in before updating your profile photo.";
+    const { data: updatedProfile, error } = await saveVolunteerAvatar(user.id, photo);
+    if (error || !updatedProfile) {
+      console.error("Failed to save volunteer photo:", error);
+      return error ?? "Your profile photo could not be saved. Please try again.";
+    }
+
+    setSavedAvatar((current) => {
+      if (current) URL.revokeObjectURL(current.url);
+      return photo && updatedProfile.avatar_path
+        ? { path: updatedProfile.avatar_path, url: URL.createObjectURL(photo) }
+        : null;
+    });
+    setProfile(updatedProfile as Profile);
+    showToast("success", photo ? "Your profile photo has been updated." : "Your profile photo has been removed.");
+    return null;
+  }, [profile, showToast, user]);
+
   const requestEmailChange = useCallback(async (email: string) => {
     const { error } = await requestVolunteerEmailChange(email);
     if (error) {
@@ -211,7 +243,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [showToast]);
 
-  return <VolunteerContext.Provider value={{ user, profile, consent, events, eventSlots, bookings, attendanceRecords, notifications, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
+  return <VolunteerContext.Provider value={{ user, profile, avatarUrl, consent, events, eventSlots, bookings, attendanceRecords, notifications, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, saveAvatar, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
 }
 
 export function useVolunteerData() {
