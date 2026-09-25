@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { fetchCommunityParticipation, type CommunityParticipationMonth } from "@/lib/actions/volunteer";
+import { fetchCommunityParticipation, type CommunityParticipationMonth, type CommunityParticipationPeriod } from "@/lib/actions/volunteer";
 import styles from "./CommunityParticipation.module.css";
 
 const chartWidth = 576;
@@ -11,6 +11,12 @@ const chartRight = 542;
 const chartTop = 22;
 const chartBottom = 184;
 
+const periodOptions: { value: CommunityParticipationPeriod; label: string }[] = [
+  { value: "latest_6_months", label: "Last 6 months" },
+  { value: "previous_6_months", label: "Previous 6 months" },
+  { value: "earlier_6_months", label: "13–18 months ago" },
+];
+
 function labelForMonth(monthStart: string, options: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat("en-ZA", { timeZone: "UTC", ...options })
     .format(new Date(`${monthStart}T00:00:00Z`));
@@ -18,16 +24,19 @@ function labelForMonth(monthStart: string, options: Intl.DateTimeFormatOptions) 
 
 export default function CommunityParticipation() {
   const chartTitleId = useId();
+  const [period, setPeriod] = useState<CommunityParticipationPeriod>("latest_6_months");
   const [months, setMonths] = useState<CommunityParticipationMonth[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const periodLabel = periodOptions.find((option) => option.value === period)?.label ?? "Last 6 months";
 
   useEffect(() => {
     let active = true;
     async function loadParticipation() {
       setIsLoading(true);
-      const result = await fetchCommunityParticipation();
+      setError(null);
+      const result = await fetchCommunityParticipation(period);
       if (!active) return;
       if (result.error) {
         console.error("Failed to load community participation:", result.error);
@@ -45,7 +54,7 @@ export default function CommunityParticipation() {
     }
     void loadParticipation();
     return () => { active = false; };
-  }, []);
+  }, [period]);
 
   const selected = months[selectedIndex] ?? null;
   const maximum = Math.max(1, Math.ceil(Math.max(...months.map((month) => month.volunteer_count), 0) / 5) * 5);
@@ -66,23 +75,15 @@ export default function CommunityParticipation() {
         <h2 id={chartTitleId}>Volunteer participation</h2>
         <p className={styles.subtitle}>Unique volunteers who recorded a clock-in each month.</p>
       </div>
-      <span className={styles.badge}>{isLoading ? "Loading" : "Live data"}</span>
+      <div className={styles.controls}>
+        <label className={styles.periodControl}>Period<select value={period} onChange={(event) => setPeriod(event.target.value as CommunityParticipationPeriod)} disabled={isLoading}>{periodOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        <span className={styles.badge}>{isLoading ? "Loading" : "Live data"}</span>
+      </div>
     </div>
     {error ? <p className={styles.footnote} role="status">{error}</p> : <div className={styles.body}>
-      <div className={styles.summary}>
-        <span className={styles.number}>{selected?.volunteer_count ?? 0}</span>
-        <span className={styles.metric}>volunteers</span>
-        <span className={styles.period}>{selected ? labelForMonth(selected.month_start, { month: "long", year: "numeric" }) : "Last six months"}</span>
-        <p className={styles.summaryNote}>Select a month to view its recorded participation.</p>
-        <div className={styles.monthPicker} aria-label="Choose a month">
-          {months.map((month, index) => <button key={month.month_start} type="button" className={`${styles.monthButton} ${index === selectedIndex ? styles.selected : ""}`} onClick={() => setSelectedIndex(index)}>
-            {labelForMonth(month.month_start, { month: "short" })}<span>{month.volunteer_count}</span>
-          </button>)}
-        </div>
-      </div>
       <div className={styles.chartArea}>
-        <div className={styles.chartHeading}><span><i className={styles.legendDot} aria-hidden="true" />Unique volunteers</span><span>Last six months</span></div>
-        <svg className={styles.chart} viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label="Monthly volunteer participation chart">
+        <div className={styles.chartHeading}><span><i className={styles.legendDot} aria-hidden="true" />Unique volunteers</span><span>{periodLabel}</span></div>
+        <svg className={styles.chart} viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label={`Monthly volunteer participation for ${periodLabel}`}>
           {[0, .5, 1].map((ratio) => {
             const y = chartBottom - (chartBottom - chartTop) * ratio;
             return <line key={ratio} className={styles.gridLine} x1={chartLeft} x2={chartRight} y1={y} y2={y} />;
@@ -96,6 +97,12 @@ export default function CommunityParticipation() {
           {selectedPoint && <text className={styles.pointLabel} x={selectedPoint.x} y={Math.max(16, selectedPoint.y - 16)} textAnchor="middle">{selectedPoint.volunteer_count}</text>}
         </svg>
       </div>
+      <div className={styles.monthPicker} aria-label="Choose a month">
+        {months.map((month, index) => <button key={month.month_start} type="button" className={`${styles.monthButton} ${index === selectedIndex ? styles.selected : ""}`} onClick={() => setSelectedIndex(index)}>
+          {labelForMonth(month.month_start, { month: "short" })}<span>{month.volunteer_count}</span>
+        </button>)}
+      </div>
+      <p className={styles.selectedSummary} aria-live="polite">{selected ? `${labelForMonth(selected.month_start, { month: "long", year: "numeric" })}: ${selected.volunteer_count} volunteer${selected.volunteer_count === 1 ? "" : "s"}.` : "Select a month to view its recorded participation."}</p>
     </div>}
     <p className={styles.footnote}>Only recorded attendance is counted; the chart does not expose volunteer names or contact details.</p>
   </section>;

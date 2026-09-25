@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile } from '@/lib/types'
 
 export type CommunityParticipationMonth = { month_start: string; volunteer_count: number }
+export type CommunityParticipationPeriod = "latest_6_months" | "previous_6_months" | "earlier_6_months"
 
 /** Loads events in chronological order for the volunteer dashboard. */
 export async function fetchEventsForVolunteer(): Promise<PostgrestResponse<Event>> {
@@ -131,7 +132,7 @@ export async function cancelUserBooking(
   }
 }
 
-/** Returns privacy-safe monthly attendance totals for the volunteer dashboard. */
-export async function fetchCommunityParticipation(): Promise<PostgrestResponse<CommunityParticipationMonth>> {
-  return supabase.rpc('get_community_participation')
+/** Returns privacy-safe monthly attendance totals for one bounded six-month period. */
+export async function fetchCommunityParticipation(period: CommunityParticipationPeriod): Promise<PostgrestResponse<CommunityParticipationMonth>> {
+  return supabase.rpc('get_community_participation_for_period', { p_period: period })
 }
