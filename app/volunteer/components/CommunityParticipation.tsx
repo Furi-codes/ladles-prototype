@@ -12,9 +12,9 @@ const chartTop = 22;
 const chartBottom = 184;
 
 const periodOptions: { value: CommunityParticipationPeriod; label: string }[] = [
-  { value: "latest_6_months", label: "Last 6 months" },
-  { value: "previous_6_months", label: "Previous 6 months" },
-  { value: "earlier_6_months", label: "13–18 months ago" },
+  { value: "latest_6_months", label: "Latest 6 months" },
+  { value: "previous_6_months", label: "6–12 months ago" },
+  { value: "earlier_6_months", label: "12–18 months ago" },
 ];
 
 function labelForMonth(monthStart: string, options: Intl.DateTimeFormatOptions) {
@@ -29,7 +29,7 @@ export default function CommunityParticipation() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const periodLabel = periodOptions.find((option) => option.value === period)?.label ?? "Last 6 months";
+  const periodLabel = periodOptions.find((option) => option.value === period)?.label ?? "Latest 6 months";
 
   useEffect(() => {
     let active = true;
