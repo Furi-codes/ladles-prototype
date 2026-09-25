@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { saveCorporateBooking, type loadCorporateData } from '@/lib/actions/corporate';
+import { logAdminAction } from '@/lib/actions/audit';
 import type { CorporateBooking, CorporateCompany, CorporateStatus } from '@/lib/types';
 import { Field } from './FeatureShared';
 import styles from '../admin.module.css';
@@ -14,10 +15,17 @@ export default function CorporateBookingForm({ company, data, reload }: { compan
   async function save(form: FormData) {
     setBusy(true); setMessage('');
     try {
-      await saveCorporateBooking(initial?.id ?? null, { company_id: company.id, event_slot_id: Number(form.get('event_slot_id')), team_size: Number(form.get('team_size')), status,
+      const saved = await saveCorporateBooking(initial?.id ?? null, { company_id: company.id, event_slot_id: Number(form.get('event_slot_id')), team_size: Number(form.get('team_size')), status,
         contact_name: String(form.get('contact_name') ?? '').trim() || null, contact_email: String(form.get('contact_email') ?? '').trim() || null,
         notes: String(form.get('notes') ?? '').trim() || null, attendance_count: status === 'Completed' ? Number(form.get('attendance_count')) : null,
         volunteer_hours: status === 'Completed' ? Number(form.get('volunteer_hours')) : null });
+      await logAdminAction({
+        action: initial ? 'CORPORATE_BOOKING_UPDATED' : 'CORPORATE_BOOKING_CREATED',
+        entityType: 'CORPORATE_BOOKING',
+        entityId: saved.id,
+        entityLabel: company.name,
+        details: { event_slot_id: saved.event_slot_id, team_size: saved.team_size, status: saved.status },
+      });
       setEditing(null); await reload(); setMessage('Corporate booking saved.');
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Unable to save booking.'); } finally { setBusy(false); }
   }

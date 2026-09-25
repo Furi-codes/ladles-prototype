@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
 import { changeAdminAccess, currentAccessUserId, searchAccessProfiles } from '@/lib/actions/access';
+import { logAdminAction } from '@/lib/actions/audit';
 import type { Profile, UserRole } from '@/lib/types';
 import { Field } from './FeatureShared';
 import styles from '../admin.module.css';
@@ -40,6 +41,13 @@ export default function AdminAccessManager({ admins, reload }: { admins: Profile
     searchVersion.current++;
     try {
       await changeAdminAccess(pending.profile.id, pending.role);
+      await logAdminAction({
+        action: pending.role === 'admin' ? 'ADMIN_ACCESS_GRANTED' : 'ADMIN_ACCESS_REVOKED',
+        entityType: 'PROFILE',
+        entityId: pending.profile.id,
+        entityLabel: pending.profile.full_name,
+        details: { role: pending.role },
+      });
       setPending(null);
       setResults([]);
       await reload();

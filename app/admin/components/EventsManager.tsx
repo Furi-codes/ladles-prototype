@@ -8,6 +8,7 @@ import {
   updateEventMetadata,
   type EventSlotInput,
 } from "@/lib/actions/admin";
+import { logAdminAction } from "@/lib/actions/audit";
 import { getLocalDateString, getLocalTimeString, hasEventFinished } from "@/lib/date-utils";
 import type { AttendanceCheckpoint, Event, EventCategory, EventSlot } from "@/lib/types";
 import styles from "../admin.module.css";
@@ -319,6 +320,19 @@ export default function EventsManager({
         // Do not incorrectly tell an admin that their event failed to save when the
         // primary event was successfully created/updated.
         if (metadataError) console.error("Event metadata could not be saved:", metadataError);
+        await logAdminAction({
+          action: wasEditing ? "EVENT_UPDATED" : "EVENT_CREATED",
+          entityType: "EVENT",
+          entityId: savedEvent.id,
+          entityLabel: savedEvent.title,
+          details: {
+            date: savedEvent.date,
+            location: savedEvent.location,
+            category,
+            slot_count: ranges.length,
+            metadata_saved: !metadataError,
+          },
+        });
         await fetchData();
         resetForm();
         setNotice(metadataError
@@ -357,7 +371,14 @@ export default function EventsManager({
           try {
             const { error: deleteError } = await deleteEvent(id);
             if (deleteError) throw deleteError;
-            fetchData();
+            const deletedEvent = events.find((event) => event.id === id);
+            await logAdminAction({
+              action: "EVENT_DELETED",
+              entityType: "EVENT",
+              entityId: id,
+              entityLabel: deletedEvent?.title ?? null,
+            });
+            await fetchData();
           } catch {
             setNotice("This event cannot be deleted because volunteers have bookings. Use Cancel event instead.");
           }
@@ -375,9 +396,16 @@ export default function EventsManager({
       setNotice(cancelError.message || "The event could not be cancelled. Please try again.");
       return;
     }
+    await logAdminAction({
+      action: "EVENT_CANCELLED",
+      entityType: "EVENT",
+      entityId: eventToCancel.id,
+      entityLabel: eventToCancel.title,
+      details: { cancellation_message_supplied: Boolean(cancellationMessage.trim()) },
+    });
     setEventToCancel(null);
     setCancellationMessage("");
-    fetchData();
+    await fetchData();
   }
 
   return <>

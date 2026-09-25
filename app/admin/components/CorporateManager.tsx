@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { loadCorporateData, saveCompany, addCorporateNote } from '@/lib/actions/corporate';
+import { logAdminAction } from '@/lib/actions/audit';
 import type { CompanyInput, CorporateCompany } from '@/lib/types';
 import styles from '../admin.module.css';
 import { FeatureState, Field, useFeatureData } from './FeatureShared';
@@ -25,12 +26,30 @@ export default function CorporateManager() {
       }
       const input = { ...fields, charities_supported: charitiesCount, name: String(form.get('name')).trim(), relationship_status: form.get('relationship_status'), partnership_potential: form.get('partnership_potential'), estimated_annual_csr: form.get('estimated_annual_csr') === '' ? null : Number(form.get('estimated_annual_csr')) } as CompanyInput;
       const saved = await saveCompany(editing && editing !== 'new' ? editing.id : null, input);
+      await logAdminAction({
+        action: editing && editing !== 'new' ? 'CSR_COMPANY_UPDATED' : 'CSR_COMPANY_CREATED',
+        entityType: 'CORPORATE_COMPANY',
+        entityId: saved.id,
+        entityLabel: saved.name,
+        details: { relationship_status: saved.relationship_status },
+      });
       setSelected(String(saved.id)); setEditing(null); await reload(); setMessage('Company saved.');
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Unable to save company.'); } finally { setBusy(false); }
   }
   async function addNote(form: FormData) {
     setBusy(true); setMessage('');
-    try { await addCorporateNote(Number(selected), String(form.get('body'))); await reload(); setMessage('Note added.'); }
+    try {
+      await addCorporateNote(Number(selected), String(form.get('body')));
+      const company = data?.companies.find((item) => String(item.id) === selected);
+      await logAdminAction({
+        action: 'CSR_NOTE_ADDED',
+        entityType: 'CORPORATE_COMPANY',
+        entityId: selected,
+        entityLabel: company?.name ?? null,
+        details: { note_recorded: true },
+      });
+      await reload(); setMessage('Note added.');
+    }
     catch (e) { setMessage(e instanceof Error ? e.message : 'Unable to add note.'); } finally { setBusy(false); }
   }
   const company = data?.companies.find(c => String(c.id) === selected);

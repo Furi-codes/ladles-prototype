@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useState } from 'react';
 import { loadReportData, searchReportEvents, searchReportLocations } from '@/lib/actions/corporate';
+import { logAdminAction } from '@/lib/actions/audit';
 import { corporateImpact, selectedReportRows, reportCsv, reportPresets, presetFilter, type ReportPreset, type ReportFilter } from '@/lib/reporting';
 import { Field, FeatureState, useFeatureData } from './FeatureShared';
 import SearchSelector from './SearchSelector';
@@ -19,15 +20,21 @@ export default function ReportsManager() {
   const rows = data && !loading ? selectedReportRows(data, filter, corporateOnly, company) : [];
   const impact = data ? corporateImpact(data.corporate, data.events, company, filter) : null;
   const total = (key: 'bookings' | 'attendance' | 'individualHours' | 'corporateHours' | 'groups' | 'confirmed') => rows.reduce((n, r) => n + r[key], 0);
-  function exportCsv() {
+  async function exportCsv() {
     const csv = reportCsv(rows); if (!csv) return;
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const a = document.createElement('a'); a.href = url; a.download = `ladles-report-${filter.from || 'all'}-${filter.to || 'all'}.csv`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    await logAdminAction({
+      action: 'REPORT_EXPORTED',
+      entityType: 'REPORT',
+      entityLabel: preset,
+      details: { from: filter.from || null, to: filter.to || null, event_id: filter.event || null, location: filter.location || null, corporate_only: corporateOnly, rows: rows.length },
+    });
   }
   function update(key: keyof ReportFilter, value: string) { setPreset('Custom Report'); setFilter(f => ({ ...f, [key]: value })); }
   return <div className={styles.featureStack}><FeatureState error={error} loading={loading} retry={reload} /><>
-    <section className={styles.card}><div className={styles.cardHeader}><h2 className={styles.cardTitle}>Reports &amp; Analytics</h2><button className={styles.primaryButton} disabled={!rows.length || loading} onClick={exportCsv}>Export CSV</button></div>
+    <section className={styles.card}><div className={styles.cardHeader}><h2 className={styles.cardTitle}>Reports &amp; Analytics</h2><button className={styles.primaryButton} disabled={!rows.length || loading} onClick={() => void exportCsv()}>Export CSV</button></div>
       <div className={`${styles.featureBody} ${styles.formGrid}`}>
         <Field label="Report preset"><select className={styles.select} value={preset} onChange={e => { const next = e.target.value as ReportPreset; setPreset(next); setFilter(presetFilter(next)); setCompany(''); setCorporateOnly(next === 'Corporate Participation'); setEventQuery(''); setLocationQuery(''); setEventLabel(''); }}>{reportPresets.map(p => <option key={p}>{p}</option>)}</select></Field>
         <Field label="Participation"><select className={styles.select} value={corporateOnly ? 'corporate' : 'all'} onChange={e => { setCorporateOnly(e.target.value === 'corporate'); setCompany(''); setPreset('Custom Report'); }}><option value="all">Individual and corporate</option><option value="corporate">Corporate only</option></select></Field>
