@@ -21,10 +21,11 @@ const SAMPLE_VOLUNTEERS: LeaderboardEntry[] = [
   { id: "preview-11", name: "Adam Smith", total_hours: 48, rank: 11 },
   { id: "preview-12", name: "Emily Naidoo", total_hours: 36, rank: 12 },
   { id: "preview-13", name: "Sam Daniels", total_hours: 30, rank: 13 },
+  { id: "preview-14", name: "Priya Govender", total_hours: 26, rank: 14 },
 ];
 
 export function getLeaderboardPreview(userId?: string, name?: string): LeaderboardEntry[] {
   return userId ? [...SAMPLE_VOLUNTEERS, {
-    id: userId, name: name?.trim() || "You", total_hours: 24, rank: 14,
+    id: userId, name: name?.trim() || "You", total_hours: 20, rank: 15,
   }] : [...SAMPLE_VOLUNTEERS];
 }

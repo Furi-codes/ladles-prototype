@@ -11,6 +11,8 @@ type Props = {
 export default function VolunteerLeaderboard({ entries, currentUserId, isLoading = false, isPreview = false }: Props) {
   // Entries arrive pre-ranked and ordered by the data source.
   const topTen = entries.slice(0, 10);
+  const ownEntry = currentUserId ? entries.find((entry) => entry.id === currentUserId) : undefined;
+  const extraOwnEntry = ownEntry && !topTen.some((entry) => entry.id === ownEntry.id) ? ownEntry : undefined;
 
   function medal(rank: number) {
     const label = rank === 1 ? "Gold" : rank === 2 ? "Silver" : "Bronze";
@@ -31,9 +33,9 @@ export default function VolunteerLeaderboard({ entries, currentUserId, isLoading
     );
   }
 
-  function row(entry: LeaderboardEntry) {
+  function row(entry: LeaderboardEntry, separated = false) {
     const isYou = entry.id === currentUserId;
-    return <tr key={entry.id} className={isYou ? styles.leaderboardHighlight : undefined}>
+    return <tr key={entry.id} className={separated ? styles.leaderboardOwnRow : isYou ? styles.leaderboardHighlight : undefined}>
       <td>{entry.rank <= 3 ? medal(entry.rank) : <span className={styles.leaderboardRank}>{entry.rank}</span>}</td>
       <td><span className={styles.leaderboardName}>{entry.name}</span>{isYou && <span className={styles.leaderboardYou}>You</span>}</td>
       <td className={styles.leaderboardHours}>{entry.total_hours.toLocaleString("en-ZA", { maximumFractionDigits: 1 })}</td>
@@ -51,7 +53,7 @@ export default function VolunteerLeaderboard({ entries, currentUserId, isLoading
         <table className={`${styles.table} ${styles.leaderboardTable}`} aria-labelledby="leaderboard-title">
           <thead><tr><th scope="col">Rank</th><th scope="col">Name</th><th scope="col">Total hours</th></tr></thead>
           <tbody>{topTen.map((entry) => row(entry))}</tbody>
-
+          {extraOwnEntry && <tbody>{row(extraOwnEntry, true)}</tbody>}
         </table>
       </div>}
     <div className={styles.progressFooter}><span className={styles.progressNote}>{isPreview ? "Sample hours and ranks only. Your actual hours remain in My progression." : "Ranked by total hours, then alphabetically by name."}</span></div>
