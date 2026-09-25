@@ -11,10 +11,8 @@ import ConsentPrompt from "./ConsentPrompt";
 import DateOfBirthPrompt from "./DateOfBirthPrompt";
 import EventModal from "./EventModal";
 import NotificationPanel from "./NotificationPanel";
-import ProgressionPanel from "./ProgressionPanel";
 import UpcomingEvents from "./UpcomingEvents";
 import WelcomeCard from "./WelcomeCard";
-import CommunityParticipation from "./CommunityParticipation";
 import { useVolunteerData } from "./VolunteerProvider";
 
 export default function VolunteerDashboard() {
@@ -39,17 +37,15 @@ export default function VolunteerDashboard() {
 
   return <>
     <section className={styles.pageHeading}>
-      <div><h1 className={styles.pageTitle}>Volunteer dashboard</h1><p className={styles.pageDescription}>Find events, manage your shifts, and track your participation.</p></div>
-      <div className={styles.toolbar}><button type="button" className={styles.secondaryButton} onClick={() => router.push("/volunteer/attendance")}>Attendance scanner</button><span className={styles.liveStatus}><span className={styles.liveDot} aria-hidden="true" />Live updates</span></div>
+      <div><h1 className={styles.pageTitle}>Volunteer dashboard</h1><p className={styles.pageDescription}>Find upcoming opportunities and manage your shifts.</p></div>
+      <div className={styles.toolbar}><button type="button" className={styles.secondaryButton} onClick={() => router.push("/volunteer/impact")}>My impact</button><button type="button" className={styles.secondaryButton} onClick={() => router.push("/volunteer/attendance")}>Attendance scanner</button><span className={styles.liveStatus}><span className={styles.liveDot} aria-hidden="true" />Live updates</span></div>
     </section>
     <NotificationPanel notifications={notifications} onDismiss={(notificationId) => void dismissNotification(notificationId)} />
     <WelcomeCard profile={profile} activeShifts={activeBookings.length} eventsCount={activeEventCount} />
-    <CommunityParticipation />
     <div className={styles.dashboardGrid}>
       <UpcomingEvents events={events} eventSlots={eventSlots} isLoading={isLoading} isUserBookedForEvent={isUserBookedForEvent} onSelect={setSelectedEvent} />
       <div className={styles.rightColumn}>
         <ActiveShifts userBookings={activeBookings} attendanceRecords={attendanceRecords} eventSlots={eventSlots} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} />
-        <ProgressionPanel bookings={bookings} attendanceRecords={attendanceRecords} userId={user?.id} />
       </div>
     </div>
     <EventModal key={selectedEvent?.id ?? "no-event"} event={selectedEvent} eventSlots={eventSlots.filter((slot) => slot.event_id === selectedEvent?.id)} bookings={bookings} profile={profile} onClose={() => setSelectedEvent(null)} onBook={createUserBooking} />
