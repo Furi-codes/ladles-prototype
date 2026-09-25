@@ -24,8 +24,8 @@ export default function Sidebar({ isOpen = false, onClose }: { isOpen?: boolean;
     return <Link key={link.href} href={link.href} className={`${styles.navButton} ${active ? styles.navButtonActive : ""}`} onClick={onClose} aria-current={active ? "page" : undefined}><Icon name={link.icon} />{link.label}</Link>;
   };
 
-  return <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ""}`}>
-    <div className={styles.brand}><Image className="brandLogoImage" src="/newLogo.png" alt="Ladles of Love" width={68} height={42} style={{ objectFit: "contain" }} /><div><div className={styles.brandName}>Ladles of Love</div><div className={styles.brandSub}>Administration</div></div></div>
+  return <aside id="admin-mobile-navigation" className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ""}`} aria-label="Administration navigation">
+    <div className={styles.brand}><Image className="brandLogoImage" src="/newLogo.png" alt="Ladles of Love" width={68} height={42} style={{ objectFit: "contain" }} /><div><div className={styles.brandName}>Ladles of Love</div><div className={styles.brandSub}>Administration</div></div><button type="button" className={styles.sidebarClose} aria-label="Close navigation" onClick={onClose}>×</button></div>
     <nav className={styles.nav} aria-label="Admin navigation"><div className={styles.navSection}>Workspace</div>{navLinks.map(renderLink)}<div className={styles.navSection} style={{ marginTop: 24 }}>More</div>{extraLinks.map(renderLink)}</nav>
   </aside>;
 }

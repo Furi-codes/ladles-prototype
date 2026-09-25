@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import styles from "../admin.module.css";
@@ -15,6 +15,15 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileNavOpen]);
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.replace("/");
@@ -23,9 +32,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   if (isCheckingAccess) return <AdminLoadingScreen />;
 
   return <div className={styles.shell}>
+    {mobileNavOpen && <button type="button" className={styles.mobileNavBackdrop} aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
     <Sidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
     <div className={styles.main}>
-      <TopHeader name={adminProfile.full_name || "Administrator"} email={adminProfile.email} onSignOut={() => setShowSignOutConfirm(true)} onMenu={() => setMobileNavOpen(true)} />
+      <TopHeader name={adminProfile.full_name || "Administrator"} email={adminProfile.email} onSignOut={() => setShowSignOutConfirm(true)} menuOpen={mobileNavOpen} onMenu={() => setMobileNavOpen((open) => !open)} />
       <main className={styles.content}>
         {loadError && <div className={styles.error} role="alert">{loadError}</div>}
         {children}

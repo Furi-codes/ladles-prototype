@@ -13,6 +13,7 @@
 .account { color: inherit; text-decoration: none; }
 .account:hover .accountName { color: #d92732; }
 .topActions { gap: 14px; }
+.desktopActions { display: flex; align-items: center; gap: 14px; }
 .account { gap: 9px; }
 .avatar { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #17202a; color: #fff; font-size: 11px; font-weight: 800; }
 .accountDetails { display: grid; gap: 2px; line-height: 1.15; }
@@ -21,6 +22,19 @@
 .signOut, .primaryButton, .secondaryButton, .dangerButton { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border-radius: 7px; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
 .signOut { border: 1px solid #d92732; background: #fff; color: #d92732; }
 .signOut:hover { background: #fff0f1; }
+.mobileMenuButton { display: none; width: 40px; height: 40px; padding: 9px; border: 1px solid #d7dce1; border-radius: 8px; background: #fff; cursor: pointer; }
+.mobileMenuButton span { display: block; height: 2px; margin: 4px 0; border-radius: 2px; background: #34414d; }
+.mobileMenuBackdrop { position: fixed; inset: 0; z-index: 70; border: 0; background: rgba(17,24,32,.46); cursor: pointer; }
+.mobileMenu { position: fixed; inset: 0 0 0 auto; z-index: 80; display: flex; width: min(350px, calc(100vw - 38px)); min-height: 100dvh; flex-direction: column; padding: 18px; box-sizing: border-box; background: #fff; box-shadow: -16px 0 42px rgba(23,32,42,.18); }
+.mobileMenuHeading { display: flex; align-items: center; justify-content: space-between; padding: 2px 2px 18px; border-bottom: 1px solid #edf0f2; color: #24303b; font-size: 17px; font-weight: 800; }
+.mobileMenuClose { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid #d7dce1; border-radius: 8px; background: #fff; color: #5a6673; font-size: 25px; line-height: 1; cursor: pointer; }
+.mobileNavLink { margin-top: 8px; padding: 14px 12px; border-radius: 8px; color: #34414d; font-size: 15px; font-weight: 750; text-decoration: none; }
+.mobileNavLink:hover { background: #fff0f1; color: #c62630; }
+.mobileAccount { display: flex; align-items: center; gap: 11px; margin-top: auto; padding: 18px 4px; border-top: 1px solid #edf0f2; color: #24303b; }
+.mobileAccount div { display: grid; gap: 4px; min-width: 0; }
+.mobileAccount strong { font-size: 14px; }
+.mobileAccount span { overflow: hidden; color: #7d8793; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.mobileMenuActions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .primaryButton { border: 1px solid #d92732; background: #d92732; color: #fff; }
 .primaryButton:hover { background: #bd202b; }
 .primaryButton:disabled { cursor: not-allowed; opacity: .65; }
@@ -126,7 +140,7 @@
 .scannerVideo { width: 100%; aspect-ratio: 1; border-radius: 10px; background: #17202a; object-fit: cover; }
 
 @media (max-width: 850px) { .content { width: min(100% - 32px, 680px); padding-top: 26px; } .dashboardGrid, .settingsGrid { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .topbar { min-height: 64px; padding: 0 16px; } .brandName { font-size: 14px; } .brandSub { font-size: 9px; } .accountDetails { display: none; } .topActions { gap: 8px; } .signOut { min-height: 36px; padding: 0 10px; font-size: 12px; } .pageHeading, .welcomeCard, .progressFooter { align-items: flex-start; flex-direction: column; } .toolbar { width: 100%; justify-content: space-between; } .cardHeader, .upcomingEvent, .shiftRow, .table th, .table td, .progressFooter { padding-left: 16px; padding-right: 16px; } .upcomingEvent { grid-template-columns: auto minmax(0, 1fr); align-items: start; } .eventAction { grid-column: 2; justify-items: start; } .shiftRow { align-items: flex-start; flex-direction: column; } .modal { padding: 20px; } .modalActions { flex-direction: column-reverse; } .modalActions > button { width: 100%; } }
+@media (max-width: 600px) { .topbar { min-height: 64px; padding: 0 16px; } .brandName { font-size: 14px; } .brandSub { font-size: 9px; } .desktopActions { display: none; } .mobileMenuButton { display: block; } .topActions { gap: 8px; } .pageHeading, .welcomeCard, .progressFooter { align-items: flex-start; flex-direction: column; } .toolbar { width: 100%; justify-content: space-between; } .cardHeader, .upcomingEvent, .shiftRow, .table th, .table td, .progressFooter { padding-left: 16px; padding-right: 16px; } .upcomingEvent { grid-template-columns: auto minmax(0, 1fr); align-items: start; } .eventAction { grid-column: 2; justify-items: start; } .shiftRow { align-items: flex-start; flex-direction: column; } .modal { padding: 20px; } .modalActions { flex-direction: column-reverse; } .modalActions > button { width: 100%; } }
 
 /* Dark theme overrides for volunteer pages, dialogs, and the scanner surface. */
 :global(html[data-theme="dark"]) .shell,
@@ -161,9 +175,18 @@
 :global(html[data-theme="dark"]) .secondaryButton,
 :global(html[data-theme="dark"]) .select,
 :global(html[data-theme="dark"]) .input,
-:global(html[data-theme="dark"]) .closeButton { border-color: #465566; background: #16212c; color: #e2eaf1; }
+:global(html[data-theme="dark"]) .closeButton,
+:global(html[data-theme="dark"]) .mobileMenuButton,
+:global(html[data-theme="dark"]) .mobileMenuClose { border-color: #465566; background: #16212c; color: #e2eaf1; }
+:global(html[data-theme="dark"]) .mobileMenu { background: #1a2530; color: #f0f4f8; }
+:global(html[data-theme="dark"]) .mobileMenuHeading,
+:global(html[data-theme="dark"]) .mobileAccount { border-color: #354454; color: #f0f4f8; }
+:global(html[data-theme="dark"]) .mobileNavLink { color: #d6e0e9; }
+:global(html[data-theme="dark"]) .mobileNavLink:hover { background: #342127; color: #ffb1b6; }
 :global(html[data-theme="dark"]) .secondaryButton:hover,
-:global(html[data-theme="dark"]) .closeButton:hover { background: #243342; }
+:global(html[data-theme="dark"]) .closeButton:hover,
+:global(html[data-theme="dark"]) .mobileMenuButton:hover,
+:global(html[data-theme="dark"]) .mobileMenuClose:hover { background: #243342; }
 :global(html[data-theme="dark"]) .eventCount,
 :global(html[data-theme="dark"]) .shiftTime,
 :global(html[data-theme="dark"]) .signedInAs { background: #243342; color: #d6e0e9; }
