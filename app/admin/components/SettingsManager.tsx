@@ -1,6 +1,6 @@
 "use client";
 import { useState } from 'react';
-import { loadSettings, saveSettings, saveAdminName } from '@/lib/actions/corporate';
+import { loadSettings, saveNotificationSettings, saveAdminName } from '@/lib/actions/corporate';
 import { useAdminData } from './AdminProvider';
 import { Field, FeatureState, useFeatureData } from './FeatureShared';
 import AdminAccessManager from './AdminAccessManager';
@@ -14,9 +14,8 @@ export default function SettingsManager() {
   async function save(form: FormData) {
     setBusy(true); setMessage('');
     try {
-      await saveSettings({ default_location: String(form.get('default_location')).trim(), contact_email: String(form.get('contact_email')).trim(), timezone: 'Africa/Johannesburg',
-        booking_confirmation_enabled: form.has('booking_confirmation_enabled'), booking_cancellation_enabled: form.has('booking_cancellation_enabled'), shift_reminder_enabled: form.has('shift_reminder_enabled'), corporate_booking_confirmation_enabled: form.has('corporate_booking_confirmation_enabled') });
-      await reload(); setMessage('Organisation settings saved.');
+      await saveNotificationSettings({ booking_confirmation_enabled: form.has('booking_confirmation_enabled'), booking_cancellation_enabled: form.has('booking_cancellation_enabled'), shift_reminder_enabled: form.has('shift_reminder_enabled'), corporate_booking_confirmation_enabled: form.has('corporate_booking_confirmation_enabled') });
+      await reload(); setMessage('Notification preferences saved.');
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Unable to save settings.'); } finally { setBusy(false); }
   }
   async function account(form: FormData) {
@@ -26,14 +25,7 @@ export default function SettingsManager() {
   }
   return <div className={styles.featureStack}><FeatureState error={error} loading={loading} retry={reload} />{message && <p role="status" className={styles.helper}>{message}</p>}
     {data && <><form action={save} key={data.settings.updated_at} className={styles.featureStack}>
-      <section className={styles.card}><div className={styles.cardHeader}><h2 className={styles.cardTitle}>Organisation</h2></div><div className={`${styles.featureBody} ${styles.formGrid}`}>
-        <Field label="Organisation name"><input className={styles.input} value="Ladles of Love" readOnly /></Field>
-        <Field label="Default location"><input name="default_location" className={styles.input} defaultValue={data.settings.default_location} /></Field>
-        <Field label="Contact email"><input type="email" name="contact_email" className={styles.input} defaultValue={data.settings.contact_email} /></Field>
-        <Field label="Timezone"><select className={styles.select} defaultValue="Africa/Johannesburg"><option>Africa/Johannesburg</option></select></Field>
-        <p className={`${styles.helper} ${styles.fieldFull}`}>Organisation defaults are stored for administration. Existing events and attendance use their current settings.</p>
-      </div></section>
-      <section className={styles.card}><div className={styles.cardHeader}><h2 className={styles.cardTitle}>Notifications</h2></div><div className={`${styles.featureBody} ${styles.featureStack}`}><p className={styles.helper}>Preferences are stored for future delivery integration. They do not send emails or messages and do not change existing in-app event cancellation notifications.</p>{preferences.map(([key,label]) => <label key={key} className={styles.helper}><input type="checkbox" name={key} defaultChecked={data.settings[key]} /> {label}</label>)}<button className={styles.primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save organisation & preferences'}</button></div></section>
+      <section className={styles.card}><div className={styles.cardHeader}><h2 className={styles.cardTitle}>Notifications</h2></div><div className={`${styles.featureBody} ${styles.featureStack}`}><p className={styles.helper}>Preferences are stored for future delivery integration. They do not send emails or messages and do not change existing in-app event cancellation notifications.</p>{preferences.map(([key,label]) => <label key={key} className={styles.helper}><input type="checkbox" name={key} defaultChecked={data.settings[key]} /> {label}</label>)}<button className={styles.primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save notification preferences'}</button></div></section>
     </form>
     <AdminAccessManager admins={data.admins} reload={reload} /></>}
     <section className={styles.card}><div className={styles.cardHeader}><h2 className={styles.cardTitle}>Account</h2></div><form action={account} className={`${styles.featureBody} ${styles.formGrid}`}><Field label="Your name"><input name="full_name" className={styles.input} required defaultValue={adminProfile.full_name} /></Field><Field label="Email"><input className={styles.input} value={adminProfile.email ?? ''} readOnly /></Field><p className={styles.helper}>Use the existing “Forgot password” flow on the sign-in page to reset your password.</p><div className={styles.formActions}><button className={styles.primaryButton} disabled={busy}>Save account name</button></div></form></section>

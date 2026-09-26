@@ -50,6 +50,9 @@ export async function saveCorporateBooking(id: number | null, input: CorporateBo
 export async function loadReportData(filter: ReportFilter) {
   const events: Event[] = [];
   if (filter.from && filter.to && filter.from > filter.to) return { events, slots: [], bookings: [], attendance: [], corporate: [], companies: [] };
+  const access = await supabase.rpc('is_admin');
+  if (access.error) throw new Error(featureError(access.error));
+  if (access.data !== true) throw new Error('Reports are available only to authorised admins.');
   for (let offset = 0; ;) {
     let query = supabase.from('events').select('*', { count: 'exact' }).order('id');
     if (filter.from) query = query.gte('date', filter.from);
@@ -109,10 +112,9 @@ export async function loadSettings() {
   if (admins.error) throw new Error(admins.error.message);
   return { settings: settings.data as OrganisationSettings, admins: admins.data as Profile[] };
 }
-export async function saveSettings(input: Omit<OrganisationSettings, 'id' | 'updated_at' | 'organisation_name'>) {
-  // Explicit allowlist also rejects unexpected runtime properties from callers.
-  const { default_location, contact_email, timezone, booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled } = input;
-  const { error } = await supabase.from('organisation_settings').update({ default_location, contact_email, timezone, booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled }).eq('id', 1).select().single();
+export async function saveNotificationSettings(input: Pick<OrganisationSettings, 'booking_confirmation_enabled' | 'booking_cancellation_enabled' | 'shift_reminder_enabled' | 'corporate_booking_confirmation_enabled'>) {
+  const { booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled } = input;
+  const { error } = await supabase.from('organisation_settings').update({ booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled }).eq('id', 1).select().single();
   if (error) throw new Error(featureError(error));
 }
 export async function saveAdminName(name: string) {

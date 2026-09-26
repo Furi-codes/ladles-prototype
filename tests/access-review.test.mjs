@@ -53,12 +53,14 @@ test('access actions use RPC only and explain the new unapplied migration', asyn
   const missing = await mockedActions('../lib/actions/access.ts',{rpc:async()=>({error:{code:'PGRST202',message:'missing'}})});
   await assert.rejects(()=>missing.searchAccessProfiles(''),/new admin access \/ fixed identity migration/);
 });
-test('saving allowed settings never forwards organisation_name even if injected at runtime', async () => {
+test('saving notifications never forwards removed organisation fields even if injected at runtime', async () => {
   let payload;
   const actions = await mockedActions('../lib/actions/corporate.ts',{from:()=>({update:data=>{payload=data;return {eq:()=>({select:()=>({single:async()=>({error:null})})})};}})});
-  await actions.saveSettings({organisation_name:'Changed',default_location:'Cape Town',contact_email:'contact@example.test',timezone:'Africa/Johannesburg',booking_confirmation_enabled:true,booking_cancellation_enabled:false,shift_reminder_enabled:true,corporate_booking_confirmation_enabled:false});
+  await actions.saveNotificationSettings({organisation_name:'Changed',default_location:'Cape Town',contact_email:'contact@example.test',timezone:'Africa/Johannesburg',booking_confirmation_enabled:true,booking_cancellation_enabled:false,shift_reminder_enabled:true,corporate_booking_confirmation_enabled:false});
   assert.equal('organisation_name' in payload,false);
-  assert.equal(payload.default_location,'Cape Town');
+  assert.equal('default_location' in payload,false);
+  assert.equal('contact_email' in payload,false);
+  assert.equal('timezone' in payload,false);
   assert.equal(payload.booking_confirmation_enabled,true);
-  assert.equal(Object.keys(payload).length,7);
+  assert.equal(Object.keys(payload).length,4);
 });

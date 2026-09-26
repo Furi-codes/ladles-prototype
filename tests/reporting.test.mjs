@@ -9,7 +9,7 @@ const { performanceRows, corporateImpact, reportCsv, csvCell, presetFilter, repo
 const events = [{id:1,title:'Kitchen',date:'2026-09-01',location:'Cape Town',total_slots:999,status:'Scheduled'},{id:2,title:'Other',date:'2026-10-01',location:'Elsewhere',status:'Cancelled'}];
 const slots = [{id:10,event_id:1,capacity:10},{id:11,event_id:1,capacity:5}];
 const bookings = [{id:1,event_id:1,status:'Completed'},{id:2,event_id:1,status:'Present'},{id:3,event_id:1,status:'No show'}];
-const attendance = [{booking_id:1,clocked_in_at:'x',worked_minutes:95},{booking_id:2,clocked_in_at:'x',worked_minutes:null}];
+const attendance = [{booking_id:1,clocked_in_at:'x',clocked_out_at:'y',worked_minutes:95},{booking_id:2,clocked_in_at:'x',worked_minutes:null}];
 const corporate = [{id:1,event_id:1,company_id:4,status:'Completed',team_size:5,attendance_count:4,volunteer_hours:7.5},{id:2,event_id:1,company_id:4,status:'Pending',team_size:2,attendance_count:null,volunteer_hours:null},{id:3,event_id:1,company_id:4,status:'Cancelled',team_size:100,attendance_count:null,volunteer_hours:null}];
 const cancelledCorporate = [{id:4,event_id:2,company_id:4,status:'Completed',team_size:5,attendance_count:5,volunteer_hours:8}];
 const filter = {from:'2026-09-01',to:'2026-09-30',location:'',event:''};

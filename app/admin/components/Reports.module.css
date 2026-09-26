@@ -1,0 +1,74 @@
+/* Chart-only values mirror the existing admin.module.css palette. Card surfaces,
+   typography, forms and tables use the shared admin classes directly. */
+.root, .chart {
+  --report-text: #4e5a67;
+  --report-heading: #17202a;
+  --report-axis: #657180;
+  --report-grid: #edf0f2;
+  --report-track: #f1f3f5;
+  --report-booked: #2b63ad;
+  --report-attended: #18733c;
+  --report-pending: #955a17;
+  --report-confirmed: #5b6672;
+  --report-completed: #2b63ad;
+  --report-cancelled: #b4232d;
+  --report-focus: #d92732;
+}
+:global(html[data-theme="dark"]) .root,
+:global(html[data-theme="dark"]) .chart {
+  --report-text: #aebdcb;
+  --report-heading: #f0f4f8;
+  --report-axis: #aebdcb;
+  --report-grid: #354454;
+  --report-track: #16212c;
+  --report-booked: #eaf2ff;
+  --report-attended: #ff9fa7;
+  --report-pending: #f0d0a8;
+  --report-confirmed: #aebdcb;
+  --report-completed: #eaf2ff;
+  --report-cancelled: #ff9fa7;
+  --report-focus: #ff9fa7;
+}
+.root { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
+.root .summary { margin-bottom: 0; }
+.metric, .chart { min-width: 0; }
+.metricLabel { margin: 0; }
+.metric > div:first-child { gap: 8px; }
+.metric > div:first-child > span { flex-shrink: 0; }
+.metric > div { overflow-wrap: anywhere; }
+.chartGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.plotScroll, .tableScroll { overflow-x: auto; max-width: 100%; }
+.plotScroll svg { display: block; width: 100%; height: 270px; }
+.axis { fill: var(--report-axis); font-size: 12px; }
+.gridLine { stroke: var(--report-grid); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--report-text); margin: 0 0 18px; }
+.legend span, .statusList span { display: flex; align-items: center; gap: 8px; }
+.legend i, .statusList i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: 0 0 auto; }
+.chart .tooltip { min-height: 38px; padding: 8px 12px; background: var(--report-track); color: var(--report-axis); border: 1px solid var(--report-grid); border-radius: 7px; }
+.data { margin-top: 16px; }
+.data summary { cursor: pointer; padding: 8px 0; }
+.dataTable { min-width: 0; }
+.dataTable caption { text-align: left; padding: 14px 24px; }
+.dataTable td { overflow-wrap: anywhere; }
+/* Row headers retain table semantics but follow the existing first-column style. */
+.chart .dataTable tbody .rowHeading {
+  padding: 18px 24px; border-top: 1px solid var(--report-grid); background: transparent;
+  color: var(--report-heading); font-size: 14px; font-weight: 700;
+  letter-spacing: normal; text-transform: none; white-space: normal; overflow-wrap: anywhere;
+}
+.companyBars { max-height: 350px; overflow-y: auto; padding: 3px; }
+.companyRow { margin-bottom: 20px; }
+.companyRow > div:first-child { display: flex; justify-content: space-between; gap: 14px; color: var(--report-text); font-size: 12px; }
+.companyRow span { overflow-wrap: anywhere; min-width: 0; }
+.companyRow strong { white-space: nowrap; }
+.track { background: var(--report-track); border-radius: 5px; margin-top: 8px; height: 12px; }
+.track > div { height: 100%; border-radius: inherit; background: var(--report-booked); }
+.donut { display: block; width: min(100%, 240px); margin: 0 auto 18px; }
+.donutValue { fill: var(--report-heading); font-size: 28px; font-weight: 800; letter-spacing: -.6px; }
+.statusList { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; font-size: 12px; color: var(--report-text); }
+.statusList li { display: flex; justify-content: space-between; gap: 12px; }
+.statusList small { font-weight: 400; }
+.chart :focus-visible { outline: 2px solid var(--report-focus); outline-offset: 2px; }
+.preview { margin-top: 22px; }
+.preview > div:first-child { flex-wrap: wrap; }
+@media (max-width: 1050px) { .chartGrid { grid-template-columns: minmax(0, 1fr); } }
