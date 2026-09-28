@@ -432,6 +432,7 @@ export default function EventsManager({
               const slots = slotsForEvent(item.id);
               const isCancelled = item.status === "Cancelled";
               const isPast = hasEventFinished(item, slots);
+              const isWmsManaged = Boolean(item.external_event_id);
               const statusLabel = isCancelled ? "Cancelled" : isPast ? "Completed" : "Scheduled";
               return <tr key={item.id}>
                 <td>{item.title}</td>
@@ -442,10 +443,14 @@ export default function EventsManager({
                 <td>{slots.length > 0 ? slots.reduce((total, slot) => total + slot.capacity, 0) : item.total_slots}</td>
                 <td><span className={`${styles.status} ${isCancelled ? styles.statusCancelled : statusLabel === "Completed" ? styles.statusCompleted : styles.statusConfirmed}`}>{statusLabel}</span></td>
                 <td><div className={styles.tableActions}>
-                  {!isCancelled && !isPast && <button type="button" className={styles.secondaryButton} onClick={() => openEdit(item)}><Icon name="edit" size={14} /> Edit</button>}
-                  {!isCancelled && !isPast && <button type="button" className={styles.secondaryButton} onClick={() => setQrEvent(item)}>Attendance QR</button>}
-                  {!isCancelled && !isPast && <button type="button" className={styles.dangerButton} onClick={() => { setEventToCancel(item); setCancellationMessage(""); }}>Cancel event</button>}
-                  <button type="button" className={styles.dangerButton} onClick={() => removeEvent(item.id)} aria-label={`Delete ${item.title}`}><Icon name="trash" size={14} /></button>
+                  {isWmsManaged
+                    ? <span className={styles.helper}>Managed by WMS</span>
+                    : <>
+                      {!isCancelled && !isPast && <button type="button" className={styles.secondaryButton} onClick={() => openEdit(item)}><Icon name="edit" size={14} /> Edit</button>}
+                      {!isCancelled && !isPast && <button type="button" className={styles.secondaryButton} onClick={() => setQrEvent(item)}>Attendance QR</button>}
+                      {!isCancelled && !isPast && <button type="button" className={styles.dangerButton} onClick={() => { setEventToCancel(item); setCancellationMessage(""); }}>Cancel event</button>}
+                      <button type="button" className={styles.dangerButton} onClick={() => removeEvent(item.id)} aria-label={`Delete ${item.title}`}><Icon name="trash" size={14} /></button>
+                    </>}
                 </div></td>
               </tr>;
             })}

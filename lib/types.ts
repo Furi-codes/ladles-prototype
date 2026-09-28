@@ -41,6 +41,8 @@ export interface Event {
   cancelled_by?: string | null;
   category?: EventCategory;
   location_url?: string | null;
+  /** Non-null only when the Warehouse Management System owns this event. */
+  external_event_id?: string | null;
 }
 
 /** Categories reflect Ladles of Love's regular volunteer programmes and reporting needs. */
@@ -56,6 +58,8 @@ export interface EventSlot {
   /** Privacy-safe aggregate; absent until the reviewed migration is installed. */
   remaining?: number;
   created_at?: string;
+  /** Non-null only when the Warehouse Management System owns this time slot. */
+  external_timeslot_id?: string | null;
 }
 
 /** One of the two event QR checkpoints used to record attendance. */
