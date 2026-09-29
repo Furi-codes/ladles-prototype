@@ -7,7 +7,7 @@ import { useVolunteerData } from "../components/VolunteerProvider";
 import styles from "../volunteer.module.css";
 
 export default function VolunteerImpactPage() {
-  const { user, bookings, attendanceRecords } = useVolunteerData();
+  const { user, profile, events, bookings, attendanceRecords } = useVolunteerData();
 
   return <>
     <section className={styles.pageHeading}>
@@ -15,7 +15,7 @@ export default function VolunteerImpactPage() {
       <Link href="/volunteer" className={styles.secondaryButton}>Back to dashboard</Link>
     </section>
     <div className={styles.impactStack}>
-      <ProgressionPanel bookings={bookings} attendanceRecords={attendanceRecords} userId={user?.id} />
+      <ProgressionPanel bookings={bookings} attendanceRecords={attendanceRecords} events={events} profile={profile} userId={user?.id} />
       <CommunityParticipation />
     </div>
   </>;

@@ -4,13 +4,6 @@ import { useEffect, useId, useState } from "react";
 import { fetchCommunityParticipation, type CommunityParticipationMonth, type CommunityParticipationPeriod } from "@/lib/actions/volunteer";
 import styles from "./CommunityParticipation.module.css";
 
-const chartWidth = 576;
-const chartHeight = 232;
-const chartLeft = 52;
-const chartRight = 542;
-const chartTop = 22;
-const chartBottom = 184;
-
 const periodOptions: { value: CommunityParticipationPeriod; label: string }[] = [
   { value: "latest_6_months", label: "Latest 6 months" },
   { value: "previous_6_months", label: "6–12 months ago" },
@@ -22,7 +15,14 @@ function labelForMonth(monthStart: string, options: Intl.DateTimeFormatOptions) 
     .format(new Date(`${monthStart}T00:00:00Z`));
 }
 
-export default function CommunityParticipation() {
+export default function CommunityParticipation({ refreshKey, compact = false }: { refreshKey?: number; compact?: boolean }) {
+  const chartWidth = compact ? 1200 : 576;
+  const chartHeight = compact ? 170 : 232;
+  const chartLeft = compact ? 60 : 52;
+  const chartRight = compact ? 1140 : 542;
+  const chartTop = compact ? 14 : 22;
+  const chartBottom = compact ? 134 : 184;
+  const axisLabelY = compact ? 157 : 211;
   const chartTitleId = useId();
   const [period, setPeriod] = useState<CommunityParticipationPeriod>("latest_6_months");
   const [months, setMonths] = useState<CommunityParticipationMonth[]>([]);
@@ -54,7 +54,7 @@ export default function CommunityParticipation() {
     }
     void loadParticipation();
     return () => { active = false; };
-  }, [period]);
+  }, [period, refreshKey]);
 
   const selected = months[selectedIndex] ?? null;
   const maximum = Math.max(1, Math.ceil(Math.max(...months.map((month) => month.volunteer_count), 0) / 5) * 5);
@@ -68,7 +68,7 @@ export default function CommunityParticipation() {
   const trend = points.map((point) => `${point.x},${point.y}`).join(" ");
   const selectedPoint = points[selectedIndex];
 
-  return <section className={styles.card} aria-labelledby={chartTitleId}>
+  return <section className={`${styles.card} ${compact ? styles.compact : ""}`} aria-labelledby={chartTitleId}>
     <div className={styles.heading}>
       <div>
         <p className={styles.eyebrow}>Community impact</p>
@@ -92,16 +92,16 @@ export default function CommunityParticipation() {
           {points.map((point, index) => <g key={point.month_start}>
             {index === selectedIndex && <circle className={styles.pointHalo} cx={point.x} cy={point.y} r="12" />}
             <circle className={styles.point} cx={point.x} cy={point.y} r="5" />
-            <text className={styles.axisLabel} x={point.x} y="211" textAnchor="middle">{labelForMonth(point.month_start, { month: "short" })}</text>
+            <text className={styles.axisLabel} x={point.x} y={axisLabelY} textAnchor="middle">{labelForMonth(point.month_start, { month: "short" })}</text>
           </g>)}
           {selectedPoint && <text className={styles.pointLabel} x={selectedPoint.x} y={Math.max(16, selectedPoint.y - 16)} textAnchor="middle">{selectedPoint.volunteer_count}</text>}
         </svg>
       </div>
-      <div className={styles.monthPicker} aria-label="Choose a month">
+      {!compact && <div className={styles.monthPicker} aria-label="Choose a month">
         {months.map((month, index) => <button key={month.month_start} type="button" className={`${styles.monthButton} ${index === selectedIndex ? styles.selected : ""}`} onClick={() => setSelectedIndex(index)}>
           {labelForMonth(month.month_start, { month: "short" })}<span>{month.volunteer_count}</span>
         </button>)}
-      </div>
+      </div>}
       <p className={styles.selectedSummary} aria-live="polite">{selected ? `${labelForMonth(selected.month_start, { month: "long", year: "numeric" })}: ${selected.volunteer_count} volunteer${selected.volunteer_count === 1 ? "" : "s"}.` : "Select a month to view its recorded participation."}</p>
     </div>}
     <p className={styles.footnote}>Only recorded attendance is counted; the chart does not expose volunteer names or contact details.</p>

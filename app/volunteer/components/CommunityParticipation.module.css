@@ -28,5 +28,11 @@
 .monthButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .selectedSummary { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .footnote { margin: 0; padding: 14px 28px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.6; }
+.compact .heading { padding: 18px 22px 0; }
+.compact .heading h2 { font-size: 18px; }
+.compact .subtitle { margin-top: 5px; }
+.compact .body { padding: 16px 22px; }
+.compact .selectedSummary { margin-top: 8px; }
+.compact .footnote { padding: 10px 22px; }
 :global(html[data-theme="dark"]) .card { --ink: #f0f4f8; --muted: #aebdcb; --line: #354454; --accent: #ff818a; --soft: #342127; --surface: #1a2530; border-color: #354454; }
-@media (max-width: 600px) { .heading { display: block; padding: 20px 16px 0; } .heading h2 { font-size: 18px; } .controls { margin-top: 16px; } .periodControl { flex: 1; } .periodControl select { width: 100%; } .badge { padding: 9px 10px; } .body { padding: 20px 16px; } .chartHeading { font-size: 10px; } .monthPicker { grid-template-columns: repeat(3, minmax(0, 1fr)); } .monthButton { min-height: 58px; } .footnote { padding: 14px 16px; } }
+@media (max-width: 600px) { .heading { display: block; padding: 20px 16px 0; } .heading h2 { font-size: 18px; } .controls { margin-top: 16px; } .periodControl { flex: 1; } .periodControl select { width: 100%; } .badge { padding: 9px 10px; } .body { padding: 20px 16px; } .chartHeading { font-size: 10px; } .monthPicker { grid-template-columns: repeat(3, minmax(0, 1fr)); } .monthButton { min-height: 58px; } .footnote { padding: 14px 16px; } .compact .heading, .compact .body { padding-right: 16px; padding-left: 16px; } .compact .footnote { padding: 10px 16px; } }
