@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useNavigationDrawer } from "@/app/components/useNavigationDrawer";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import styles from "../admin.module.css";
@@ -15,14 +16,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
-  useEffect(() => {
-    if (!mobileNavOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileNavOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [mobileNavOpen]);
+  useNavigationDrawer(mobileNavOpen, () => setMobileNavOpen(false), "admin-mobile-navigation", 760);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -31,12 +25,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   if (isCheckingAccess) return <AdminLoadingScreen />;
 
-  return <div className={styles.shell}>
+  return <div className={`portalUi ${styles.shell}`}>
+    <a className="portalSkipLink" href="#admin-content">Skip to content</a>
     {mobileNavOpen && <button type="button" className={styles.mobileNavBackdrop} aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
     <Sidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
     <div className={styles.main}>
       <TopHeader name={adminProfile.full_name || "Administrator"} email={adminProfile.email} onSignOut={() => setShowSignOutConfirm(true)} menuOpen={mobileNavOpen} onMenu={() => setMobileNavOpen((open) => !open)} />
-      <main className={styles.content}>
+      <main id="admin-content" tabIndex={-1} className={styles.content}>
         {loadError && <div className={styles.error} role="alert">{loadError}</div>}
         {children}
       </main>

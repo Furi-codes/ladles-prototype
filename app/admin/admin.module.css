@@ -1,4 +1,4 @@
-.shell { min-height: 100vh; background: #f6f7f9; color: #17202a; font-family: "Montserrat", "Segoe UI", sans-serif; }
+.shell { min-height: 100vh; background: var(--portal-bg, #f5f6f9); color: var(--portal-ink, #222b36); font-family: var(--portal-font, "Segoe UI", Arial, sans-serif); }
 .loadingScreen { display: grid; min-height: 100vh; place-content: center; gap: 16px; background: #f6f7f9; color: #17202a; font-family: "Montserrat", "Segoe UI", sans-serif; text-align: center; }
 .loadingSpinner { width: 46px; height: 46px; justify-self: center; border: 4px solid rgba(217,39,50,.16); border-top-color: #d92732; border-radius: 50%; animation: adminSpin .8s linear infinite; }
 .loadingMessage { margin: 0; color: #657180; font-size: 13px; font-weight: 750; letter-spacing: .7px; text-transform: uppercase; }
@@ -227,3 +227,70 @@
 .heatmapCell { display: grid; min-height: 42px; place-items: center; border-radius: 7px; font-size: 13px; font-weight: 800; }
 @media (max-width: 760px) { .analyticsTabs { padding-right: 16px; padding-left: 16px; } .analyticsBody { padding: 16px; } .analyticsNote { padding: 0 16px 16px; } .heatmapWrap { padding: 16px 10px 8px; } .categoryRow { grid-template-columns: 1fr auto; gap: 8px 12px; } .categoryBar { grid-column: 1 / -1; grid-row: 2; } }
 @media (max-width: 760px) { .featureBody { padding: 16px; } .featureStack .cardHeader { flex-wrap: wrap; } }
+
+/* Part 1: shared design foundation. Screen-only rules preserve existing QR printing. */
+@media screen {
+  .main { margin-left: var(--portal-sidebar); }
+  .content { max-width: 1460px; padding: 28px 32px 48px; min-width: 0; }
+  .sidebar { width: var(--portal-sidebar); background: var(--portal-surface); border-color: var(--portal-line); overflow-y: auto; }
+  .brand { min-height: 96px; padding: 24px 18px 18px; gap: 9px; border: 0; }
+  .brandName { font-size: 13px; letter-spacing: -.3px; white-space: nowrap; }
+  .brandSub { font-size: 9px; letter-spacing: 1.4px; color: var(--portal-accent); }
+  .nav { padding: 18px 14px; }
+  .navSection { color: var(--portal-muted); font-size: 9px; letter-spacing: 1.4px; font-weight: 650; }
+  .navButton { padding: 11px 12px; min-height: 44px; font-size: 12px; font-weight: 550; }
+  .sidebar .navButton { color: var(--portal-muted); }
+  .sidebar .navButton:hover { background: var(--portal-bg); color: var(--portal-ink); }
+  .sidebar .navButtonActive, .sidebar .navButtonActive:hover { background: var(--portal-soft); color: var(--portal-accent); font-weight: 650; }
+  .sidebarFooter { padding: 24px 26px 30px; color: var(--portal-muted); font-size: 11px; line-height: 1.8; }
+  .sidebarFooter strong { color: var(--portal-ink); font-weight: 600; }
+  .topbar { position: relative; min-height: 68px; padding: 10px 32px; background: var(--portal-surface); border-color: var(--portal-line); }
+  .crumb { margin: 0; font-size: 12px; color: var(--portal-muted); }
+  .crumb span { margin: 0 8px; opacity: .5; }
+  .crumb strong { font-weight: 600; }
+  .headerAccountDetails { max-width: 180px; }
+  .headerAccountName, .headerAccountEmail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .headerAccountName { font-size: 12px; font-weight: 650; }
+  .headerAccountEmail { font-size: 10px; }
+  .headerAvatar { background: #293644; font-weight: 700; }
+  .topbar .signOut { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; border-color: var(--portal-line); color: var(--portal-muted); background: var(--portal-surface); font-size: 12px; font-weight: 600; }
+  .topbar .signOut:hover { background: var(--portal-soft); color: var(--portal-accent); }
+  .pageHeading { margin-bottom: 24px; gap: 16px; }
+  .pageTitle { font-size: clamp(25px, 2.2vw, 30px); line-height: 1.2; letter-spacing: -.9px; font-weight: 750; }
+  .pageDescription { font-size: 13px; color: var(--portal-muted); line-height: 1.6; }
+  .shell .card { border-color: var(--portal-line); border-radius: var(--portal-radius); background: var(--portal-surface); box-shadow: var(--portal-shadow); }
+  .cardHeader { padding: 18px 20px; border-color: var(--portal-line); }
+  .cardTitle { font-size: 16px; font-weight: 650; letter-spacing: -.25px; }
+  .cardHint { font-size: 12px; color: var(--portal-muted); line-height: 1.5; }
+  .shell .primaryButton, .shell .secondaryButton, .shell .dangerButton { min-height: 40px; padding: 9px 14px; font-size: 12px; font-weight: 650; line-height: 1.4; border-radius: 7px; }
+  .shell .primaryButton { background: #c91d32; border-color: #c91d32; color: #fff; }
+  .shell .primaryButton:hover { background: #ad182b; border-color: #ad182b; }
+  .shell .secondaryButton { background: var(--portal-surface); color: var(--portal-ink); border-color: var(--portal-line); }
+  .shell .secondaryButton:hover { background: var(--portal-bg); }
+  .input, .select, .textarea { border-radius: 7px; font-size: 13px; }
+  .stat { padding: 17px 20px; }
+  .statLabel { font-size: 11px; font-weight: 550; }
+  .statValue { font-size: 27px; letter-spacing: -.8px; font-weight: 700; }
+  .statNote { font-size: 11px; }
+  .table th { padding: 12px 20px; font-size: 10px; font-weight: 650; letter-spacing: .4px; }
+  .table td { padding: 14px 20px; font-size: 13px; }
+  .mobileMenuButton { min-width: 44px; min-height: 44px; }
+  .sidebarClose { flex-shrink: 0; }
+}
+@media screen and (max-width: 1050px) {
+  .topbar { padding-right: 24px; padding-left: 24px; }
+  .headerAccountDetails { display: none; }
+  .content { padding: 24px; }
+}
+@media screen and (max-width: 760px) {
+  .main { margin-left: 0; }
+  .sidebar { width: min(300px, calc(100vw - 40px)); }
+  .brand { padding: 20px 18px; }
+  .sidebarFooter { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+  .topbar { min-height: 64px; padding: 10px 16px; gap: 8px; }
+  .crumb { display: none; }
+  .topActions { gap: 9px; }
+  .content { padding: 24px 16px 36px; }
+  .cardHeader { padding: 16px; flex-wrap: wrap; }
+  .stat { padding: 15px; }
+}
