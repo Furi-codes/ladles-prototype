@@ -13,7 +13,7 @@ const navLinks: NavLink[] = [
 ];
 const extraLinks: NavLink[] = [
   { label: "Corporate CSR", href: "/admin/csr", icon: "building" as const },
-  { label: "Export Reports", href: "/admin/reports", icon: "download" as const },
+  { label: "Analytics & Reports", href: "/admin/reports", icon: "download" as const },
   { label: "Settings", href: "/admin/settings", icon: "settings" as const },
 ];
 

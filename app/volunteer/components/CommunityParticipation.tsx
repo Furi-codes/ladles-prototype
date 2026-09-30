@@ -15,14 +15,13 @@ function labelForMonth(monthStart: string, options: Intl.DateTimeFormatOptions) 
     .format(new Date(`${monthStart}T00:00:00Z`));
 }
 
-export default function CommunityParticipation({ refreshKey, compact = false }: { refreshKey?: number; compact?: boolean }) {
-  const chartWidth = compact ? 1200 : 576;
-  const chartHeight = compact ? 170 : 232;
-  const chartLeft = compact ? 60 : 52;
-  const chartRight = compact ? 1140 : 542;
-  const chartTop = compact ? 14 : 22;
-  const chartBottom = compact ? 134 : 184;
-  const axisLabelY = compact ? 157 : 211;
+export default function CommunityParticipation({ refreshKey, compact = false, analytics = false }: { refreshKey?: number; compact?: boolean; analytics?: boolean }) {
+  const chartSize = compact
+    ? { width: 1200, height: 170, left: 60, right: 1140, top: 14, bottom: 134, axisLabelY: 157 }
+    : analytics
+      ? { width: 900, height: 212, left: 72, right: 850, top: 16, bottom: 164, axisLabelY: 195 }
+      : { width: 576, height: 232, left: 52, right: 542, top: 22, bottom: 184, axisLabelY: 211 };
+  const { width: chartWidth, height: chartHeight, left: chartLeft, right: chartRight, top: chartTop, bottom: chartBottom, axisLabelY } = chartSize;
   const chartTitleId = useId();
   const [period, setPeriod] = useState<CommunityParticipationPeriod>("latest_6_months");
   const [months, setMonths] = useState<CommunityParticipationMonth[]>([]);
@@ -68,7 +67,7 @@ export default function CommunityParticipation({ refreshKey, compact = false }: 
   const trend = points.map((point) => `${point.x},${point.y}`).join(" ");
   const selectedPoint = points[selectedIndex];
 
-  return <section className={`${styles.card} ${compact ? styles.compact : ""}`} aria-labelledby={chartTitleId}>
+  return <section className={`${styles.card} ${compact ? styles.compact : ""} ${analytics ? styles.analytics : ""}`} aria-labelledby={chartTitleId}>
     <div className={styles.heading}>
       <div>
         <p className={styles.eyebrow}>Community impact</p>

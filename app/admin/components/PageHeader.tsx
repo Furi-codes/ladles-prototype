@@ -6,7 +6,7 @@ const content: Record<string, { title: string; description: string }> = {
   Events: { title: "Events", description: "Create and manage upcoming volunteer events." },
   "Volunteer rosters": { title: "Volunteer rosters", description: "Manage event participants, attendance, and recorded hours." },
   "Corporate CSR": { title: "Corporate CSR", description: "Manage corporate volunteering partnerships and activity requests." },
-  "Export Reports": { title: "Export Reports", description: "Generate attendance and activity reports for your organisation." },
+  "Analytics & Reports": { title: "Analytics & Reports", description: "Explore participation trends, event performance, attendance patterns and export-ready data." },
   Settings: { title: "Settings", description: "Configure administration preferences and account settings." },
 };
 

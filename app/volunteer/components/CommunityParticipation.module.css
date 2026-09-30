@@ -34,5 +34,10 @@
 .compact .body { padding: 16px 22px; }
 .compact .selectedSummary { margin-top: 8px; }
 .compact .footnote { padding: 10px 22px; }
+.analytics .heading { padding: 20px 24px 0; }
+.analytics .body { padding: 18px 24px; }
+.analytics .monthPicker { margin-top: 10px; }
+.analytics .selectedSummary { margin-top: 9px; }
+.analytics .footnote { padding: 11px 24px; }
 :global(html[data-theme="dark"]) .card { --ink: #f0f4f8; --muted: #aebdcb; --line: #354454; --accent: #ff818a; --soft: #342127; --surface: #1a2530; border-color: #354454; }
 @media (max-width: 600px) { .heading { display: block; padding: 20px 16px 0; } .heading h2 { font-size: 18px; } .controls { margin-top: 16px; } .periodControl { flex: 1; } .periodControl select { width: 100%; } .badge { padding: 9px 10px; } .body { padding: 20px 16px; } .chartHeading { font-size: 10px; } .monthPicker { grid-template-columns: repeat(3, minmax(0, 1fr)); } .monthButton { min-height: 58px; } .footnote { padding: 14px 16px; } .compact .heading, .compact .body { padding-right: 16px; padding-left: 16px; } .compact .footnote { padding: 10px 16px; } }

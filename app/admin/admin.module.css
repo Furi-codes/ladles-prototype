@@ -15,7 +15,7 @@
 .navButton:hover { background: #f3f4f6; color: #17202a; }
 .navButtonActive { background: #fff0f1; color: #d92732; }
 .navButtonActive:hover { background: #fff0f1; color: #d92732; }
-.topbar { position: sticky; top: 0; z-index: 40; display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 40px; background: rgba(255,255,255,.96); border-bottom: 1px solid #e5e7eb; backdrop-filter: blur(8px); }
+.topbar { position: relative; z-index: 40; display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 40px; background: rgba(255,255,255,.96); border-bottom: 1px solid #e5e7eb; backdrop-filter: blur(8px); }
 .crumb { color: #7d8793; font-size: 13px; }
 .crumb strong { color: #27313c; font-weight: 700; }
 .topActions { display: flex; align-items: center; gap: 14px; margin-left: auto; }
@@ -204,4 +204,26 @@
 .featureBody { padding: 24px; min-width: 0; }
 .featureBody > .featureStack { margin: 20px 0; }
 .featureStack button:disabled { opacity: .6; cursor: wait; }
+.analyticsTabs { display: flex; gap: 4px; overflow-x: auto; padding: 0 24px 16px; border-bottom: 1px solid #edf0f2; }
+.analyticsTab { flex: 0 0 auto; padding: 9px 12px; border: 0; border-radius: 7px; background: transparent; color: #6b7784; font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.analyticsTab:hover { background: #f5f6f8; color: #26323d; }
+.analyticsTabActive { background: #fff0f1; color: #c62630; }
+.analyticsStack { display: grid; gap: 20px; }
+.analyticsBody { padding: 20px 24px 24px; }
+.analyticsNote { margin: 0; padding: 0 24px 18px; color: #7d8793; font-size: 12px; line-height: 1.5; }
+.categoryList { display: grid; gap: 14px; }
+.categoryRow { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(180px, 1.3fr) auto; align-items: center; gap: 16px; }
+.categoryLabel { display: grid; gap: 4px; }
+.categoryLabel strong { color: #27313c; font-size: 13px; }
+.categoryLabel span { color: #7d8793; font-size: 11px; }
+.categoryBar { height: 10px; overflow: hidden; border-radius: 999px; background: #f1f3f5; }
+.categoryBar span { display: block; height: 100%; border-radius: inherit; background: #d92732; }
+.categoryValue { min-width: 28px; color: #d92732; font-size: 14px; text-align: right; }
+.heatmapWrap { overflow-x: auto; padding: 20px 24px 10px; }
+.heatmapTable { width: 100%; min-width: 650px; border-collapse: separate; border-spacing: 7px; }
+.heatmapTable th { padding: 0 5px 6px; color: #7d8793; font-size: 11px; font-weight: 800; text-align: center; }
+.heatmapTable th:first-child { width: 62px; text-align: left; }
+.heatmapTable td { padding: 0; }
+.heatmapCell { display: grid; min-height: 42px; place-items: center; border-radius: 7px; font-size: 13px; font-weight: 800; }
+@media (max-width: 760px) { .analyticsTabs { padding-right: 16px; padding-left: 16px; } .analyticsBody { padding: 16px; } .analyticsNote { padding: 0 16px 16px; } .heatmapWrap { padding: 16px 10px 8px; } .categoryRow { grid-template-columns: 1fr auto; gap: 8px 12px; } .categoryBar { grid-column: 1 / -1; grid-row: 2; } }
 @media (max-width: 760px) { .featureBody { padding: 16px; } .featureStack .cardHeader { flex-wrap: wrap; } }
