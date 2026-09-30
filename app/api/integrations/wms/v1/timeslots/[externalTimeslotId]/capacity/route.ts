@@ -26,17 +26,41 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const database = getIntegrationDatabase();
-    const { data, error } = await database.rpc("update_wms_timeslot_capacity", {
-      p_external_timeslot_id: externalTimeslotId,
-      p_capacity: capacity,
-    }).single();
-    if (error) {
-      console.error("WMS capacity update failed:", error);
-      return jsonError(error.message, integrationErrorStatus(error.code));
+    const { data: slot, error: slotError } = await database
+      .from("event_slots")
+      .select("id")
+      .eq("external_timeslot_id", externalTimeslotId)
+      .maybeSingle();
+    if (slotError) {
+      console.error("WMS capacity slot lookup failed:", slotError);
+      return jsonError(slotError.message, 500);
+    }
+    if (!slot) return jsonError("The external timeslot was not found.", 404);
+
+    const [{ count: individualReservations, error: bookingsError }, { data: corporateBookings, error: corporateError }] = await Promise.all([
+      database.from("bookings").select("id", { count: "exact", head: true }).eq("event_slot_id", slot.id).neq("status", "Cancelled"),
+      database.from("corporate_bookings").select("team_size").eq("event_slot_id", slot.id).in("status", ["Pending", "Confirmed"]),
+    ]);
+    if (bookingsError) return jsonError(bookingsError.message, 500);
+    if (corporateError) return jsonError(corporateError.message, 500);
+
+    const reservedPlaces = (individualReservations ?? 0) + (corporateBookings ?? []).reduce((total, booking) => total + booking.team_size, 0);
+    if (capacity < reservedPlaces) {
+      return jsonError(`Capacity cannot be lower than the ${reservedPlaces} place${reservedPlaces === 1 ? "" : "s"} already reserved.`, 409);
     }
 
-    const slot = data as { id: number; capacity: number };
-    return Response.json({ vmsTimeslotId: slot.id, externalTimeslotId, capacity: slot.capacity });
+    const { data: updatedSlot, error: updateError } = await database
+      .from("event_slots")
+      .update({ capacity })
+      .eq("id", slot.id)
+      .select("id, capacity")
+      .single();
+    if (updateError) {
+      console.error("WMS capacity update failed:", updateError);
+      return jsonError(updateError.message, integrationErrorStatus(updateError.code));
+    }
+
+    return Response.json({ vmsTimeslotId: updatedSlot.id, externalTimeslotId, capacity: updatedSlot.capacity });
   } catch (error) {
     console.error("WMS capacity integration configuration failed:", error);
     return jsonError("Integration is not configured.", 503);
