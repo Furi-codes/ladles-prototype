@@ -27,6 +27,11 @@ export async function fetchAdminAttendanceCheckpoints(): Promise<PostgrestRespon
     .order('action', { ascending: true })
 }
 
+/** Admin-only replacement invalidates the old typed code, not its QR link. */
+export async function rotateAttendanceEntryCode(checkpointId: string) {
+  return supabase.rpc('rotate_attendance_entry_code', { p_checkpoint_id: checkpointId })
+}
+
 /** Loads attendance records. The database function permits all rows only to admins. */
 export async function fetchAdminAttendanceRecords(): Promise<PostgrestResponse<AttendanceRecord>> {
   return supabase.rpc('get_attendance_records')

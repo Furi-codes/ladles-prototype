@@ -1,25 +1,34 @@
 "use client";
 import Link from 'next/link';
 import { loadReportData } from '@/lib/actions/corporate';
-import { performanceRows, presetFilter } from '@/lib/reporting';
+import { useCallback, useState } from 'react';
+import { selectedReportData, selectedReportRows, participationSummary, presetFilter } from '@/lib/reporting';
 import { FeatureState, useFeatureData } from './FeatureShared';
 import styles from '../admin.module.css';
-
-const loadRecentActivity = () => loadReportData(presetFilter('Recent Activity'));
+import visual from './analytics.module.css';
+import ParticipationTrend from './ParticipationTrend';
 
 export default function DashboardAnalytics() {
-  const { data, error, loading, reload } = useFeatureData(loadRecentActivity);
-  const filter = presetFilter('Recent Activity');
-  const rows = data ? performanceRows(data.events, data.slots, data.bookings, data.attendance, data.corporate, filter) : [];
+  const [filter] = useState(() => presetFilter('Latest 6 months'));
+  const loader = useCallback(() => loadReportData(filter), [filter]);
+  const { data, error, loading, reload } = useFeatureData(loader);
+  const scoped = data ? selectedReportData(data, filter) : null;
+  const rows = data ? selectedReportRows(data, filter) : [];
   const total = (key: 'attendance' | 'individualHours' | 'corporateHours' | 'groups') => rows.reduce((sum, row) => sum + row[key], 0);
-  return <section className={styles.card} aria-labelledby="dashboard-analytics">
-    <div className={styles.cardHeader}><div><h2 id="dashboard-analytics" className={styles.cardTitle}>Recent activity</h2><p className={styles.cardHint}>Event activity over the last 30 days · {filter.from} to {filter.to}</p></div><Link href="/admin/reports" className={styles.secondaryButton}>View analytics</Link></div>
-    <div className={styles.featureBody}><FeatureState loading={loading} error={error} retry={reload} />
-      {data && !loading && <><div className={styles.stats}>{[
-        ['Recorded attendees', total('attendance')], ['Verified individual hours', total('individualHours').toFixed(2)],
-        ['Recorded corporate hours', total('corporateHours').toFixed(2)], ['Corporate groups', total('groups')],
-      ].map(([label, value]) => <div key={label}><div className={styles.statLabel}>{label}</div><div className={styles.statValue}>{value}</div></div>)}</div>
-      <p className={styles.helper}>{rows.length} events in this period. Attendance counts recorded individual clock-ins and completed corporate attendance. Corporate places are participation instances, not unique people.</p></>}
-    </div>
-  </section>;
+  return <div style={{ marginBottom: 20 }}>
+    <FeatureState loading={loading} error={error} retry={reload} />
+    {scoped && !loading && <div className={visual.chartGrid}>
+      <ParticipationTrend data={scoped} filter={filter} />
+      <section className={styles.card} aria-labelledby="dashboard-impact">
+        <div className={styles.cardHeader}><div><span className={visual.eyebrow}>Community impact</span><h2 id="dashboard-impact" className={styles.cardTitle}>The bigger picture</h2><p className={styles.cardHint}>{filter.from} to {filter.to}</p></div></div>
+        <div className={visual.insights}>
+          <p><strong>{participationSummary(scoped, filter).uniqueVolunteers} unique volunteers</strong> with recorded attendance across the period.</p>
+          <p><strong>{total('individualHours').toFixed(1)} individual hours</strong> verified from attendance records.</p>
+          <p><strong>{total('corporateHours').toFixed(1)} corporate hours</strong> recorded for completed groups.</p>
+          <Link href="/admin/reports" className={styles.primaryButton}>Explore analytics & reports</Link>
+          <button className={styles.secondaryButton} onClick={reload}>Refresh impact data</button>
+        </div>
+      </section>
+    </div>}
+  </div>;
 }

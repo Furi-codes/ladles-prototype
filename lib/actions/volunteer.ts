@@ -53,6 +53,16 @@ export async function recordEventAttendance(checkpointId: string): Promise<Postg
   return supabase.rpc('record_event_attendance', { p_checkpoint_id: checkpointId }).single()
 }
 
+/** Code entry uses the same attendance checks as QR scanning. */
+export async function recordEventAttendanceCode(code: string): Promise<{ data: AttendanceRecord | null; error: { message: string } | null }> {
+  const { data, error } = await supabase.rpc('record_event_attendance_code', { p_code: code })
+  if (error) return { data: null, error }
+  const result = data as { attendance?: AttendanceRecord; error?: string } | null
+  if (result?.error) return { data: null, error: { message: result.error } }
+  if (!result?.attendance) return { data: null, error: { message: 'Attendance could not be confirmed. Please try again.' } }
+  return { data: result.attendance, error: null }
+}
+
 /** Loads attendance for the signed-in volunteer, including any live clock-in. */
 export async function fetchVolunteerAttendanceRecords(): Promise<PostgrestResponse<AttendanceRecord>> {
   return supabase.rpc('get_attendance_records')

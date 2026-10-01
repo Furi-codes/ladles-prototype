@@ -3,11 +3,13 @@ import LiveShiftSchedule from "@/app/components/LiveShiftSchedule";
 import { getEventSlotEndAt, getEventSlotStartAt } from "@/lib/attendance-utils";
 import type { AttendanceRecord, Booking, Event, EventSlot } from "@/lib/types";
 import styles from "../volunteer.module.css";
+import ui from './experience.module.css';
 
 type ActiveShiftsProps = {
   userBookings: Booking[];
   getEventData: (id: number) => Event | undefined;
   onCancelRequest: (id: number) => void;
+  onView: (event: Event) => void;
   isLoading: boolean;
   attendanceRecords: AttendanceRecord[];
   eventSlots: EventSlot[];
@@ -17,6 +19,7 @@ export default function ActiveShifts({
   userBookings,
   getEventData,
   onCancelRequest,
+  onView,
   isLoading,
   attendanceRecords,
   eventSlots,
@@ -43,7 +46,7 @@ export default function ActiveShifts({
             {startsAt && endsAt && <div className={styles.shiftSchedule}><LiveShiftSchedule startsAt={startsAt} endsAt={endsAt} /></div>}
             {clockedIn && attendance && <div className={styles.liveShift}><span className={styles.liveDot} aria-hidden="true" /><LiveAttendanceTime attendance={attendance} endsAt={endsAt} /></div>}
           </div>
-          {clockedIn ? <span className={styles.clockedInStatus}>Shift in progress</span> : <button type="button" className={styles.dangerButton} onClick={() => onCancelRequest(booking.id)}>Cancel</button>}
+          <div className={ui.actions}>{event && <button className={styles.secondaryButton} onClick={() => onView(event)}>Details</button>}{clockedIn ? <span className={styles.clockedInStatus}>Shift in progress</span> : <button type="button" className={styles.dangerButton} onClick={() => onCancelRequest(booking.id)}>Cancel</button>}</div>
         </div>;
       })}
     </div>}

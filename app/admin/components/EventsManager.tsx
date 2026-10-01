@@ -10,8 +10,10 @@ import {
 } from "@/lib/actions/admin";
 import { logAdminAction } from "@/lib/actions/audit";
 import { getLocalDateString, getLocalTimeString, hasEventFinished } from "@/lib/date-utils";
+import { EVENT_TIME_OPTIONS } from "@/lib/event-time-options";
 import type { AttendanceCheckpoint, Event, EventCategory, EventSlot } from "@/lib/types";
 import styles from "../admin.module.css";
+import ui from './management.module.css';
 import AttendanceQrDialog from "./AttendanceQrDialog";
 import Icon from "./Icon";
 
@@ -75,10 +77,7 @@ const EVENT_TEMPLATES: EventTemplate[] = [
   },
 ];
 
-const TIME_OPTIONS = Array.from({ length: 33 }, (_, index) => {
-  const total = 6 * 60 + index * 30;
-  return `${Math.floor(total / 60).toString().padStart(2, "0")}:${(total % 60).toString().padStart(2, "0")}`;
-});
+const TIME_OPTIONS = EVENT_TIME_OPTIONS;
 
 const toMinutes = (value: string) => {
   const [hours, minutes] = value.split(":").map(Number);
@@ -126,6 +125,8 @@ export default function EventsManager({
   const [isSaving, setIsSaving] = useState(false);
   const [confirm, setConfirm] = useState<{ title: string; message: string; action: () => void } | null>(null);
   const [showPast, setShowPast] = useState(false);
+  const [search, setSearch] = useState('');
+  const [programme, setProgramme] = useState('');
   const [showCancelled, setShowCancelled] = useState(false);
   const [eventToCancel, setEventToCancel] = useState<Event | null>(null);
   const [cancellationMessage, setCancellationMessage] = useState("");
@@ -142,7 +143,8 @@ export default function EventsManager({
   const cancelledEvents = events
     .filter((event) => event.status === "Cancelled")
     .sort((a, b) => (b.cancelled_at ?? "").localeCompare(a.cancelled_at ?? ""));
-  const displayedEvents = showCancelled ? cancelledEvents : showPast ? pastEvents : upcomingEvents;
+  const scopeEvents = showCancelled ? cancelledEvents : showPast ? pastEvents : upcomingEvents;
+  const displayedEvents = scopeEvents.filter(event => (!programme || (event.category || 'Other') === programme) && `${event.title} ${event.location}`.toLowerCase().includes(search.trim().toLowerCase()));
   const selectedTemplate = EVENT_TEMPLATES.find((item) => item.id === templateId);
   const locationIsLocked = Boolean(selectedTemplate?.lockLocation);
 
@@ -395,7 +397,7 @@ export default function EventsManager({
   }
 
   return <>
-    <section className={styles.card}>
+    <section className={`${styles.card} ${ui.panel}`}>
       <div className={styles.cardHeader}>
         <div>
           <h2 className={styles.cardTitle}>{showCancelled ? "Cancelled events" : showPast ? "Past events" : "Upcoming and current events"}</h2>
@@ -410,7 +412,9 @@ export default function EventsManager({
           <button type="button" className={styles.primaryButton} onClick={openCreate}><Icon name="plus" size={15} /> New event</button>
         </div>
       </div>
-      {isLoading ? <div className={styles.empty}>Loading events...</div> : <div className={styles.tableWrap}>
+      <div className={ui.filters}><label>Search events or locations<input className={styles.input} type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Find an event…" /></label><label>Programme<select className={styles.select} value={programme} onChange={e => setProgramme(e.target.value)}><option value="">All programmes</option>{['Dignity Kitchen','Warehouse HQ','Feed The Soil','Campaign / Special Event','Other'].map(c => <option key={c}>{c}</option>)}</select></label>{(search || programme) && <button className={styles.secondaryButton} onClick={() => { setSearch(''); setProgramme(''); }}>Clear filters</button>}</div>
+      {!isLoading && <p className={ui.count}>{displayedEvents.length} of {scopeEvents.length} events in this view</p>}
+      {isLoading ? <div className={styles.empty}>Loading events...</div> : <div className={ui.tableViewport} tabIndex={0} role="region" aria-label="Events table">
         <table className={styles.table}>
           <thead><tr>{["Event", "Category", "Date", "Location", "Bookable ranges", "Total capacity", "Status", "Actions"].map((column) => <th key={column}>{column}</th>)}</tr></thead>
           <tbody>
@@ -421,7 +425,7 @@ export default function EventsManager({
               const isWmsManaged = Boolean(item.external_event_id);
               const statusLabel = isCancelled ? "Cancelled" : isPast ? "Completed" : "Scheduled";
               return <tr key={item.id}>
-                <td>{item.title}</td>
+                <td>{item.title}<span className={ui.subtle}>{isWmsManaged ? 'Managed by WMS' : 'Managed in Volunteer Portal'}</span></td>
                 <td><span className={styles.status}>{item.category ?? "Other"}</span></td>
                 <td>{item.date}{item.date === today && !isPast && <span className={`${styles.status} ${styles.statusPresent}`} style={{ marginLeft: 7 }}>Today</span>}</td>
                 <td>{item.location}{item.location_url && <><br /><a className={styles.mapLink} href={item.location_url} target="_blank" rel="noreferrer">View map</a></>}</td>
@@ -440,7 +444,7 @@ export default function EventsManager({
                 </div></td>
               </tr>;
             })}
-            {displayedEvents.length === 0 && <tr><td colSpan={8}><div className={styles.empty}>{showCancelled ? "No cancelled events yet." : showPast ? "No past events yet." : "No upcoming events."}</div></td></tr>}
+            {displayedEvents.length === 0 && <tr><td colSpan={8}><div className={styles.empty}>{search || programme ? 'No events match these filters.' : showCancelled ? "No cancelled events yet." : showPast ? "No past events yet." : "No upcoming events."}</div></td></tr>}
           </tbody>
         </table>
       </div>}
@@ -454,6 +458,7 @@ export default function EventsManager({
         </div>
         {error && <div className={styles.error} role="alert">{error}</div>}
         <form onSubmit={submit} className={styles.formGrid}>
+          <h3 className={ui.formSection}>Event details</h3>
           {!editingId && <div className={`${styles.field} ${styles.fieldFull}`}>
             <label className={styles.fieldLabel} htmlFor="event-template">Event template</label>
             <select className={styles.select} id="event-template" value={templateId} onChange={(event) => applyTemplate(event.target.value)}><option value="custom">Custom event</option>{EVENT_TEMPLATES.map((template) => <option key={template.id} value={template.id}>{template.label}</option>)}</select>
@@ -502,7 +507,7 @@ export default function EventsManager({
 
     {confirm && <div className={styles.dialogBackdrop} role="presentation"><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="confirm-title"><h2 id="confirm-title" className={styles.dialogTitle}>{confirm.title}</h2><p className={styles.dialogText}>{confirm.message}</p><div className={styles.formActions}><button type="button" className={styles.secondaryButton} onClick={() => setConfirm(null)}>Back</button><button type="button" className={styles.primaryButton} onClick={confirm.action}>Confirm</button></div></section></div>}
     {eventToCancel && <div className={styles.dialogBackdrop} role="presentation"><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="cancel-event-title"><h2 id="cancel-event-title" className={styles.dialogTitle}>Cancel {eventToCancel.title}?</h2><p className={styles.dialogText}>Pending and confirmed corporate bookings for this event will also be cancelled and their reserved capacity released. Historical booking records will be retained. Events with completed corporate attendance cannot be cancelled.</p><label className={styles.fieldLabel} htmlFor="cancellation-message" style={{ display: "block", marginTop: 18 }}>Message for volunteers (optional)</label><textarea id="cancellation-message" className={styles.textarea} maxLength={500} value={cancellationMessage} onChange={(event) => setCancellationMessage(event.target.value)} placeholder="For example: This event has been postponed because of weather." /><div className={styles.formActions}><button type="button" className={styles.secondaryButton} onClick={() => setEventToCancel(null)}>Back</button><button type="button" className={styles.dangerButton} onClick={() => void confirmCancellation()}>Cancel event</button></div></section></div>}
-    {qrEvent && <AttendanceQrDialog event={qrEvent} checkpoints={attendanceCheckpoints} onClose={() => setQrEvent(null)} />}
+    {qrEvent && <AttendanceQrDialog event={qrEvent} checkpoints={attendanceCheckpoints} onRefresh={fetchData} onClose={() => setQrEvent(null)} />}
     {notice && <div className={styles.dialogBackdrop} role="presentation"><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="notice-title"><h2 id="notice-title" className={styles.dialogTitle}>Event update</h2><p className={styles.dialogText}>{notice}</p><div className={styles.formActions}><button type="button" className={styles.primaryButton} onClick={() => setNotice(null)}>Got it</button></div></section></div>}
   </>;
 }

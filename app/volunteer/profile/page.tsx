@@ -4,9 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useVolunteerData } from "../components/VolunteerProvider";
 import ProfilePhotoEditor from "../components/ProfilePhotoEditor";
+import ThemeToggle from "@/app/components/ThemeToggle";
+import { useVolunteerSignOut } from "../components/VolunteerAccountContext";
 import styles from "../volunteer.module.css";
 
 export default function VolunteerProfilePage() {
+  const requestSignOut = useVolunteerSignOut();
   const { profile, saveProfile, requestEmailChange, consent } = useVolunteerData();
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [dateOfBirth, setDateOfBirth] = useState(profile?.date_of_birth ?? "");
@@ -38,6 +41,10 @@ export default function VolunteerProfilePage() {
     <section className={styles.pageHeading}>
       <div><h1 className={styles.pageTitle}>My profile</h1><p className={styles.pageDescription}>Manage your volunteer details and account settings.</p></div>
       <Link href="/volunteer" className={styles.secondaryButton}>Back to dashboard</Link>
+    </section>
+    <section className={`${styles.card} ${styles.profileAccountControls}`} aria-labelledby="account-controls">
+      <div><h2 id="account-controls" className={styles.cardTitle}>Account & appearance</h2><p className={styles.cardHint}>Choose your display theme or sign out of your account.</p></div>
+      <div className={styles.profileAccountButtons}><ThemeToggle /><button type="button" className={styles.signOut} onClick={requestSignOut}>Sign out</button></div>
     </section>
     <div className={styles.settingsGrid}>
       <ProfilePhotoEditor />

@@ -65,6 +65,7 @@ export interface EventSlot {
 /** One of the two event QR checkpoints used to record attendance. */
 export interface AttendanceCheckpoint {
   id: string;
+  entry_code: string;
   event_id: number;
   action: 'clock_in' | 'clock_out';
   is_active: boolean;

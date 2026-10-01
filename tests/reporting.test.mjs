@@ -5,7 +5,7 @@ import ts from 'typescript';
 // Use the project's compiler without adding a test runtime dependency.
 const source = readFileSync(new URL('../lib/reporting.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { performanceRows, corporateImpact, reportCsv, csvCell, presetFilter, reportPresets, selectedReportRows } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const { performanceRows, corporateImpact, reportCsv, csvCell, presetFilter, reportPresets, selectedReportRows, selectedReportData, participationSummary } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const events = [{id:1,title:'Kitchen',date:'2026-09-01',location:'Cape Town',total_slots:999,status:'Scheduled'},{id:2,title:'Other',date:'2026-10-01',location:'Elsewhere',status:'Cancelled'}];
 const slots = [{id:10,event_id:1,capacity:10},{id:11,event_id:1,capacity:5}];
 const bookings = [{id:1,event_id:1,status:'Completed'},{id:2,event_id:1,status:'Present'},{id:3,event_id:1,status:'No show'}];
@@ -13,6 +13,23 @@ const attendance = [{booking_id:1,clocked_in_at:'x',worked_minutes:95},{booking_
 const corporate = [{id:1,event_id:1,company_id:4,status:'Completed',team_size:5,attendance_count:4,volunteer_hours:7.5},{id:2,event_id:1,company_id:4,status:'Pending',team_size:2,attendance_count:null,volunteer_hours:null},{id:3,event_id:1,company_id:4,status:'Cancelled',team_size:100,attendance_count:null,volunteer_hours:null}];
 const cancelledCorporate = [{id:4,event_id:2,company_id:4,status:'Completed',team_size:5,attendance_count:5,volunteer_hours:8}];
 const filter = {from:'2026-09-01',to:'2026-09-30',location:'',event:''};
+
+test('event type filters charts, performance, corporate impact and CSV together', () => {
+  const typedEvents = [{...events[0],category:'Dignity Kitchen'}, {...events[0],id:3,title:'Warehouse shift',category:'Warehouse HQ'}, {...events[0],id:4,title:'Legacy',category:undefined}];
+  const typedData = {events:typedEvents,slots,bookings,attendance,corporate};
+  const kitchen = {...filter,category:'Dignity Kitchen'};
+  assert.deepEqual(selectedReportData(typedData,kitchen).events.map(e=>e.id),[1]);
+  assert.equal(selectedReportRows(typedData,kitchen).length,1);
+  assert.equal(corporateImpact(corporate,typedEvents,'4',kitchen).hours,7.5);
+  const warehouse={...filter,category:'Warehouse HQ'};
+  assert.deepEqual(selectedReportRows(typedData,warehouse).map(r=>r.id),[3]);
+  assert.equal(corporateImpact(corporate,typedEvents,'4',warehouse).hours,0);
+  assert.ok(!reportCsv(selectedReportRows(typedData,warehouse)).includes('Kitchen'));
+  assert.equal(selectedReportRows(typedData,{...warehouse,event:'1'}).length,0);
+  assert.equal(selectedReportRows(typedData,{...filter,category:'Other'})[0].event,'Legacy');
+  assert.equal(selectedReportRows(typedData,{...filter,category:''}).length,3);
+  assert.equal(presetFilter('Latest 6 months').category,undefined);
+});
 test('reports use actual minutes, slot capacity, recorded corporate attendance and exclude cancelled teams', () => {
   const rows = performanceRows(events,slots,bookings,attendance,corporate,filter);
   assert.equal(rows.length,1); assert.equal(rows[0].capacity,15); assert.equal(rows[0].bookings,10);
@@ -40,9 +57,10 @@ test('CSV quotes embedded delimiters, newlines and quotes, neutralizes formula t
   const csv = reportCsv(performanceRows(events,slots,bookings,attendance,corporate,filter));
   assert.ok(csv.startsWith('\uFEFF')); assert.ok(csv.includes('1.58')); assert.ok(csv.includes('7.50'));
 });
-test('all six presets use real adjustable date filters in Johannesburg time', () => {
+test('all presets use real adjustable date filters in Johannesburg time', () => {
   const now = new Date('2026-09-30T23:00:00Z'); // October 1 in South Africa
   const expected = {
+    'Latest 6 months': ['2026-05-01','2026-10-01'],
     'Recent Activity': ['2026-09-02','2026-10-01'],
     'Monthly Volunteer Activity': ['2026-10-01','2026-10-01'],
     'Event Attendance': ['2026-07-04','2026-10-01'],
@@ -50,11 +68,41 @@ test('all six presets use real adjustable date filters in Johannesburg time', ()
     'Corporate Participation': ['2026-10-01','2026-10-01'],
     'Custom Report': ['',''],
   };
-  assert.equal(reportPresets.length, 6);
+  assert.equal(reportPresets.length, 7);
   for (const preset of reportPresets) {
     const [from,to] = expected[preset];
     assert.deepEqual(presetFilter(preset,now), {from,to,event:'',location:''});
   }
+});
+
+test('one shared scope excludes cancelled events and groups from every analytics view', () => {
+  const data = {events,slots,bookings,attendance,corporate:[...corporate,...cancelledCorporate]};
+  const scoped = selectedReportData(data,{from:'',to:'',location:'',event:''});
+  assert.deepEqual(scoped.events.map(e=>e.id),[1]);
+  assert.equal(scoped.corporate.length,2);
+  const company = selectedReportData(data,filter,true,'4');
+  assert.equal(company.bookings.length,0);
+  assert.equal(company.attendance.length,0);
+  assert.equal(participationSummary(company,filter).months[0].attendance,4);
+  assert.equal(selectedReportData(data,filter,true,'99').events.length,0);
+  assert.equal(selectedReportData(data,{...filter,from:'2026-10-01'}).events.length,0);
+});
+
+test('monthly and period unique counts deduplicate people; attendance counts visits', () => {
+  const data = {events:[events[0],{...events[0],id:3,date:'2026-10-02'}],slots:[],corporate:[],
+    bookings:[{id:1,event_id:1,user_id:'a'},{id:2,event_id:1,user_id:'a'},{id:3,event_id:3,user_id:'a'},{id:4,event_id:3,user_id:'b'},{id:5,event_id:3,user_id:'c'}],
+    attendance:[1,2,3,4].map(booking_id=>({booking_id,clocked_in_at:'2026-11-01T10:00:00Z',worked_minutes:60}))};
+  const result = participationSummary(data,{...filter,from:'2026-08-01',to:'2026-10-31'});
+  assert.equal(result.uniqueVolunteers,2);
+  assert.deepEqual(result.months,[{month:'2026-08',uniqueVolunteers:0,attendance:0},{month:'2026-09',uniqueVolunteers:1,attendance:2},{month:'2026-10',uniqueVolunteers:2,attendance:2}]);
+});
+
+test('empty data, missing clock-ins, a single month and year boundaries are handled', () => {
+  const empty={events:[],slots:[],bookings:[],attendance:[],corporate:[]};
+  assert.equal(participationSummary(empty,filter).months[0].uniqueVolunteers,0);
+  assert.deepEqual(participationSummary(empty,{from:'',to:'',event:'',location:''}).months,[]);
+  assert.deepEqual(participationSummary(empty,{...filter,from:'2025-12-01',to:'2026-01-31'}).months.map(p=>p.month),['2025-12','2026-01']);
+  assert.equal(performanceRows(events,slots,bookings,[{booking_id:1}],corporate,filter)[0].attendance,4);
 });
 test('active company and corporate scope drive the same rows used for CSV', () => {
   const data = {events,slots,bookings,attendance,corporate};

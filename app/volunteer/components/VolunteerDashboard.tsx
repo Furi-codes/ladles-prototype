@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getEventSlotStartAt } from "@/lib/attendance-utils";
 import { hasEventFinished } from "@/lib/date-utils";
 import type { Event } from "@/lib/types";
 import styles from "../volunteer.module.css";
@@ -12,13 +13,14 @@ import DateOfBirthPrompt from "./DateOfBirthPrompt";
 import EventModal from "./EventModal";
 import NotificationPanel from "./NotificationPanel";
 import UpcomingEvents from "./UpcomingEvents";
-import WelcomeCard from "./WelcomeCard";
+import PersonalStats from "./PersonalStats";
+import ui from "./experience.module.css";
 import { useVolunteerData } from "./VolunteerProvider";
 
 export default function VolunteerDashboard() {
   const router = useRouter();
   const {
-    user, profile, events, eventSlots, bookings, attendanceRecords, notifications, isLoading,
+    user, profile, events, eventSlots, bookings, attendanceRecords, notifications, isLoading, loadError, refreshData,
     createUserBooking, cancelBooking, dismissNotification, saveProfile, acceptConsent, consent,
   } = useVolunteerData();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -33,19 +35,29 @@ export default function VolunteerDashboard() {
       && event !== undefined
       && !hasEventFinished(event, eventSlots);
   });
-  const activeEventCount = events.filter((event) => event.status !== "Cancelled" && !hasEventFinished(event, eventSlots)).length;
+  const sortedBookings = [...activeBookings].sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'Present' ? -1 : 1;
+    const start = (booking: typeof a) => {
+      const event = getEventData(booking.event_id);
+      const slot = eventSlots.find(s => s.id === booking.event_slot_id);
+      return event && slot ? getEventSlotStartAt(event, slot) : event?.date ?? '';
+    };
+    return start(a).localeCompare(start(b));
+  });
+
+  if (loadError) return <section className={styles.card}><div className={ui.body}><h1 className={styles.pageTitle}>Your volunteering</h1><p role="alert">{loadError}</p><button className={styles.primaryButton} onClick={() => void refreshData()}>Try again</button></div></section>;
 
   return <>
     <section className={styles.pageHeading}>
-      <div><h1 className={styles.pageTitle}>Volunteer dashboard</h1><p className={styles.pageDescription}>Find upcoming opportunities and manage your shifts.</p></div>
+      <div><h1 className={styles.pageTitle}>Welcome back, {profile?.full_name?.split(' ')[0] || 'volunteer'}</h1><p className={styles.pageDescription}>Your time makes a difference. Find your next opportunity and manage your shifts.</p></div>
       <div className={styles.toolbar}><button type="button" className={styles.secondaryButton} onClick={() => router.push("/volunteer/attendance")}>Attendance scanner</button><span className={styles.liveStatus}><span className={styles.liveDot} aria-hidden="true" />Live updates</span></div>
     </section>
     <NotificationPanel notifications={notifications} onDismiss={(notificationId) => void dismissNotification(notificationId)} />
-    <WelcomeCard profile={profile} activeShifts={activeBookings.length} eventsCount={activeEventCount} />
+    <PersonalStats bookings={bookings} attendance={attendanceRecords} userId={user?.id} activeCount={activeBookings.length} loading={isLoading} />
     <div className={styles.dashboardGrid}>
       <UpcomingEvents events={events} eventSlots={eventSlots} isLoading={isLoading} isUserBookedForEvent={isUserBookedForEvent} onSelect={setSelectedEvent} />
       <div className={styles.rightColumn}>
-        <ActiveShifts userBookings={activeBookings} attendanceRecords={attendanceRecords} eventSlots={eventSlots} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} />
+        <ActiveShifts userBookings={sortedBookings} attendanceRecords={attendanceRecords} eventSlots={eventSlots} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} onView={setSelectedEvent} />
       </div>
     </div>
     <EventModal key={selectedEvent?.id ?? "no-event"} event={selectedEvent} eventSlots={eventSlots.filter((slot) => slot.event_id === selectedEvent?.id)} bookings={bookings} profile={profile} onClose={() => setSelectedEvent(null)} onBook={createUserBooking} />
