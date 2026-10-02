@@ -11,6 +11,18 @@ async function loadUtility(name) {
 const dates = await loadUtility('date-utils');
 const attendance = await loadUtility('attendance-utils');
 
+test('shift countdown uses days above 24 hours and hours/minutes at or below 24 hours', () => {
+  assert.equal(attendance.formatShiftCountdown(1049 * 60 + 16), '44 days');
+  assert.equal(attendance.formatShiftCountdown(2880), '2 days');
+  assert.equal(attendance.formatShiftCountdown(1441), '2 days');
+  assert.equal(attendance.formatShiftCountdown(1440), '24 hrs');
+  assert.equal(attendance.formatShiftCountdown(1439), '23 hr 59 min');
+  assert.equal(attendance.formatShiftCountdown(60), '1 hr');
+  assert.equal(attendance.formatShiftCountdown(15), '15 min');
+  assert.equal(attendance.formatShiftCountdown(0), '0 min');
+  assert.equal(attendance.formatWorkedTime(2880), '48 hrs');
+});
+
 test('event and slot expiry use Johannesburg time, including the UTC date boundary', () => {
   const event = { id: 1, date: '2026-10-02' };
   const slots = [{ event_id: 1, end_time: '00:30:00' }, { event_id: 1, end_time: '01:00:00' }];

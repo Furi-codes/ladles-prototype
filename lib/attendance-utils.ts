@@ -44,6 +44,15 @@ export function formatWorkedTime(minutes: number | null) {
   return `${hours} hr ${remainingMinutes} min`;
 }
 
+/** Countdown display only; recorded volunteer hours remain formatted as hours. */
+export function formatShiftCountdown(minutes: number) {
+  if (minutes > 24 * 60) {
+    const days = Math.ceil(minutes / (24 * 60));
+    return `${days} days`;
+  }
+  return formatWorkedTime(Math.max(0, minutes));
+}
+
 export function formatAttendanceTime(timestamp: string | null) {
   if (!timestamp) return "—";
   const date = new Date(timestamp);

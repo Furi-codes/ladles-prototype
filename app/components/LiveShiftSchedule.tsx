@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatWorkedTime } from "@/lib/attendance-utils";
+import { formatShiftCountdown } from "@/lib/attendance-utils";
 
 function durationUntil(timestamp: string, now: number) {
   return Math.max(0, Math.ceil((new Date(timestamp).getTime() - now) / 60_000));
@@ -16,7 +16,7 @@ export default function LiveShiftSchedule({ startsAt, endsAt }: { startsAt: stri
     return () => window.clearInterval(interval);
   }, []);
 
-  if (now < new Date(startsAt).getTime()) return <span>Starts in {formatWorkedTime(durationUntil(startsAt, now))}</span>;
-  if (now <= new Date(endsAt).getTime()) return <span>Shift ends in {formatWorkedTime(durationUntil(endsAt, now))}</span>;
+  if (now < new Date(startsAt).getTime()) return <span>Starts in {formatShiftCountdown(durationUntil(startsAt, now))}</span>;
+  if (now <= new Date(endsAt).getTime()) return <span>Shift ends in {formatShiftCountdown(durationUntil(endsAt, now))}</span>;
   return <span>Shift ended</span>;
 }
