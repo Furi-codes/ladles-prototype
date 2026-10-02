@@ -60,6 +60,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       return jsonError(updateError.message, integrationErrorStatus(updateError.code));
     }
 
+    if (updatedSlot.capacity !== capacity) {
+      console.error("WMS capacity update did not persist the requested value.");
+      return jsonError("The requested capacity was not saved. Please retry or contact the VMS team.", 500);
+    }
+
     return Response.json({ vmsTimeslotId: updatedSlot.id, externalTimeslotId, capacity: updatedSlot.capacity });
   } catch (error) {
     console.error("WMS capacity integration configuration failed:", error);

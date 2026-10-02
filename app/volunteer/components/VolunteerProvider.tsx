@@ -1,13 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { fetchUserRole, fetchVolunteerConsent, requestVolunteerEmailChange, saveVolunteerAvatar, saveVolunteerConsent, updateVolunteerProfile } from "@/lib/actions/profile";
-import { bookEventSlot, cancelUserBooking, ensureUserProfile, fetchBookingsForVolunteer, fetchEventsForVolunteer, fetchEventSlotsForVolunteer, fetchVolunteerAttendanceRecords, fetchVolunteerNotifications, markVolunteerNotificationRead } from "@/lib/actions/volunteer";
+import { bookEventSlot, cancelUserBooking, ensureUserProfile, fetchBookingsForVolunteer, fetchEventsForVolunteer, fetchEventSlotsForVolunteer, fetchVolunteerAttendanceRecords, fetchVolunteerNotifications, markVolunteerNotificationRead, markVolunteerNotificationsRead } from "@/lib/actions/volunteer";
 import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile, VolunteerConsent } from "@/lib/types";
 import { useProfilePhotoUrl } from "./useProfilePhotoUrl";
+import { fetchVolunteerReminderPreference, saveVolunteerReminderPreference } from "@/lib/actions/volunteer";
 
 type Toast = { id: number; type: "success" | "error" | "info"; message: string };
 type VolunteerContextValue = {
@@ -20,6 +21,14 @@ type VolunteerContextValue = {
   bookings: Booking[];
   attendanceRecords: AttendanceRecord[];
   notifications: Notification[];
+  notificationsLoading: boolean;
+  notificationError: string | null;
+  refreshNotifications: () => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  remindersEnabled: boolean | null;
+  reminderPreferenceError: string | null;
+  loadReminderPreference: () => Promise<void>;
+  saveReminderPreference: (enabled: boolean) => Promise<string | null>;
   isLoading: boolean;
   isCheckingAccess: boolean;
   loadError: string | null;
@@ -49,6 +58,11 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+  const notificationRequest = useRef(0);
+  const [remindersEnabled, setRemindersEnabled] = useState<boolean | null>(null);
+  const [reminderPreferenceError, setReminderPreferenceError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -118,21 +132,19 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [eventsResult, eventSlotsResult, bookingsResult, attendanceResult, notificationsResult] = await Promise.all([
+      const [eventsResult, eventSlotsResult, bookingsResult, attendanceResult] = await Promise.all([
         fetchEventsForVolunteer(),
         fetchEventSlotsForVolunteer(),
         fetchBookingsForVolunteer(),
         fetchVolunteerAttendanceRecords(),
-        fetchVolunteerNotifications(),
       ]);
-      if (eventsResult.error || eventSlotsResult.error || bookingsResult.error || attendanceResult.error || notificationsResult.error) {
-        throw eventsResult.error ?? eventSlotsResult.error ?? bookingsResult.error ?? attendanceResult.error ?? notificationsResult.error;
+      if (eventsResult.error || eventSlotsResult.error || bookingsResult.error || attendanceResult.error) {
+        throw eventsResult.error ?? eventSlotsResult.error ?? bookingsResult.error ?? attendanceResult.error;
       }
       setEvents(eventsResult.data ?? []);
       setEventSlots(eventSlotsResult.data ?? []);
       setBookings(bookingsResult.data ?? []);
       setAttendanceRecords(attendanceResult.data ?? []);
-      setNotifications(notificationsResult.data ?? []);
     } catch (error) {
       console.error("Failed to load volunteer data:", error);
       setLoadError("Volunteer data could not be loaded. Please try again.");
@@ -140,6 +152,59 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  const refreshNotifications = useCallback(async () => {
+    if (!user) return;
+    const request = ++notificationRequest.current;
+    setNotificationsLoading(true);
+    try {
+      const { data, error } = await fetchVolunteerNotifications(user.id);
+      if (request !== notificationRequest.current) return;
+      if (error) throw error;
+      setNotifications(data ?? []);
+      setNotificationError(null);
+    } catch {
+      if (request === notificationRequest.current) setNotificationError("Your notifications could not be loaded. Please try again.");
+    } finally { if (request === notificationRequest.current) setNotificationsLoading(false); }
+  }, [user]);
+
+  const loadReminderPreference = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await fetchVolunteerReminderPreference(user.id);
+      if (error) throw error;
+      setRemindersEnabled(data?.reminders_enabled ?? true);
+      setReminderPreferenceError(null);
+    } catch { setReminderPreferenceError("Your notification preference could not be loaded."); }
+  }, [user]);
+
+  useEffect(() => {
+    if (!isCheckingAccess && user) queueMicrotask(() => void loadReminderPreference());
+  }, [isCheckingAccess, loadReminderPreference, user]);
+
+  const saveReminderPreference = useCallback(async (enabled: boolean) => {
+    if (!user) return "Please sign in to change notification preferences.";
+    try {
+      const { data, error } = await saveVolunteerReminderPreference(enabled);
+      if (error || typeof data !== "boolean") throw error ?? new Error("Preference not confirmed.");
+      setRemindersEnabled(data);
+      setReminderPreferenceError(null);
+      await refreshNotifications();
+      showToast("success", data ? "Shift reminder notifications are on." : "Shift reminder notifications are off. Cancellation notices remain enabled.");
+      return null;
+    } catch { return "Your preference could not be saved. Please try again."; }
+  }, [refreshNotifications, showToast, user]);
+
+  useEffect(() => {
+    if (isCheckingAccess || !user) return;
+    queueMicrotask(() => void refreshNotifications());
+    const channel = supabase.channel(`volunteer-notifications-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, () => void refreshNotifications()).subscribe();
+    const refreshWhenVisible = () => { if (document.visibilityState === "visible") void refreshNotifications(); };
+    const interval = window.setInterval(refreshWhenVisible, 60000);
+    window.addEventListener("focus", refreshWhenVisible);
+    return () => { void channel.unsubscribe(); window.clearInterval(interval); window.removeEventListener("focus", refreshWhenVisible); };
+  }, [isCheckingAccess, refreshNotifications, user]);
 
   useEffect(() => {
     if (isCheckingAccess || !user) return;
@@ -182,14 +247,24 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   }, [refreshData, showToast, user]);
 
   const dismissNotification = useCallback(async (notificationId: number) => {
-    const { error } = await markVolunteerNotificationRead(notificationId);
-    if (error) {
-      console.error("Failed to dismiss notification:", error);
-      showToast("error", "This update could not be dismissed. Please try again.");
-      return;
-    }
-    setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
-  }, [showToast]);
+    if (!user) return;
+    try {
+      const { error } = await markVolunteerNotificationRead(notificationId, user.id);
+      if (error) throw error;
+      setNotifications(current => current.map(notification => notification.id === notificationId ? { ...notification, is_read: true } : notification));
+      void refreshNotifications();
+    } catch { showToast("error", "This update could not be marked read. Please try again."); }
+  }, [refreshNotifications, showToast, user]);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { ids, error } = await markVolunteerNotificationsRead(notifications.filter(item => !item.is_read).map(item => item.id), user.id);
+      setNotifications(current => current.map(item => ids.includes(item.id) ? { ...item, is_read: true } : item));
+      void refreshNotifications();
+      if (error) throw error;
+    } catch { showToast("error", "Some updates could not be marked read. Please try again."); }
+  }, [notifications, refreshNotifications, showToast, user]);
 
   const saveProfile = useCallback(async (data: { full_name: string; date_of_birth: string }) => {
     if (!user) return "Please sign in before updating your profile.";
@@ -243,7 +318,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [showToast]);
 
-  return <VolunteerContext.Provider value={{ user, profile, avatarUrl, consent, events, eventSlots, bookings, attendanceRecords, notifications, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, saveAvatar, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
+  return <VolunteerContext.Provider value={{ user, profile, avatarUrl, consent, events, eventSlots, bookings, attendanceRecords, notifications, notificationsLoading, notificationError, refreshNotifications, markAllNotificationsRead, remindersEnabled, reminderPreferenceError, loadReminderPreference, saveReminderPreference, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, saveAvatar, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
 }
 
 export function useVolunteerData() {

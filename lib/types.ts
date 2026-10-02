@@ -99,7 +99,8 @@ export interface Notification {
   id: number;
   user_id: string;
   event_id: number;
-  type: 'event_cancelled';
+  type: 'event_cancelled' | 'shift_reminder_24h' | 'shift_reminder_2h';
+  scheduled_for?: string | null;
   title: string;
   message: string | null;
   is_read: boolean;

@@ -41,7 +41,8 @@ export function hasSlotEnded(event: Pick<Event, "date">, slot: Pick<EventSlot, "
  * because the app cannot safely determine their end time.
  */
 export function hasEventFinished(event: Pick<Event, "id" | "date">, eventSlots: EventSlot[], now = new Date()) {
-  const today = getLocalDateString(now);
+  const current = getBusinessDateTime(now);
+  const today = `${current.year}-${current.month}-${current.day}`;
 
   if (event.date < today) return true;
   if (event.date > today) return false;
@@ -52,5 +53,5 @@ export function hasEventFinished(event: Pick<Event, "id" | "date">, eventSlots: 
     .sort()
     .at(-1);
 
-  return latestEndTime ? getLocalTimeString(now) >= latestEndTime : false;
+  return latestEndTime ? `${current.hour}:${current.minute}` >= latestEndTime : false;
 }

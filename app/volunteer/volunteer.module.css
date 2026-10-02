@@ -155,16 +155,16 @@
   :global(body.printing-progress) .shell { min-height: 0; background: #fff; }
   :global(body.printing-progress) .content { width: 100%; margin: 0; padding: 0; }
   :global(body.printing-progress) .impactStack { display: block; max-width: none; }
-  :global(body) * { visibility: hidden !important; }
-  .progressPrintReport, .progressPrintReport * { visibility: visible !important; }
-  .progressPrintReport { position: absolute; inset: 0; display: flex; width: 100%; min-height: 190mm; flex-direction: column; padding: 16mm 18mm; box-sizing: border-box; border: 3px solid #c91d32; outline: 1px solid #e5b2b8; outline-offset: -10px; background: #fff; color: #20252b; font-family: Georgia, 'Times New Roman', serif; text-align: center; }
+  :global(body.printing-progress) * { visibility: hidden !important; }
+  :global(body.printing-progress) .progressPrintReport, :global(body.printing-progress) .progressPrintReport * { visibility: visible !important; }
+  :global(body.printing-progress) .progressPrintReport { position: absolute; inset: 0; display: flex; width: 100%; min-height: 190mm; flex-direction: column; padding: 16mm 18mm; box-sizing: border-box; border: 3px solid #c91d32; outline: 1px solid #e5b2b8; outline-offset: -10px; background: #fff; color: #20252b; font-family: Georgia, 'Times New Roman', serif; text-align: center; }
   .progressPrintHeader { display: flex; align-items: flex-start; justify-content: space-between; }
   .progressPrintHeader img { width: 78px; height: auto; object-fit: contain; }
   .progressPrintKicker { margin: 0; color: #c91d32; font-family: Arial, Helvetica, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
   .progressPrintCertificate { display: grid; justify-items: center; margin: auto 0; }
   .progressPrintCertificate h1 { margin: 0; color: #17202a; font-size: 39px; font-weight: 500; }
   .progressPrintCertificate > p:first-of-type { margin: 20px 0 8px; font-size: 17px; }
-  .progressPrintCertificate > strong { color: #c91d32; font-size: 35px; font-style: italic; font-weight: 600; }
+  .progressPrintCertificate > strong { max-width: 100%; overflow-wrap: anywhere; color: #c91d32; font-size: 35px; font-style: italic; font-weight: 600; }
   .progressPrintCertificate > p:not(:first-of-type) { max-width: 680px; margin: 20px 0; font-size: 17px; line-height: 1.65; }
   .progressPrintCertificate dl { display: flex; justify-content: center; gap: 30px; margin: 0; padding: 13px 24px; border-top: 1px solid #d9dce1; border-bottom: 1px solid #d9dce1; font-family: Arial, Helvetica, sans-serif; text-align: left; }
   .progressPrintCertificate dl div { display: grid; gap: 4px; }
@@ -239,7 +239,7 @@
 .portalNavLink[aria-current="page"] { background: var(--portal-soft); color: var(--portal-accent); }
 @media screen {
   .topAccent { height: 3px; background: #c91d32; }
-  .topbar { position: relative; min-height: 72px; padding: 10px 32px; gap: 16px; background: var(--portal-surface); border-color: var(--portal-line); }
+  .topbar { position: sticky; top: 0; min-height: 72px; padding: 10px 32px; gap: 16px; background: var(--portal-surface); border-color: var(--portal-line); box-shadow: 0 4px 16px rgba(16,24,40,.04); }
   .brand { gap: 10px; color: inherit; text-decoration: none; flex-shrink: 0; }
   .brandName { font-size: 14px; font-weight: 750; letter-spacing: -.3px; }
   .brandSub { font-size: 9px; letter-spacing: 1.4px; color: var(--portal-accent); }

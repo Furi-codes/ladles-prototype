@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { formatWorkedTime } from "@/lib/attendance-utils";
+import { formatWorkedTime, getVerifiedContribution } from "@/lib/attendance-utils";
+import { useState } from "react";
 import type { AttendanceRecord, Booking, Event, Profile } from "@/lib/types";
 import styles from "../volunteer.module.css";
 import ui from './experience.module.css';
@@ -15,26 +16,29 @@ type ProgressionPanelProps = {
 };
 
 function formatPrintDate() {
-  return new Intl.DateTimeFormat("en-ZA", { day: "2-digit", month: "long", year: "numeric" }).format(new Date());
+  return new Intl.DateTimeFormat("en-ZA", { timeZone: "Africa/Johannesburg", day: "2-digit", month: "long", year: "numeric" }).format(new Date());
 }
 
 export default function ProgressionPanel({ bookings, attendanceRecords, profile, userId }: ProgressionPanelProps) {
-  const completed = bookings.filter((booking) => booking.user_id === userId && booking.status === "Completed");
-  const completedIds = new Set(completed.map((booking) => booking.id));
-  const totalMinutes = attendanceRecords.filter((record) => completedIds.has(record.booking_id)).reduce((total, record) => total + (record.worked_minutes ?? 0), 0);
+  const { completed, totalMinutes } = getVerifiedContribution(bookings, attendanceRecords, userId);
+  const [printError, setPrintError] = useState<string | null>(null);
   const noShows = bookings.filter((booking) => booking.user_id === userId && booking.status === "No show").length;
   const incomplete = bookings.filter((booking) => booking.user_id === userId && booking.status === "Present").length;
   const certificateAvailable = totalMinutes > 0;
 
   function printCertificate() {
+    if (!certificateAvailable) return;
+    setPrintError(null);
     const originalTitle = document.title;
     document.body.classList.add("printing-progress");
     document.title = `Certificate of appreciation - ${profile?.full_name ?? "Ladles of Love"}`;
-    window.addEventListener("afterprint", () => {
+    const cleanup = () => {
       document.body.classList.remove("printing-progress");
       document.title = originalTitle;
-    }, { once: true });
-    window.print();
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup, { once: true });
+    try { window.print(); } catch { cleanup(); setPrintError("The print window could not open. Please try again."); }
   }
 
   return <>
@@ -43,6 +47,7 @@ export default function ProgressionPanel({ bookings, attendanceRecords, profile,
       <div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>My certificate</h2><p className={styles.cardHint}>A little recognition for the time you have given.</p></div><span className={ui.badge}>{certificateAvailable ? 'Ready to save' : 'Not yet eligible'}</span></div>
       <div className={ui.certificate}><Image src="/Ladles-logo.png" width={64} height={64} alt="Ladles of Love" /><h3>Certificate of Appreciation</h3><p>Presented to</p><strong>{profile?.full_name || 'Volunteer'}</strong><p>{formatWorkedTime(totalMinutes)} of verified volunteer service<br />Across {completed.length} completed shifts</p><p>Thank you for helping us serve communities with dignity and care.</p></div>
       <div className={styles.progressFooter}><span className={styles.progressNote}>{certificateAvailable ? 'Choose Save as PDF in the print window to keep your certificate.' : 'Complete a shift with recorded clock-in and clock-out to unlock your certificate.'}</span><button type="button" className={styles.primaryButton} onClick={printCertificate} disabled={!certificateAvailable}>Download certificate</button></div>
+      {printError && <p className={styles.messageError} role="alert">{printError}</p>}
     </section>
     {(incomplete > 0 || noShows > 0) && <section className={styles.card}><div className={ui.body}><h2 className={styles.cardTitle}>Attendance notes</h2>{incomplete > 0 && <p>{incomplete} shift{incomplete === 1 ? '' : 's'} still need a clock-out. If a past shift is incomplete, ask the event organiser to check your attendance record.</p>}{noShows > 0 && <p>{noShows} booking{noShows === 1 ? '' : 's'} marked as a no-show. These do not contribute verified hours.</p>}</div></section>}
 

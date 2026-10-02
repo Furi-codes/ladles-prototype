@@ -31,21 +31,48 @@ export async function fetchEventSlotsForVolunteer(): Promise<PostgrestResponse<E
   return { ...result, data: result.data.map(slot => ({ ...slot, remaining: remaining.get(slot.id) })) };
 }
 
-/** Loads unread in-app notices for the signed-in volunteer. */
-export async function fetchVolunteerNotifications(): Promise<PostgrestResponse<Notification>> {
-  return supabase
-    .from('notifications')
-    .select('*')
-    .eq('is_read', false)
-    .order('created_at', { ascending: false })
+/** Loads the user's inbox without silently truncating unread counts/history. */
+export async function fetchVolunteerNotifications(userId: string): Promise<{ data: Notification[] | null; error: { message: string } | null }> {
+  const rows: Notification[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const { data, error } = await supabase.from('notifications').select('*').eq('user_id', userId)
+      .order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + 199);
+    if (error) return { data: null, error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < 200) return { data: rows, error: null };
+  }
+}
+
+/** Loads the user's optional in-app reminder preference; missing row means enabled. */
+export async function fetchVolunteerReminderPreference(userId: string) {
+  return supabase.from('volunteer_notification_preferences').select('reminders_enabled').eq('user_id', userId).maybeSingle()
+}
+
+export async function saveVolunteerReminderPreference(enabled: boolean) {
+  return supabase.rpc('set_volunteer_reminder_preference', { p_enabled: enabled })
 }
 
 /** Marks one notice as read for the signed-in volunteer. */
-export async function markVolunteerNotificationRead(notificationId: number) {
+export async function markVolunteerNotificationRead(notificationId: number, userId: string) {
   return supabase
     .from('notifications')
     .update({ is_read: true })
     .eq('id', notificationId)
+    .eq('user_id', userId)
+    .select('id')
+    .single()
+}
+
+/** Only the unread records currently shown in the inbox are marked read. */
+export async function markVolunteerNotificationsRead(ids: number[], userId: string) {
+  const updated: number[] = [];
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const { data, error } = await supabase.from('notifications').update({ is_read: true })
+      .eq('user_id', userId).eq('is_read', false).in('id', ids.slice(offset, offset + 200)).select('id');
+    if (error) return { ids: updated, error };
+    updated.push(...(data ?? []).map(row => row.id));
+  }
+  return { ids: updated, error: null };
 }
 
 /** Records a validated clock-in or clock-out through the attendance QR function. */

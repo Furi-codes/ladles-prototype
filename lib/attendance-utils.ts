@@ -1,4 +1,19 @@
-import type { AttendanceRecord, Event, EventSlot } from "./types";
+import type { AttendanceRecord, Booking, Event, EventSlot } from "./types";
+
+/** Only finalised attendance for this volunteer contributes to certificate totals. */
+export function getVerifiedContribution(bookings: Booking[], attendance: AttendanceRecord[], userId?: string) {
+  if (!userId) return { completed: [], totalMinutes: 0 };
+  const records = new Map(attendance.map(record => [record.booking_id, record]));
+  const completed = bookings.filter(booking => {
+    const record = records.get(booking.id);
+    return booking.user_id === userId && booking.status === "Completed" && !!record &&
+      !!record.clocked_in_at && !!record.clocked_out_at &&
+      Number.isFinite(Date.parse(record.clocked_in_at)) &&
+      Date.parse(record.clocked_out_at) >= Date.parse(record.clocked_in_at) &&
+      record.worked_minutes !== null && Number.isFinite(record.worked_minutes) && record.worked_minutes >= 0;
+  });
+  return { completed, totalMinutes: completed.reduce((sum, booking) => sum + records.get(booking.id)!.worked_minutes!, 0) };
+}
 
 /** Calculates a live duration, never counting later than the booked shift end. */
 export function getAttendanceMinutes(record: AttendanceRecord, now = Date.now(), endsAt?: string) {
@@ -31,5 +46,7 @@ export function formatWorkedTime(minutes: number | null) {
 
 export function formatAttendanceTime(timestamp: string | null) {
   if (!timestamp) return "—";
-  return new Intl.DateTimeFormat("en-ZA", { hour: "2-digit", minute: "2-digit" }).format(new Date(timestamp));
+  const date = new Date(timestamp);
+  if (!Number.isFinite(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-ZA", { timeZone: "Africa/Johannesburg", hour: "2-digit", minute: "2-digit" }).format(date);
 }

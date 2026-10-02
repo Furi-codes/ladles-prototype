@@ -20,8 +20,8 @@ import { useVolunteerData } from "./VolunteerProvider";
 export default function VolunteerDashboard() {
   const router = useRouter();
   const {
-    user, profile, events, eventSlots, bookings, attendanceRecords, notifications, isLoading, loadError, refreshData,
-    createUserBooking, cancelBooking, dismissNotification, saveProfile, acceptConsent, consent,
+    user, profile, events, eventSlots, bookings, attendanceRecords, isLoading, loadError, refreshData,
+    createUserBooking, cancelBooking, saveProfile, acceptConsent, consent,
   } = useVolunteerData();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<number | null>(null);
@@ -52,7 +52,7 @@ export default function VolunteerDashboard() {
       <div><h1 className={styles.pageTitle}>Welcome back, {profile?.full_name?.split(' ')[0] || 'volunteer'}</h1><p className={styles.pageDescription}>Your time makes a difference. Find your next opportunity and manage your shifts.</p></div>
       <div className={styles.toolbar}><button type="button" className={styles.secondaryButton} onClick={() => router.push("/volunteer/attendance")}>Attendance scanner</button><span className={styles.liveStatus}><span className={styles.liveDot} aria-hidden="true" />Live updates</span></div>
     </section>
-    <NotificationPanel notifications={notifications} onDismiss={(notificationId) => void dismissNotification(notificationId)} />
+    <NotificationPanel compact />
     <PersonalStats bookings={bookings} attendance={attendanceRecords} userId={user?.id} activeCount={activeBookings.length} loading={isLoading} />
     <div className={styles.dashboardGrid}>
       <UpcomingEvents events={events} eventSlots={eventSlots} isLoading={isLoading} isUserBookedForEvent={isUserBookedForEvent} onSelect={setSelectedEvent} />
@@ -60,7 +60,7 @@ export default function VolunteerDashboard() {
         <ActiveShifts userBookings={sortedBookings} attendanceRecords={attendanceRecords} eventSlots={eventSlots} isLoading={isLoading} getEventData={getEventData} onCancelRequest={setBookingToCancel} onView={setSelectedEvent} />
       </div>
     </div>
-    <EventModal key={selectedEvent?.id ?? "no-event"} event={selectedEvent} eventSlots={eventSlots.filter((slot) => slot.event_id === selectedEvent?.id)} bookings={bookings} profile={profile} onClose={() => setSelectedEvent(null)} onBook={createUserBooking} />
+    <EventModal key={selectedEvent?.id ?? "no-event"} event={events.find(event => event.id === selectedEvent?.id) ?? null} eventSlots={eventSlots.filter((slot) => slot.event_id === selectedEvent?.id)} bookings={bookings} profile={profile} onClose={() => setSelectedEvent(null)} onBook={createUserBooking} />
     {!profile?.date_of_birth && <DateOfBirthPrompt onSave={(dateOfBirth) => saveProfile({ full_name: profile?.full_name ?? "Volunteer", date_of_birth: dateOfBirth })} />}
     {profile?.date_of_birth && !consent && <ConsentPrompt onAccept={acceptConsent} />}
     {bookingToCancel !== null && <ConfirmDialog title="Cancel booking?" message="Are you sure you want to cancel this booking? This action cannot be undone." confirmLabel="Cancel booking" onCancel={() => setBookingToCancel(null)} onConfirm={() => { void cancelBooking(bookingToCancel); setBookingToCancel(null); }} />}
