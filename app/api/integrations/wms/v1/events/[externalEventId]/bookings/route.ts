@@ -44,7 +44,7 @@ export async function GET(request: Request, context: RouteContext) {
 
     const [{ data: bookings, error: bookingsError }, { data: corporateBookings, error: corporateError }] = await Promise.all([
       database.from("bookings").select("id, event_slot_id, status, user_id, volunteer_name, volunteer_email").in("event_slot_id", slotIds),
-      database.from("corporate_bookings").select("event_slot_id, team_size, status").in("event_slot_id", slotIds).in("status", ["Pending", "Confirmed"]),
+      database.from("corporate_bookings").select("event_slot_id, team_size, status").in("event_slot_id", slotIds).neq("status", "Cancelled"),
     ]);
     if (bookingsError) return jsonError(bookingsError.message, 500);
     if (corporateError) return jsonError(corporateError.message, 500);

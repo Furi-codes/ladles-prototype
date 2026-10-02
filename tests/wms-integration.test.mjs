@@ -2,12 +2,16 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const timeOptions = await import(moduleUrl(compile(readFileSync(new URL('../lib/event-time-options.ts', import.meta.url), 'utf8'))));
 
-async function fixture({ stale = false, reservations = 0, found = true } = {}) {
+async function fixture({ stale = false, reservations = 0, found = true, corporate = [] } = {}) {
   const key = '__wms_test_' + Math.random().toString(36).slice(2);
   const calls = [];
   const state = { capacity: 5 };
@@ -25,7 +29,13 @@ async function fixture({ stale = false, reservations = 0, found = true } = {}) {
       };
       q.then = (resolve, reject) => {
         calls.push({ table, operations });
-        return Promise.resolve({ data: table === 'event_slots' ? [{ id: 15, external_timeslot_id: 'slot', capacity: state.capacity }] : [], count: table === 'bookings' ? reservations : 0, error: null }).then(resolve, reject);
+        let rows = table === 'event_slots' ? [{ id: 15, event_id: 15, external_timeslot_id: 'slot', capacity: state.capacity }] : table === 'corporate_bookings' ? corporate : [];
+        for (const [method, column, value] of operations) {
+          if (method === 'eq') rows = rows.filter(row => row[column] === value);
+          if (method === 'neq') rows = rows.filter(row => row[column] !== value);
+          if (method === 'in') rows = rows.filter(row => value.includes(row[column]));
+        }
+        return Promise.resolve({ data: rows, count: table === 'bookings' ? reservations : 0, error: null }).then(resolve, reject);
       };
       return q;
     },
@@ -111,4 +121,56 @@ test('attendance route forwards the booking outcome and exact timestamp without 
     assert.deepEqual(f.calls[0], { rpc: 'record_wms_attendance_outcome', args: { p_booking_id: 99, p_attendance_status: 'attended', p_source: 'wms', p_recorded_at: body.recordedAt } });
     assert.ok(!f.calls.some(call => call.table === 'attendance_records'));
   } finally { f.cleanup(); }
+});
+
+test('bookings availability includes completed, pending and confirmed corporate groups but excludes cancelled groups', async () => {
+  const f = await fixture({ corporate: [
+    { event_slot_id: 15, team_size: 2, status: 'Completed' },
+    { event_slot_id: 15, team_size: 1, status: 'Pending' },
+    { event_slot_id: 15, team_size: 1, status: 'Confirmed' },
+    { event_slot_id: 15, team_size: 99, status: 'Cancelled' },
+    { event_slot_id: 16, team_size: 99, status: 'Completed' },
+  ] });
+  try {
+    const route = await f.route('events/[externalEventId]/bookings');
+    const response = await route.GET(request('GET'), { params: Promise.resolve({ externalEventId: 'event' }) });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.timeslots[0].remaining, 1);
+    const patch = await f.route('timeslots/[externalTimeslotId]/capacity');
+    assert.equal((await patch.PATCH(request('PATCH', { capacity: 4 }), slotContext)).status, 200);
+    assert.equal((await patch.PATCH(request('PATCH', { capacity: 3 }), slotContext)).status, 409);
+  } finally { f.cleanup(); }
+});
+
+test('completed corporate groups prevent capacity reductions before any write', async () => {
+  const f = await fixture({ corporate: [{ event_slot_id: 15, team_size: 7, status: 'Completed' }] });
+  try {
+    const route = await f.route('timeslots/[externalTimeslotId]/capacity');
+    assert.equal((await route.PATCH(request('PATCH', { capacity: 6 }), slotContext)).status, 409);
+    assert.ok(!f.calls.some(call => call.operations?.some(op => op[0] === 'update')));
+  } finally { f.cleanup(); }
+});
+
+test('rendered dashboard uses current slot capacity, never the stale event summary', async () => {
+  const require = createRequire(import.meta.url);
+  let source = ts.transpileModule(readFileSync(new URL('../app/admin/components/Dashboard.tsx', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  source = source
+    .replace('"react/jsx-runtime"', JSON.stringify(pathToFileURL(require.resolve('react/jsx-runtime')).href))
+    .replace(/import \{ hasEventFinished \} from [^;]+;/, 'const hasEventFinished = () => false;')
+    .replace(/import styles from [^;]+;/, 'const styles = new Proxy({}, { get: (_, key) => key });')
+    .replace(/import Icon from [^;]+;/, 'const Icon = () => null;')
+    .replace(/import DashboardAnalytics from [^;]+;/, 'const DashboardAnalytics = () => null;');
+  const { default: Dashboard } = await import(moduleUrl(source));
+  const props = { bookings: [], volunteers: [], isLoading: false, hasError: false,
+    events: [{ id: 43, title: 'WMS capacity test', date: '2099-11-15', status: 'Scheduled', location: 'Test', total_slots: 999 }],
+    eventSlots: [{ event_id: 43, capacity: 5 }, { event_id: 43, capacity: 2 }, { event_id: 44, capacity: 100 }],
+  };
+  assert.match(renderToStaticMarkup(createElement(Dashboard, props)), /0 \/ 7/);
+  props.eventSlots[0].capacity = 6;
+  assert.match(renderToStaticMarkup(createElement(Dashboard, props)), /0 \/ 8/);
+  props.eventSlots = [];
+  assert.match(renderToStaticMarkup(createElement(Dashboard, props)), /0 \/ 0/);
 });

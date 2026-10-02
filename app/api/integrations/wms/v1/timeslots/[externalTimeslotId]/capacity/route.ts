@@ -39,7 +39,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const [{ count: individualReservations, error: bookingsError }, { data: corporateBookings, error: corporateError }] = await Promise.all([
       database.from("bookings").select("id", { count: "exact", head: true }).eq("event_slot_id", slot.id).neq("status", "Cancelled"),
-      database.from("corporate_bookings").select("team_size").eq("event_slot_id", slot.id).in("status", ["Pending", "Confirmed"]),
+      database.from("corporate_bookings").select("team_size").eq("event_slot_id", slot.id).neq("status", "Cancelled"),
     ]);
     if (bookingsError) return jsonError(bookingsError.message, 500);
     if (corporateError) return jsonError(corporateError.message, 500);
