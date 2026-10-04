@@ -1,30 +1,31 @@
 import type { PostgrestResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { AttendanceCheckpoint, AttendanceRecord, Event, EventCategory, EventSlot } from '@/lib/types'
+import type { AttendanceCheckpoint, AttendanceRecord, Booking, Volunteer, Event, EventCategory, EventSlot } from '@/lib/types'
+import { fetchAllPages } from '@/lib/data-pagination'
 
 export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'> & { id?: number }
 
 /** Loads events for the admin dashboard, newest records first. */
 export async function fetchAdminEvents() {
-  return supabase.from('events').select('*').order('id', { ascending: false })
+  return fetchAllPages<Event>((from, to) => supabase.from('events').select('*', { count: 'exact' }).order('id', { ascending: false }).range(from, to))
 }
 
 /** Loads all bookings so administrators can monitor attendance and activity. */
 export async function fetchAdminBookings() {
-  return supabase.from('bookings').select('*').order('id', { ascending: false })
+  return fetchAllPages<Booking>((from, to) => supabase.from('bookings').select('*', { count: 'exact' }).order('id', { ascending: false }).range(from, to))
 }
 
 /** Loads the time slots used to staff each event. */
 export async function fetchAdminEventSlots() {
-  return supabase.from('event_slots').select('*').order('start_time', { ascending: true })
+  return fetchAllPages<EventSlot>((from, to) => supabase.from('event_slots').select('*', { count: 'exact' }).order('start_time', { ascending: true }).order('id').range(from, to))
 }
 
 /** Loads the protected QR checkpoint identifiers used for event attendance. */
 export async function fetchAdminAttendanceCheckpoints(): Promise<PostgrestResponse<AttendanceCheckpoint>> {
-  return supabase
+  return fetchAllPages<AttendanceCheckpoint>((from, to) => supabase
     .from('event_attendance_checkpoints')
-    .select('*')
-    .order('action', { ascending: true })
+    .select('*', { count: 'exact' })
+    .order('action', { ascending: true }).order('id').range(from, to))
 }
 
 /** Admin-only replacement invalidates the old typed code, not its QR link. */
@@ -34,7 +35,7 @@ export async function rotateAttendanceEntryCode(checkpointId: string) {
 
 /** Loads attendance records. The database function permits all rows only to admins. */
 export async function fetchAdminAttendanceRecords(): Promise<PostgrestResponse<AttendanceRecord>> {
-  return supabase.rpc('get_attendance_records')
+  return fetchAllPages<AttendanceRecord>((from, to) => supabase.rpc('get_attendance_records', {}, { count: 'exact' }).order('booking_id').range(from, to))
 }
 
 /** Finalizes missed bookings for finished events so they can be reported as no-shows. */
@@ -44,7 +45,7 @@ export async function markMissedBookingsNoShow() {
 
 /** Loads profiles alphabetically for the admin volunteer view. */
 export async function fetchVolunteers() {
-  return supabase.from('profiles').select('*').order('full_name', { ascending: true })
+  return fetchAllPages<Volunteer>((from, to) => supabase.from('profiles').select('*', { count: 'exact' }).order('full_name', { ascending: true }).order('id').range(from, to))
 }
 
 /** Atomically saves an event and all of its capacity-controlled time slots. */

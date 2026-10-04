@@ -1,11 +1,12 @@
 import { getIntegrationDatabase, jsonError, requireWmsAuthentication } from "@/lib/server/wms-integration";
+import { fetchAllPages, fetchRowsByIds } from "@/lib/data-pagination";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ externalEventId: string }> };
 type Slot = { id: number; external_timeslot_id: string | null; capacity: number };
 type Booking = { id: number; event_slot_id: number | null; status: string; user_id: string; volunteer_name: string | null; volunteer_email: string | null };
-type Profile = { id: string; full_name: string; email: string | null; phone: string | null };
+type Profile = { id: string; full_name: string; email: string | null };
 type CorporateBooking = { event_slot_id: number; team_size: number; status: string };
 
 /** Returns the current portal booking snapshot for one WMS-owned event. */
@@ -28,12 +29,12 @@ export async function GET(request: Request, context: RouteContext) {
     }
     if (!event) return jsonError("The external event was not found.", 404);
 
-    const { data: slots, error: slotsError } = await database
+    const { data: slots, error: slotsError } = await fetchAllPages<Slot>((from, to) => database
       .from("event_slots")
-      .select("id, external_timeslot_id, capacity")
+      .select("id, external_timeslot_id, capacity", { count: "exact" })
       .eq("event_id", event.id)
       .not("external_timeslot_id", "is", null)
-      .order("start_time", { ascending: true });
+      .order("start_time", { ascending: true }).order("id").range(from, to));
     if (slotsError) return jsonError(slotsError.message, 500);
 
     const slotRows = (slots ?? []) as Slot[];
@@ -43,8 +44,8 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     const [{ data: bookings, error: bookingsError }, { data: corporateBookings, error: corporateError }] = await Promise.all([
-      database.from("bookings").select("id, event_slot_id, status, user_id, volunteer_name, volunteer_email").in("event_slot_id", slotIds),
-      database.from("corporate_bookings").select("event_slot_id, team_size, status").in("event_slot_id", slotIds).neq("status", "Cancelled"),
+      fetchRowsByIds<Booking>(slotIds, (ids, from, to) => database.from("bookings").select("id, event_slot_id, status, user_id, volunteer_name, volunteer_email", { count: "exact" }).in("event_slot_id", ids).order("id").range(from, to)),
+      fetchRowsByIds<CorporateBooking>(slotIds, (ids, from, to) => database.from("corporate_bookings").select("event_slot_id, team_size, status", { count: "exact" }).in("event_slot_id", ids).neq("status", "Cancelled").order("id").range(from, to)),
     ]);
     if (bookingsError) return jsonError(bookingsError.message, 500);
     if (corporateError) return jsonError(corporateError.message, 500);
@@ -52,7 +53,7 @@ export async function GET(request: Request, context: RouteContext) {
     const bookingRows = (bookings ?? []) as Booking[];
     const volunteerIds = [...new Set(bookingRows.map((booking) => booking.user_id))];
     const profileResult = volunteerIds.length
-      ? await database.from("profiles").select("id, full_name, email, phone").in("id", volunteerIds)
+      ? await fetchRowsByIds<Profile>(volunteerIds, (ids, from, to) => database.from("profiles").select("id, full_name, email", { count: "exact" }).in("id", ids).order("id").range(from, to))
       : { data: [] as Profile[], error: null };
     if (profileResult.error) return jsonError(profileResult.error.message, 500);
 
@@ -88,7 +89,8 @@ export async function GET(request: Request, context: RouteContext) {
             vmsVolunteerId: booking.user_id,
             name: profile?.full_name ?? booking.volunteer_name ?? "Volunteer",
             email: profile?.email ?? booking.volunteer_email ?? null,
-            phone: profile?.phone ?? null,
+            // Phone is optional in the contract; the current profile schema has no phone column.
+            phone: null,
           },
         };
       }),

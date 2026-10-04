@@ -9,9 +9,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
+const paginationUrl = moduleUrl(compile(readFileSync(new URL('../lib/data-pagination.ts', import.meta.url), 'utf8')));
 const timeOptions = await import(moduleUrl(compile(readFileSync(new URL('../lib/event-time-options.ts', import.meta.url), 'utf8'))));
 
-async function fixture({ stale = false, reservations = 0, found = true, corporate = [] } = {}) {
+async function fixture({ stale = false, reservations = 0, found = true, corporate = [], bookings = [], profiles = [], pageLimit = 500, missingCount = false } = {}) {
   const key = '__wms_test_' + Math.random().toString(36).slice(2);
   const calls = [];
   const state = { capacity: 5 };
@@ -19,7 +20,7 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
     from(table) {
       const operations = [];
       const q = {};
-      for (const method of ['select', 'eq', 'neq', 'in', 'not', 'order']) q[method] = (...args) => { operations.push([method, ...args]); return q; };
+      for (const method of ['select', 'eq', 'neq', 'in', 'not', 'order', 'range']) q[method] = (...args) => { operations.push([method, ...args]); return q; };
       q.update = value => { operations.push(['update', value]); return q; };
       q.maybeSingle = async () => { calls.push({ table, operations }); return { data: found ? { id: 15 } : null, error: null }; };
       q.single = async () => {
@@ -29,13 +30,23 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
       };
       q.then = (resolve, reject) => {
         calls.push({ table, operations });
-        let rows = table === 'event_slots' ? [{ id: 15, event_id: 15, external_timeslot_id: 'slot', capacity: state.capacity }] : table === 'corporate_bookings' ? corporate : [];
+        if (table === 'profiles') {
+          const columns = operations.find(op => op[0] === 'select')?.[1].split(',').map(column => column.trim()) ?? [];
+          const allowed = new Set(['id', 'full_name', 'email', 'role', 'date_of_birth', 'avatar_path']);
+          const missing = columns.find(column => !allowed.has(column));
+          if (missing) return Promise.resolve({ data: null, count: null, error: { code: '42703', message: `column profiles.${missing} does not exist` } }).then(resolve, reject);
+        }
+        let rows = table === 'event_slots' ? [{ id: 15, event_id: 15, external_timeslot_id: 'slot', capacity: state.capacity }] : table === 'corporate_bookings' ? corporate : table === 'bookings' ? bookings : table === 'profiles' ? profiles : [];
         for (const [method, column, value] of operations) {
           if (method === 'eq') rows = rows.filter(row => row[column] === value);
           if (method === 'neq') rows = rows.filter(row => row[column] !== value);
           if (method === 'in') rows = rows.filter(row => value.includes(row[column]));
         }
-        return Promise.resolve({ data: rows, count: table === 'bookings' ? reservations : 0, error: null }).then(resolve, reject);
+        const head = operations.some(op => op[0] === 'select' && op[2]?.head);
+        const count = head ? reservations : rows.length;
+        const range = operations.find(op => op[0] === 'range');
+        if (range) rows = rows.slice(range[1], Math.min(range[2] + 1, range[1] + pageLimit));
+        return Promise.resolve({ data: rows, count: missingCount && range ? null : count, error: null }).then(resolve, reject);
       };
       return q;
     },
@@ -53,7 +64,7 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
     .replace(/import \{ createClient \} from "@supabase\/supabase-js";/, `const createClient = () => globalThis[${JSON.stringify(key)}];`);
   const helperUrl = moduleUrl(helper);
   const helpers = await import(helperUrl);
-  const route = async path => import(moduleUrl(compile(readFileSync(new URL(`../app/api/integrations/wms/v1/${path}/route.ts`, import.meta.url), 'utf8')).replace('"@/lib/server/wms-integration"', JSON.stringify(helperUrl))));
+  const route = async path => import(moduleUrl(compile(readFileSync(new URL(`../app/api/integrations/wms/v1/${path}/route.ts`, import.meta.url), 'utf8')).replace('"@/lib/server/wms-integration"', JSON.stringify(helperUrl)).replace('"@/lib/data-pagination"', JSON.stringify(paginationUrl))));
   return { calls, helpers, route, cleanup: () => { delete globalThis[key]; } };
 }
 const request = (method, body, token = 'test-only-token') => new Request('https://example.invalid', { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -173,4 +184,49 @@ test('rendered dashboard uses current slot capacity, never the stale event summa
   assert.match(renderToStaticMarkup(createElement(Dashboard, props)), /0 \/ 8/);
   props.eventSlots = [];
   assert.match(renderToStaticMarkup(createElement(Dashboard, props)), /0 \/ 0/);
+});
+
+test('WMS booking snapshots page all records and batch volunteer lookups under reduced row limits', async () => {
+  const bookings = Array.from({ length: 105 }, (_, id) => ({ id, event_slot_id: 15, user_id: `user-${id}`, status: 'Confirmed' }));
+  const profiles = bookings.map(b => ({ id: b.user_id, full_name: `Volunteer ${b.id}` }));
+  const f = await fixture({ bookings, profiles, pageLimit: 2 });
+  try {
+    const route = await f.route('events/[externalEventId]/bookings');
+    const response = await route.GET(request('GET'), { params: Promise.resolve({ externalEventId: 'event' }) });
+    assert.equal(response.status, 200); const data = await response.json();
+    assert.equal(data.bookingCount, 105); assert.equal(data.bookings.length, 105);
+    assert.equal(data.bookings[104].volunteer.name, 'Volunteer 104');
+    assert.equal(data.timeslots[0].remaining, 0);
+    assert.ok(f.calls.filter(c => c.table === 'profiles').every(c => c.operations.find(op => op[0] === 'in')[2].length <= 100));
+  } finally { f.cleanup(); }
+});
+
+test('WMS rejects incomplete snapshots rather than returning misleading success', async () => {
+  const f = await fixture({ missingCount: true });
+  try {
+    const route = await f.route('events/[externalEventId]/bookings');
+    assert.equal((await route.GET(request('GET'), { params: Promise.resolve({ externalEventId: 'event' }) })).status, 500);
+  } finally { f.cleanup(); }
+});
+
+test('bookings use existing profile columns and return null phone with booking fallbacks', async () => {
+  const f = await fixture({
+    bookings: [
+      { id: 1, event_slot_id: 15, user_id: 'known', status: 'Confirmed', volunteer_name: 'Old name', volunteer_email: 'old@example.invalid' },
+      { id: 2, event_slot_id: 15, user_id: 'missing', status: 'Confirmed', volunteer_name: 'Fallback name', volunteer_email: 'fallback@example.invalid' },
+    ],
+    profiles: [{ id: 'known', full_name: 'Current name', email: 'current@example.invalid' }],
+  });
+  try {
+    const route = await f.route('events/[externalEventId]/bookings');
+    const response = await route.GET(request('GET'), { params: Promise.resolve({ externalEventId: 'event' }) });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.bookingCount, 2);
+    assert.deepEqual(data.bookings.map(b => b.volunteer), [
+      { vmsVolunteerId: 'known', name: 'Current name', email: 'current@example.invalid', phone: null },
+      { vmsVolunteerId: 'missing', name: 'Fallback name', email: 'fallback@example.invalid', phone: null },
+    ]);
+    assert.ok(f.calls.filter(c => c.table === 'profiles').every(c => c.operations.find(op => op[0] === 'select')[1] === 'id, full_name, email'));
+  } finally { f.cleanup(); }
 });

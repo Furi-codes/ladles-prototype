@@ -7,6 +7,7 @@ import {
   requireJsonContent,
   requireWmsAuthentication,
 } from "@/lib/server/wms-integration";
+import { fetchAllPages } from "@/lib/data-pagination";
 
 export const runtime = "nodejs";
 
@@ -39,7 +40,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const [{ count: individualReservations, error: bookingsError }, { data: corporateBookings, error: corporateError }] = await Promise.all([
       database.from("bookings").select("id", { count: "exact", head: true }).eq("event_slot_id", slot.id).neq("status", "Cancelled"),
-      database.from("corporate_bookings").select("team_size").eq("event_slot_id", slot.id).neq("status", "Cancelled"),
+      fetchAllPages<{ team_size: number }>((from, to) => database.from("corporate_bookings").select("team_size", { count: "exact" }).eq("event_slot_id", slot.id).neq("status", "Cancelled").order("id").range(from, to)),
     ]);
     if (bookingsError) return jsonError(bookingsError.message, 500);
     if (corporateError) return jsonError(corporateError.message, 500);

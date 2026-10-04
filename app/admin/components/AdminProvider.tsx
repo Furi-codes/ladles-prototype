@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AttendanceCheckpoint, AttendanceRecord, Booking, Event, EventSlot, Volunteer } from "../../../lib/types";
 import { supabase, getCurrentUser } from "@/lib/supabase";
@@ -36,6 +36,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const refreshRequest = useRef(0);
 
   useEffect(() => {
     async function guardAdminAccess() {
@@ -59,11 +60,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const fetchData = useCallback(async () => {
+    const request = ++refreshRequest.current;
     setIsLoading(true);
     setLoadError(null);
     try {
       // Safe to run repeatedly: it only changes still-confirmed bookings for finished events.
       const { error: noShowError } = await markMissedBookingsNoShow();
+      if (request !== refreshRequest.current) return;
       if (noShowError && noShowError.code !== "PGRST202") {
         console.error("Failed to finalize no-shows:", noShowError);
       }
@@ -77,6 +80,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         fetchAdminAttendanceRecords(),
       ]);
 
+      if (request !== refreshRequest.current) return;
       if (eventsResult.error || bookingsResult.error || eventSlotsResult.error || volunteersResult.error || checkpointsResult.error || attendanceResult.error) {
         throw eventsResult.error ?? bookingsResult.error ?? eventSlotsResult.error ?? volunteersResult.error ?? checkpointsResult.error ?? attendanceResult.error;
       }
@@ -88,17 +92,21 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       setAttendanceRecords(attendanceResult.data ?? []);
       setVolunteers(volunteersResult.data ?? []);
     } catch (error) {
+      if (request !== refreshRequest.current) return;
       console.error("Failed to load admin data:", error);
       setLoadError("Admin data could not be loaded. Please try again.");
     } finally {
-      setIsLoading(false);
+      if (request === refreshRequest.current) setIsLoading(false);
     }
   }, []);
+
+  const invalidateRefresh = useCallback(() => { ++refreshRequest.current; }, []);
 
   useEffect(() => {
     if (isCheckingAccess) return;
 
-    queueMicrotask(() => void fetchData());
+    let active = true;
+    queueMicrotask(() => { if (active) void fetchData(); });
     const bookingSubscription = supabase
       .channel("admin-bookings")
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => void fetchData())
@@ -117,12 +125,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       .subscribe();
 
     return () => {
+      active = false;
+      invalidateRefresh();
       void bookingSubscription.unsubscribe();
       void eventSubscription.unsubscribe();
       void eventSlotSubscription.unsubscribe();
       void attendanceSubscription.unsubscribe();
     };
-  }, [fetchData, isCheckingAccess]);
+  }, [fetchData, invalidateRefresh, isCheckingAccess]);
 
   return <AdminContext.Provider value={{ events, bookings, attendanceRecords, eventSlots, attendanceCheckpoints, volunteers, adminProfile, isLoading, isCheckingAccess, loadError, fetchData }}>{children}</AdminContext.Provider>;
 }
