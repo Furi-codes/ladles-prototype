@@ -2,6 +2,7 @@ import {
   getIntegrationDatabase,
   integrationErrorStatus,
   jsonError,
+  logWmsAction,
   parsePositiveInteger,
   readJsonRecord,
   requireJsonContent,
@@ -43,6 +44,13 @@ export async function POST(request: Request) {
     }
 
     const outcome = data as { booking_id: number; attendance_status: string; recorded_at: string };
+    await logWmsAction(database, {
+      action: "WMS_ATTENDANCE_UPDATED",
+      entityType: "BOOKING",
+      entityId: outcome.booking_id,
+      entityLabel: `Booking ${outcome.booking_id}`,
+      details: { attendance_status: outcome.attendance_status, recorded_at: outcome.recorded_at },
+    });
     return Response.json({
       vmsBookingId: outcome.booking_id,
       attendanceStatus: outcome.attendance_status,

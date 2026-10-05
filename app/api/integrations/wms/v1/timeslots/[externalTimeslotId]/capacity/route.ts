@@ -2,6 +2,7 @@ import {
   getIntegrationDatabase,
   integrationErrorStatus,
   jsonError,
+  logWmsAction,
   parsePositiveInteger,
   readJsonRecord,
   requireJsonContent,
@@ -29,7 +30,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const database = getIntegrationDatabase();
     const { data: slot, error: slotError } = await database
       .from("event_slots")
-      .select("id")
+      .select("id, capacity, event_id")
       .eq("external_timeslot_id", externalTimeslotId)
       .maybeSingle();
     if (slotError) {
@@ -66,6 +67,18 @@ export async function PATCH(request: Request, context: RouteContext) {
       return jsonError("The requested capacity was not saved. Please retry or contact the VMS team.", 500);
     }
 
+    await logWmsAction(database, {
+      action: "WMS_CAPACITY_UPDATED",
+      entityType: "EVENT_SLOT",
+      entityId: updatedSlot.id,
+      entityLabel: `Timeslot ${externalTimeslotId}`,
+      details: {
+        external_timeslot_id: externalTimeslotId,
+        event_id: slot.event_id,
+        capacity_before: slot.capacity,
+        capacity_after: updatedSlot.capacity,
+      },
+    });
     return Response.json({ vmsTimeslotId: updatedSlot.id, externalTimeslotId, capacity: updatedSlot.capacity });
   } catch (error) {
     console.error("WMS capacity integration configuration failed:", error);

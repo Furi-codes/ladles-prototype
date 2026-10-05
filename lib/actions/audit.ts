@@ -49,6 +49,7 @@ export async function loadAdminAuditLog(limit = 20): Promise<AdminAuditEntry[]> 
     .from('admin_audit_log')
     .select('*')
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(limit);
 
   if (error) throw new Error(error.message);

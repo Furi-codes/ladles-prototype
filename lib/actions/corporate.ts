@@ -115,6 +115,12 @@ export async function saveSettings(input: Omit<OrganisationSettings, 'id' | 'upd
   const { error } = await supabase.from('organisation_settings').update({ default_location, contact_email, timezone, booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled }).eq('id', 1).select().single();
   if (error) throw new Error(featureError(error));
 }
+export async function saveNotificationSettings(input: Pick<OrganisationSettings, 'booking_confirmation_enabled' | 'booking_cancellation_enabled' | 'shift_reminder_enabled' | 'corporate_booking_confirmation_enabled'>) {
+  // Leave stored organisation defaults untouched, including unexpected runtime properties.
+  const { booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled } = input;
+  const { error } = await supabase.from('organisation_settings').update({ booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled }).eq('id', 1).select().single();
+  if (error) throw new Error(featureError(error));
+}
 export async function saveAdminName(name: string) {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw new Error(error?.message ?? 'Please sign in again.');

@@ -69,6 +69,32 @@ export function getIntegrationDatabase(): SupabaseClient {
   });
 }
 
+type WmsAuditAction = {
+  action: "WMS_EVENT_PUBLISHED" | "WMS_EVENT_CANCELLED" | "WMS_CAPACITY_UPDATED" | "WMS_ATTENDANCE_UPDATED";
+  entityType: "EVENT" | "EVENT_SLOT" | "BOOKING";
+  entityId: number;
+  entityLabel: string;
+  details: Record<string, unknown>;
+};
+
+/** Server-only activity logging. An audit failure must not misreport a committed WMS write as failed. */
+export async function logWmsAction(database: SupabaseClient, entry: WmsAuditAction): Promise<void> {
+  try {
+    const { error } = await database.from("admin_audit_log").insert({
+      admin_id: null,
+      admin_name: "WMS integration",
+      action: entry.action,
+      entity_type: entry.entityType,
+      entity_id: String(entry.entityId),
+      entity_label: entry.entityLabel,
+      details: { ...entry.details, source: "wms" },
+    });
+    if (error) console.error("Unable to record WMS activity:", error);
+  } catch (error) {
+    console.error("Unable to record WMS activity:", error);
+  }
+}
+
 export async function readJsonRecord(request: Request): Promise<JsonRecord | null> {
   try {
     const value: unknown = await request.json();

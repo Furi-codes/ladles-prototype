@@ -12,7 +12,7 @@ const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).t
 const paginationUrl = moduleUrl(compile(readFileSync(new URL('../lib/data-pagination.ts', import.meta.url), 'utf8')));
 const timeOptions = await import(moduleUrl(compile(readFileSync(new URL('../lib/event-time-options.ts', import.meta.url), 'utf8'))));
 
-async function fixture({ stale = false, reservations = 0, found = true, corporate = [], bookings = [], profiles = [], pageLimit = 500, missingCount = false } = {}) {
+async function fixture({ stale = false, reservations = 0, found = true, corporate = [], bookings = [], profiles = [], pageLimit = 500, missingCount = false, auditFailure = '', rpcError = false } = {}) {
   const key = '__wms_test_' + Math.random().toString(36).slice(2);
   const calls = [];
   const state = { capacity: 5 };
@@ -22,7 +22,8 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
       const q = {};
       for (const method of ['select', 'eq', 'neq', 'in', 'not', 'order', 'range']) q[method] = (...args) => { operations.push([method, ...args]); return q; };
       q.update = value => { operations.push(['update', value]); return q; };
-      q.maybeSingle = async () => { calls.push({ table, operations }); return { data: found ? { id: 15 } : null, error: null }; };
+      q.insert = value => { operations.push(['insert', value]); return q; };
+      q.maybeSingle = async () => { calls.push({ table, operations }); return { data: found ? { id: 15, capacity: state.capacity, event_id: 15 } : null, error: null }; };
       q.single = async () => {
         calls.push({ table, operations });
         if (!stale) state.capacity = operations.find(op => op[0] === 'update')[1].capacity;
@@ -30,6 +31,10 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
       };
       q.then = (resolve, reject) => {
         calls.push({ table, operations });
+        if (table === 'admin_audit_log') {
+          if (auditFailure === 'throw') return Promise.reject(new Error('Audit connection unavailable')).then(resolve, reject);
+          return Promise.resolve({ data: null, error: auditFailure ? { message: 'Audit service unavailable' } : null }).then(resolve, reject);
+        }
         if (table === 'profiles') {
           const columns = operations.find(op => op[0] === 'select')?.[1].split(',').map(column => column.trim()) ?? [];
           const allowed = new Set(['id', 'full_name', 'email', 'role', 'date_of_birth', 'avatar_path']);
@@ -52,7 +57,7 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
     },
     rpc(name, args) {
       calls.push({ rpc: name, args });
-      return { single: async () => ({ data: name === 'upsert_wms_event' ? { id: 43 } : { booking_id: args.p_booking_id, attendance_status: args.p_attendance_status, recorded_at: args.p_recorded_at }, error: null }) };
+      return { single: async () => rpcError ? { data: null, error: { code: '23514', message: 'Mutation rejected' } } : { data: name === 'upsert_wms_event' ? { id: 43 } : { booking_id: args.p_booking_id, attendance_status: args.p_attendance_status, recorded_at: args.p_recorded_at }, error: null } };
     },
   };
   globalThis[key] = db;
@@ -228,5 +233,76 @@ test('bookings use existing profile columns and return null phone with booking f
       { vmsVolunteerId: 'missing', name: 'Fallback name', email: 'fallback@example.invalid', phone: null },
     ]);
     assert.ok(f.calls.filter(c => c.table === 'profiles').every(c => c.operations.find(op => op[0] === 'select')[1] === 'id, full_name, email'));
+  } finally { f.cleanup(); }
+});
+
+const auditRows = f => f.calls.filter(call => call.table === 'admin_audit_log').map(call => call.operations.find(op => op[0] === 'insert')[1]);
+
+test('successful WMS publishing, cancellation, capacity and attendance record source-labelled activity', async () => {
+  const f = await fixture();
+  try {
+    const events = await f.route('events/[externalEventId]');
+    const context = { params: Promise.resolve({ externalEventId: 'event' }) };
+    assert.equal((await events.PUT(request('PUT', payload), context)).status, 200);
+    assert.equal((await events.PUT(request('PUT', { ...payload, status: 'Cancelled' }), context)).status, 200);
+    const capacity = await f.route('timeslots/[externalTimeslotId]/capacity');
+    assert.equal((await capacity.PATCH(request('PATCH', { capacity: 6 }), slotContext)).status, 200);
+    const attendance = await f.route('attendance');
+    assert.equal((await attendance.POST(request('POST', { vmsBookingId: 99, attendanceStatus: 'attended', source: 'wms', recordedAt: '2026-11-15T10:15:00+02:00' }))).status, 200);
+    const rows = auditRows(f);
+    assert.deepEqual(rows.map(row => row.action), ['WMS_EVENT_PUBLISHED', 'WMS_EVENT_CANCELLED', 'WMS_CAPACITY_UPDATED', 'WMS_ATTENDANCE_UPDATED']);
+    assert.ok(rows.every(row => row.admin_id === null && row.admin_name === 'WMS integration' && row.details.source === 'wms'));
+    assert.equal(rows[0].entity_id, '43');
+    assert.equal(rows[0].entity_label, payload.title);
+    assert.deepEqual(rows[0].details.timeslots, [{ external_timeslot_id: 'slot', start_time: '09:15', end_time: '10:15', capacity: 5 }]);
+    assert.equal(rows[2].details.capacity_before, 5);
+    assert.equal(rows[2].details.capacity_after, 6);
+    assert.equal(rows[3].entity_id, '99');
+    assert.equal(rows[3].details.attendance_status, 'attended');
+    assert.doesNotMatch(JSON.stringify(rows), /test-only-token|test-only-key|volunteer_email|contact_email/);
+  } finally { f.cleanup(); }
+});
+
+test('unauthorised, invalid, rejected and stale WMS writes never create successful activity entries', async () => {
+  for (const options of [{}, { rpcError: true }, { stale: true }, { reservations: 7 }]) {
+    const f = await fixture(options);
+    try {
+      const events = await f.route('events/[externalEventId]');
+      const attendance = await f.route('attendance');
+      const capacity = await f.route('timeslots/[externalTimeslotId]/capacity');
+      assert.equal((await events.PUT(request('PUT', payload, 'wrong'), { params: Promise.resolve({ externalEventId: 'event' }) })).status, 401);
+      assert.equal((await attendance.POST(request('POST', {}))).status, 422);
+      assert.equal((await capacity.PATCH(request('PATCH', { capacity: 0 }), slotContext)).status, 422);
+      if (options.rpcError) {
+        assert.notEqual((await events.PUT(request('PUT', payload), { params: Promise.resolve({ externalEventId: 'event' }) })).status, 200);
+        assert.notEqual((await attendance.POST(request('POST', { vmsBookingId: 99, attendanceStatus: 'attended', source: 'wms', recordedAt: '2026-11-15T10:15:00+02:00' }))).status, 200);
+      }
+      if (options.stale || options.reservations) assert.notEqual((await capacity.PATCH(request('PATCH', { capacity: 6 }), slotContext)).status, 200);
+      assert.equal(auditRows(f).length, 0);
+    } finally { f.cleanup(); }
+  }
+});
+
+test('audit errors do not turn already-committed WMS writes into false failures', async () => {
+  for (const auditFailure of ['error', 'throw']) {
+    const f = await fixture({ auditFailure });
+    try {
+      const events = await f.route('events/[externalEventId]');
+      assert.equal((await events.PUT(request('PUT', payload), { params: Promise.resolve({ externalEventId: 'event' }) })).status, 200);
+      const capacity = await f.route('timeslots/[externalTimeslotId]/capacity');
+      assert.equal((await capacity.PATCH(request('PATCH', { capacity: 6 }), slotContext)).status, 200);
+      const attendance = await f.route('attendance');
+      assert.equal((await attendance.POST(request('POST', { vmsBookingId: 99, attendanceStatus: 'attended', source: 'wms', recordedAt: '2026-11-15T10:15:00+02:00' }))).status, 200);
+      assert.equal(auditRows(f).length, 3);
+    } finally { f.cleanup(); }
+  }
+});
+
+test('read-only WMS booking retrieval does not add activity entries', async () => {
+  const f = await fixture();
+  try {
+    const route = await f.route('events/[externalEventId]/bookings');
+    assert.equal((await route.GET(request('GET'), { params: Promise.resolve({ externalEventId: 'event' }) })).status, 200);
+    assert.equal(auditRows(f).length, 0);
   } finally { f.cleanup(); }
 });

@@ -17,6 +17,9 @@
 .sectionNav a { padding:9px 12px; border-radius:6px; color:var(--portal-ink); font-size:12px; text-decoration:none; }
 .sectionNav a:hover,.sectionNav a:focus-visible { color:var(--portal-accent); background:var(--portal-soft); }
 .anchor { scroll-margin-top:24px; min-width:0; }
+.settingsPanel { min-width:0; }
+.settingsPanel[hidden] { display:none; }
+.settingsTabs button:focus-visible { outline:2px solid var(--portal-accent); outline-offset:-2px; }
 .profile { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:20px 0; padding:18px; border:1px solid var(--portal-line); border-radius:8px; background:var(--portal-bg); }
 .profile div { display:grid; align-content:start; gap:6px; min-width:0; }
 .profile dt { color:var(--portal-muted); font-size:11px; }

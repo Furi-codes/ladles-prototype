@@ -2,6 +2,7 @@ import {
   getIntegrationDatabase,
   integrationErrorStatus,
   jsonError,
+  logWmsAction,
   parseWmsEventPayload,
   readJsonRecord,
   requireJsonContent,
@@ -53,6 +54,24 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const event = data as { id: number };
+    await logWmsAction(database, {
+      action: payload.status === "Cancelled" ? "WMS_EVENT_CANCELLED" : "WMS_EVENT_PUBLISHED",
+      entityType: "EVENT",
+      entityId: event.id,
+      entityLabel: payload.title,
+      details: {
+        external_event_id: payload.externalEventId,
+        date: payload.eventDate,
+        status: payload.status,
+        category: payload.category,
+        timeslots: payload.timeslots.map(slot => ({
+          external_timeslot_id: slot.externalTimeslotId,
+          start_time: slot.startTime,
+          end_time: slot.endTime,
+          capacity: slot.capacity,
+        })),
+      },
+    });
     return Response.json({ eventId: event.id, externalEventId: payload.externalEventId });
   } catch (error) {
     console.error("WMS event integration configuration failed:", error);
