@@ -98,7 +98,7 @@ const toMinutes = (value: string) => {
   return hours * 60 + minutes;
 };
 const formatTime = (value: string) => value.slice(0, 5);
-const formatSlot = (slot: EventSlot) => `${formatTime(slot.start_time)}-${formatTime(slot.end_time)} · ${slot.capacity} spots`;
+const formatSlot = (slot: EventSlot) => `${formatTime(slot.start_time)}-${formatTime(slot.end_time)} · ${slot.capacity} individual | ${slot.corporate_capacity ?? 0} corporate`;
 
 type EventsManagerProps = {
   events: Event[];
@@ -132,6 +132,7 @@ export default function EventsManager({
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("10:00");
   const [capacity, setCapacity] = useState("1");
+  const [corporateCapacity, setCorporateCapacity] = useState("0");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,6 +175,7 @@ export default function EventsManager({
     setStart("09:00");
     setEnd("10:00");
     setCapacity("1");
+    setCorporateCapacity("0");
     setEditingId(null);
     setDrawerOpen(false);
     setError(null);
@@ -197,11 +199,12 @@ export default function EventsManager({
     setDescription(event.description ?? "");
     setCategory(event.category ?? "Other");
     setTemplateId("custom");
-    setRanges(existingSlots.map(({ id, start_time, end_time, capacity: slotCapacity }) => ({
+    setRanges(existingSlots.map(({ id, start_time, end_time, capacity: slotCapacity, corporate_capacity }) => ({
       id,
       start_time: formatTime(start_time),
       end_time: formatTime(end_time),
       capacity: slotCapacity,
+      corporate_capacity: corporate_capacity ?? 0,
     })));
     setError(existingSlots.length === 0 ? "This historical event has no proper slot records. Add its real ranges before saving." : null);
     setDrawerOpen(true);
@@ -223,12 +226,14 @@ export default function EventsManager({
     setStart(template.start);
     setEnd(template.end);
     setCapacity(template.capacity);
+    setCorporateCapacity("0");
     setRanges([]);
     setError(null);
   }
 
   function addRange() {
     const rangeCapacity = Number(capacity);
+    const rangeCorporateCapacity = Number(corporateCapacity);
     const currentTime = getLocalTimeString();
     if (date === today && toMinutes(start) <= toMinutes(currentTime)) {
       setError("For an event today, each new time range must start later than the current time.");
@@ -238,15 +243,19 @@ export default function EventsManager({
       setError("Each time range must end after it starts.");
       return;
     }
-    if (!Number.isInteger(rangeCapacity) || rangeCapacity < 1) {
+    if (!Number.isInteger(rangeCapacity) || rangeCapacity < 1 || rangeCapacity > 2147483647) {
       setError("Each time range needs a capacity of at least one.");
+      return;
+    }
+    if (!Number.isInteger(rangeCorporateCapacity) || rangeCorporateCapacity < 0 || rangeCorporateCapacity > 2147483647) {
+      setError("Corporate capacity must be a nonnegative integer.");
       return;
     }
     if (ranges.some((range) => toMinutes(start) < toMinutes(range.end_time) && toMinutes(end) > toMinutes(range.start_time))) {
       setError("Time ranges cannot overlap.");
       return;
     }
-    setRanges((current) => [...current, { start_time: start, end_time: end, capacity: rangeCapacity }]
+    setRanges((current) => [...current, { start_time: start, end_time: end, capacity: rangeCapacity, corporate_capacity: rangeCorporateCapacity }]
       .sort((first, second) => toMinutes(first.start_time) - toMinutes(second.start_time)));
     setError(null);
   }
@@ -285,6 +294,11 @@ export default function EventsManager({
     event.preventDefault();
     if (!title.trim() || !date || !location.trim() || ranges.length === 0) {
       setError("Complete all fields and add at least one time range.");
+      return;
+    }
+    if (ranges.some(range => !Number.isInteger(range.capacity) || range.capacity < 1 || range.capacity > 2147483647
+      || !Number.isInteger(range.corporate_capacity) || range.corporate_capacity < 0 || range.corporate_capacity > 2147483647)) {
+      setError("Each range needs a positive individual capacity and a nonnegative corporate capacity.");
       return;
     }
     if (date < today) {
@@ -398,7 +412,7 @@ export default function EventsManager({
       </div>
       {isLoading ? <div className={styles.empty}>Loading events...</div> : <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead><tr>{["Event", "Category", "Date", "Location", "Bookable ranges", "Total capacity", "Status", "Actions"].map((column) => <th key={column}>{column}</th>)}</tr></thead>
+          <thead><tr>{["Event", "Category", "Date", "Location", "Bookable ranges", "Individual capacity", "Corporate capacity", "Status", "Actions"].map((column) => <th key={column}>{column}</th>)}</tr></thead>
           <tbody>
             {displayedEvents.map((item) => {
               const slots = slotsForEvent(item.id);
@@ -412,6 +426,7 @@ export default function EventsManager({
                 <td>{item.location}{item.location_url && <><br /><a className={styles.mapLink} href={item.location_url} target="_blank" rel="noreferrer">View map</a></>}</td>
                 <td>{slots.length > 0 ? slots.map(formatSlot).join(", ") : <span className={styles.helperWarning}>Legacy schedule: {item.time_slots}</span>}</td>
                 <td>{slots.length > 0 ? slots.reduce((total, slot) => total + slot.capacity, 0) : item.total_slots}</td>
+                <td>{slots.reduce((total, slot) => total + (slot.corporate_capacity ?? 0), 0)}</td>
                 <td><span className={`${styles.status} ${isCancelled ? styles.statusCancelled : statusLabel === "Completed" ? styles.statusCompleted : styles.statusConfirmed}`}>{statusLabel}</span></td>
                 <td><div className={styles.tableActions}>
                   {!isCancelled && !isPast && <button type="button" className={styles.secondaryButton} onClick={() => openEdit(item)}><Icon name="edit" size={14} /> Edit</button>}
@@ -421,7 +436,7 @@ export default function EventsManager({
                 </div></td>
               </tr>;
             })}
-            {displayedEvents.length === 0 && <tr><td colSpan={8}><div className={styles.empty}>{showCancelled ? "No cancelled events yet." : showPast ? "No past events yet." : "No upcoming events."}</div></td></tr>}
+            {displayedEvents.length === 0 && <tr><td colSpan={9}><div className={styles.empty}>{showCancelled ? "No cancelled events yet." : showPast ? "No past events yet." : "No upcoming events."}</div></td></tr>}
           </tbody>
         </table>
       </div>}
@@ -470,11 +485,12 @@ export default function EventsManager({
             <div className={styles.rangeBuilder}>
               <div className={styles.field}><label className={styles.cardHint} htmlFor="range-start">Start</label><select className={styles.select} id="range-start" value={start} onChange={(event) => setStart(event.target.value)}>{TIME_OPTIONS.map((time) => <option key={`start-${time}`}>{time}</option>)}</select></div>
               <div className={styles.field}><label className={styles.cardHint} htmlFor="range-end">End</label><select className={styles.select} id="range-end" value={end} onChange={(event) => setEnd(event.target.value)}>{TIME_OPTIONS.map((time) => <option key={`end-${time}`}>{time}</option>)}</select></div>
-              <div className={styles.field}><label className={styles.cardHint} htmlFor="range-capacity">Capacity</label><input className={styles.input} id="range-capacity" type="number" min="1" value={capacity} onChange={(event) => setCapacity(event.target.value)} /></div>
+              <div className={styles.field}><label className={styles.cardHint} htmlFor="range-capacity">Individual volunteer capacity</label><input className={styles.input} id="range-capacity" type="number" min="1" value={capacity} onChange={(event) => setCapacity(event.target.value)} /></div>
+              <div className={styles.field}><label className={styles.cardHint} htmlFor="range-corporate-capacity">Corporate capacity</label><input className={styles.input} id="range-corporate-capacity" type="number" min="0" step="1" max="2147483647" value={corporateCapacity} onChange={(event) => setCorporateCapacity(event.target.value)} /></div>
               <button type="button" className={styles.secondaryButton} onClick={addRange}><Icon name="plus" size={14} /> Add</button>
             </div>
-            <div className={styles.rangeTags}>{ranges.map((range) => { const label = `${range.start_time}-${range.end_time} · ${range.capacity} spots`; return <span className={styles.rangeTag} key={label}>{label}<button type="button" className={styles.tagRemove} onClick={() => setRanges((current) => current.filter((item) => item !== range))} aria-label={`Remove ${label}`}>×</button></span>; })}</div>
-            <p className={styles.helper}>Each range has its own capacity. Ranges cannot overlap.</p>
+            <div className={styles.rangeTags}>{ranges.map((range) => { const label = `${range.start_time}-${range.end_time} · ${range.capacity} individual | ${range.corporate_capacity} corporate`; return <span className={styles.rangeTag} key={range.id ?? `${range.start_time}-${range.end_time}`}><span>{range.start_time}-{range.end_time}</span><label>Individual <input className={styles.input} style={{ width: 80 }} aria-label={`Individual capacity for ${range.start_time}-${range.end_time}`} type="number" min="1" step="1" max="2147483647" value={range.capacity} onChange={(event) => setRanges(current => current.map(item => item === range ? { ...item, capacity: Number(event.target.value) } : item))} /></label><label>Corporate <input className={styles.input} style={{ width: 80 }} aria-label={`Corporate capacity for ${range.start_time}-${range.end_time}`} type="number" min="0" step="1" max="2147483647" value={range.corporate_capacity} onChange={(event) => setRanges(current => current.map(item => item === range ? { ...item, corporate_capacity: Number(event.target.value) } : item))} /></label><button type="button" className={styles.tagRemove} onClick={() => setRanges((current) => current.filter((item) => item !== range))} aria-label={`Remove ${label}`}>×</button></span>; })}</div>
+            <p className={styles.helper}>Each range has independent individual and corporate capacities. Zero corporate capacity closes the range to groups. Ranges cannot overlap.</p>
           </div>
           <div className={`${styles.field} ${styles.fieldFull}`}><div className={styles.formActions}><button type="button" className={styles.secondaryButton} onClick={resetForm} disabled={isSaving}>Cancel</button><button type="submit" className={styles.primaryButton} disabled={isSaving}>{isSaving ? "Saving…" : editingId ? "Save changes" : "Create event"}</button></div></div>
         </form>

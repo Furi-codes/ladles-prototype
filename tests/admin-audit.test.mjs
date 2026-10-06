@@ -68,7 +68,7 @@ test('CSV exports the exact selected report rows, escapes formulas and preserves
   const r = reporting.reportAnalytics(fixture,{...all,event:'1'},true,'1');
   const csv = reporting.reportCsv(r.rows);
   assert.equal(csv.split('\r\n').length,2);
-  assert.equal(csv.split('\r\n')[1], '"\' =HYPERLINK(""bad"")","2026-01-31","0","4","3","75.00","0.00","6.00","1","0"');
+  assert.equal(csv.split('\r\n')[1], '"\' =HYPERLINK(""bad"")","2026-01-31","0","0","0","4","4","3","75.00","0.00","6.00","1","0"');
   assert.ok(csv.startsWith('\uFEFF')); assert.ok(!csv.includes('Future'));
   for (const value of ['=1','+1','-1','@SUM(A1)','\t=1','\r+1','\n-1']) assert.ok(reporting.csvCell(value).startsWith('"\''));
   assert.equal(reporting.csvCell(null),'""'); assert.equal(reporting.csvCell('Café'),'"Café"');
@@ -127,12 +127,6 @@ test('SQL source contract: corporate validation retains state, identity and comp
   assert.match(sql,/volunteer_hours <> 'NaN'::numeric/);
   assert.match(sql,/status <> 'Completed' and attendance_count is null and volunteer_hours is null/);
 });
-test('SQL source contract: every shared-capacity writer counts corporate reservations under slot locks', () => {
-  assert.match(body('csr_reserved_spaces'),/status <> 'Cancelled'/);
-  assert.match(body('csr_reserved_spaces'),/p_exclude_id is null or id <> p_exclude_id/);
-  const rpc=body('save_corporate_booking');
-  assert.ok(rpc.indexOf('order by id for update')<rpc.indexOf('select count(*)'));
-  assert.ok(rpc.includes('v_count + public.csr_reserved_spaces(v_slot.id, p_id) + p_team_size > v_slot.capacity'));
-  assert.ok(body('csr_guard_individual_capacity').includes('v_count + public.csr_reserved_spaces(v_slot.id) + 1 > v_slot.capacity'));
-  assert.ok(body('csr_guard_slot_capacity').includes('new.capacity < v_count + public.csr_reserved_spaces(old.id)'));
+test('historical migration documents the superseded shared-capacity model', () => {
+  assert.ok(body('save_corporate_booking').includes('v_count + public.csr_reserved_spaces(v_slot.id, p_id) + p_team_size > v_slot.capacity'));
 });

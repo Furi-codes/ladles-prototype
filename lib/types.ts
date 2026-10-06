@@ -51,7 +51,9 @@ export interface EventSlot {
   event_id: number;
   start_time: string;
   end_time: string;
+  /** Individual volunteer limit; never includes corporate reservations. */
   capacity: number;
+  corporate_capacity: number;
   /** Privacy-safe aggregate; absent until the reviewed migration is installed. */
   remaining?: number;
   created_at?: string;

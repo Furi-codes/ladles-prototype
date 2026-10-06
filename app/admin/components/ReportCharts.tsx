@@ -15,7 +15,7 @@ export function ReportSummary({ report }: { report: ReportAnalytics }) {
     ['Completed Volunteer Hours', format(report.hours), 'Recorded individual and corporate hours'],
     ['Active Volunteers', report.activeVolunteers === null ? 'Unavailable' : format(report.activeVolunteers), 'Unique individual volunteers with a clock-in; corporate identities unavailable'],
     ['Completed Events', format(report.completedEvents), 'Events with recorded completed participation'],
-    ['Attendance Rate', report.attendanceRate === null ? '—' : `${format(report.attendanceRate)}%`, 'Recorded attendees ÷ booked places'],
+    ['Attendance Rate', report.attendanceRate === null ? '—' : `${format(report.attendanceRate)}%`, 'Recorded attendees ÷ booked participants'],
   ];
   return <div className={`${admin.stats} ${styles.summary}`}>{cards.map(([label, value, help], i) => <section className={`${admin.card} ${admin.stat} ${styles.metric}`} key={label}><div className={admin.statTop}><h3 className={`${admin.statLabel} ${styles.metricLabel}`}>{label}</h3><span className={admin.statIcon}><Icon name={(['activity', 'users', 'calendar', 'activity'] as const)[i]} size={16} /></span></div><div className={admin.statValue}>{value}</div><div className={admin.statNote}>{help}</div></section>)}</div>;
 }
@@ -47,17 +47,17 @@ export function MonthlyChart({ report, bars = false }: { report: ReportAnalytics
   const x = (i: number) => 56 + step * (i + 0.5);
   const y = (v: number) => 215 - v / top * 175;
   return <section className={`${admin.card} ${styles.chart}`} aria-labelledby={id}>
-    <div className={admin.cardHeader}><div><h2 id={id} className={admin.cardTitle}>{title}</h2><p className={admin.cardHint}>{bars ? 'Reserved places and recorded participants, by event month' : 'Completed individual and corporate volunteer hours, by event month'}</p></div></div>
+    <div className={admin.cardHeader}><div><h2 id={id} className={admin.cardTitle}>{title}</h2><p className={admin.cardHint}>{bars ? 'Booked and attended participants across individual and corporate activity, by event month' : 'Completed individual and corporate volunteer hours, by event month'}</p></div></div>
     <div className={admin.featureBody}>
-    <div className={styles.legend}><span><i style={{ background: seriesColors[0] }} />{bars ? 'Booked places' : 'Recorded volunteer hours'}</span>{bars && <span><i style={{ background: seriesColors[1] }} />Attended participants</span>}</div>
-    {!hasData ? <p className={admin.empty}>{bars ? 'No booked places or recorded attendance in this range.' : 'No completed volunteer hours recorded in this range.'}</p> : <>
+    <div className={styles.legend}><span><i style={{ background: seriesColors[0] }} />{bars ? 'Booked participants' : 'Recorded volunteer hours'}</span>{bars && <span><i style={{ background: seriesColors[1] }} />Attended participants</span>}</div>
+    {!hasData ? <p className={admin.empty}>{bars ? 'No booked participants or recorded attendance in this range.' : 'No completed volunteer hours recorded in this range.'}</p> : <>
       <div ref={plot} className={styles.plotScroll} tabIndex={0} role="region" aria-label={`${title}. Focus a month or open its data table for exact values.`}>
         <svg viewBox={`0 0 ${width} 270`} style={{ minWidth: width }} role="group" aria-label={`${title}; exact values are available in the data table`}>
-          <text x="10" y="16" className={styles.axis}>{bars ? 'Participants / places' : 'Recorded volunteer hours'}</text>
+          <text x="10" y="16" className={styles.axis}>{bars ? 'Participants' : 'Recorded volunteer hours'}</text>
           {[0, 1, 2, 3, 4].map(t => <g key={t}><line x1="50" x2={width - 12} y1={y(top * t / 4)} y2={y(top * t / 4)} className={styles.gridLine} /><text x="43" y={y(top * t / 4) + 4} textAnchor="end" className={styles.axis}>{format(top * t / 4)}</text></g>)}
           {!bars && <polyline fill="none" stroke={seriesColors[0]} strokeWidth="3" points={months.map((m, i) => `${x(i)},${y(m.hours)}`).join(' ')} />}
           {months.map((m, i) => {
-            const label = `${monthLabel(m.month)}: ${bars ? `${format(m.booked)} booked places, ${format(m.attended)} attended participants` : `${format(m.hours)} completed hours`}`;
+            const label = `${monthLabel(m.month)}: ${bars ? `${format(m.booked)} booked participants, ${format(m.attended)} attended participants` : `${format(m.hours)} completed hours`}`;
             return <g key={m.month} tabIndex={0} role="img" aria-label={label} onMouseEnter={() => setTip(label)} onMouseLeave={() => setTip('')} onFocus={() => setTip(label)} onBlur={() => setTip('')} onClick={() => setTip(label)}>
               <title>{label}</title><rect x={x(i) - step / 2} y="32" width={step} height="190" fill="transparent" />
               {bars ? <><rect x={x(i) - barWidth - 1} y={y(m.booked)} width={barWidth} height={215 - y(m.booked)} rx="2" fill={seriesColors[0]} /><rect x={x(i) + 1} y={y(m.attended)} width={barWidth} height={215 - y(m.attended)} rx="2" fill={seriesColors[1]} /></> : <circle cx={x(i)} cy={y(m.hours)} r="4" fill={seriesColors[0]} />}
@@ -67,7 +67,7 @@ export function MonthlyChart({ report, bars = false }: { report: ReportAnalytics
         </svg>
       </div><p className={`${admin.helper} ${styles.tooltip}`} role="status">{tip || 'Hover, tap or focus a month to inspect its values.'}</p>
     </>}
-    <DataTable title={title} headers={bars ? ['Month', 'Booked places', 'Attended participants'] : ['Month', 'Completed hours']} rows={months.map(m => bars ? [monthLabel(m.month), m.booked, m.attended] : [monthLabel(m.month), format(m.hours)])} />
+    <DataTable title={title} headers={bars ? ['Month', 'Booked participants', 'Attended participants'] : ['Month', 'Completed hours']} rows={months.map(m => bars ? [monthLabel(m.month), m.booked, m.attended] : [monthLabel(m.month), format(m.hours)])} />
     </div>
   </section>;
 }

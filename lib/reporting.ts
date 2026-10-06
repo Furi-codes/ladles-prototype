@@ -8,7 +8,7 @@ export function presetFilter(preset: ReportPreset, now = new Date()): ReportFilt
   start.setUTCDate(start.getUTCDate() - (preset === 'Event Attendance' ? 89 : 29));
   return { from: preset === 'Custom Report' ? '' : ['Monthly Volunteer Activity', 'Volunteer Hours', 'Corporate Participation'].includes(preset) ? `${today.slice(0, 7)}-01` : start.toISOString().slice(0, 10), to: preset === 'Custom Report' ? '' : today, location: '', event: '' };
 }
-export interface PerformanceRow { id: number; event: string; date: string; capacity: number; bookings: number; attendance: number; rate: number | null; individualHours: number; corporateHours: number; groups: number; confirmed: number }
+export interface PerformanceRow { id: number; event: string; date: string; capacity: number; corporateCapacity: number; individualReserved: number; corporateReserved: number; bookings: number; attendance: number; rate: number | null; individualHours: number; corporateHours: number; groups: number; confirmed: number }
 export function selectedReportRows(data: { events: Event[]; slots: EventSlot[]; bookings: Booking[]; attendance: AttendanceRecord[]; corporate: CorporateBooking[] }, filter: ReportFilter, corporateOnly = false, company = '') {
   if (filter.from && filter.to && filter.from > filter.to) return [];
   return performanceRows(data.events, data.slots, corporateOnly ? [] : data.bookings, data.attendance,
@@ -25,10 +25,13 @@ export function performanceRows(events: Event[], slots: EventSlot[], bookings: B
     const ids = new Set(individual.map(b => b.id));
     const records = attendance.filter(a => ids.has(a.booking_id));
     const groups = corporate.filter(b => b.event_id === event.id && event.status !== 'Cancelled' && b.status !== 'Cancelled');
+    const eventSlotIds = new Set(slots.filter(s => s.event_id === event.id).map(s => s.id));
     const total = individual.length + groups.reduce((s, b) => s + b.team_size, 0);
     const attended = records.filter(a => a.clocked_in_at !== null).length + groups.reduce((s, b) => s + (b.status === 'Completed' ? b.attendance_count ?? 0 : 0), 0);
     return { id: event.id, event: event.title ?? 'Untitled event', date: event.date ?? '',
       capacity: slots.filter(s => s.event_id === event.id).reduce((n, s) => n + s.capacity, 0),
+      corporateCapacity: slots.filter(s => s.event_id === event.id).reduce((n, s) => n + (s.corporate_capacity ?? 0), 0),
+      individualReserved: individual.filter(b => b.event_slot_id != null && eventSlotIds.has(b.event_slot_id)).length, corporateReserved: groups.reduce((n, b) => n + b.team_size, 0),
       bookings: total, attendance: attended, rate: total ? attended / total * 100 : null,
       individualHours: records.reduce((n, a) => n + (a.clocked_in_at && a.clocked_out_at ? a.worked_minutes ?? 0 : 0), 0) / 60,
       corporateHours: groups.reduce((n, b) => n + (b.status === 'Completed' ? Number(b.volunteer_hours ?? 0) : 0), 0),
@@ -50,8 +53,8 @@ export function csvCell(value: string | number | null) {
 }
 export function reportCsv(rows: PerformanceRow[]) {
   if (!rows.length) return null;
-  const header = ['Event','Date','Capacity','Reserved places','Recorded attendance','Attendance rate (%)','Verified individual hours','Recorded corporate hours','Corporate groups','Confirmed booking records'];
-  return '\uFEFF' + [header, ...rows.map(r => [r.event,r.date,r.capacity,r.bookings,r.attendance,r.rate === null ? null : r.rate.toFixed(2),r.individualHours.toFixed(2),r.corporateHours.toFixed(2),r.groups,r.confirmed])].map(r => r.map(csvCell).join(',')).join('\r\n');
+  const header = ['Event','Date','Individual capacity','Corporate capacity','Individual reserved','Corporate reserved','Total booked participants','Recorded attendance','Attendance rate (%)','Verified individual hours','Recorded corporate hours','Corporate groups','Confirmed booking records'];
+  return '\uFEFF' + [header, ...rows.map(r => [r.event,r.date,r.capacity,r.corporateCapacity,r.individualReserved,r.corporateReserved,r.bookings,r.attendance,r.rate === null ? null : r.rate.toFixed(2),r.individualHours.toFixed(2),r.corporateHours.toFixed(2),r.groups,r.confirmed])].map(r => r.map(csvCell).join(',')).join('\r\n');
 }
 
 export const dateRanges = ['Last 30 days', 'Last 3 months', 'Last 6 months', 'Last 12 months', 'Custom date range'] as const;

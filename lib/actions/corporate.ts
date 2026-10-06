@@ -25,6 +25,7 @@ export async function loadCorporateData() {
     allRows<CorporateCompany>('corporate_companies'), allRows<CorporateBooking>('corporate_bookings'),
     allRows<CorporateNote>('corporate_notes'), allRows<Event>('events'), allRows<EventSlot>('event_slots'),
   ]);
+  if (slots.some(slot => !Number.isInteger(slot.corporate_capacity))) throw new Error('Corporate capacity is unavailable. Ask your database administrator to install the separate-capacity migration.');
   return { companies, bookings, notes, events, slots };
 }
 export async function saveCompany(id: number | null, input: CompanyInput) {
