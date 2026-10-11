@@ -1,5 +1,6 @@
 "use client";
 
+/** My impact totals, certificate preview and print-only certificate, based on finalised attendance. */
 import Image from "next/image";
 import { formatWorkedTime, getVerifiedContribution } from "@/lib/attendance-utils";
 import { useState } from "react";
@@ -7,6 +8,7 @@ import type { AttendanceRecord, Booking, Event, Profile } from "@/lib/types";
 import styles from "../volunteer.module.css";
 import ui from './experience.module.css';
 
+/** Account identity and related rows supplied by the impact page from the volunteer provider. */
 type ProgressionPanelProps = {
   bookings: Booking[];
   attendanceRecords: AttendanceRecord[];
@@ -15,10 +17,12 @@ type ProgressionPanelProps = {
   userId: string | undefined;
 };
 
+/** Uses today's South African date as the certificate issue date when this view renders. */
 function formatPrintDate() {
   return new Intl.DateTimeFormat("en-ZA", { timeZone: "Africa/Johannesburg", day: "2-digit", month: "long", year: "numeric" }).format(new Date());
 }
 
+/** Shows this user's verified totals; a positive saved duration unlocks the certificate button. */
 export default function ProgressionPanel({ bookings, attendanceRecords, profile, userId }: ProgressionPanelProps) {
   const { completed, totalMinutes } = getVerifiedContribution(bookings, attendanceRecords, userId);
   const [printError, setPrintError] = useState<string | null>(null);
@@ -26,12 +30,15 @@ export default function ProgressionPanel({ bookings, attendanceRecords, profile,
   const incomplete = bookings.filter((booking) => booking.user_id === userId && booking.status === "Present").length;
   const certificateAvailable = totalMinutes > 0;
 
+  /** Opens browser printing. The user chooses Save as PDF; this does not generate a PDF on the server. */
   function printCertificate() {
     if (!certificateAvailable) return;
     setPrintError(null);
     const originalTitle = document.title;
+    // Print CSS uses this class to hide the portal and show only the certificate section.
     document.body.classList.add("printing-progress");
     document.title = `Certificate of appreciation - ${profile?.full_name ?? "Ladles of Love"}`;
+    // Restore the normal portal/title when printing ends or opening the dialog throws.
     const cleanup = () => {
       document.body.classList.remove("printing-progress");
       document.title = originalTitle;

@@ -1,3 +1,4 @@
+/** WMS capacity update endpoint. It reads back the saved slot value before returning success. */
 import {
   getIntegrationDatabase,
   integrationErrorStatus,
@@ -12,6 +13,7 @@ import { fetchAllPages } from "@/lib/data-pagination";
 
 export const runtime = "nodejs";
 
+/** External timeslot ID from the URL, awaited using the current Next.js route convention. */
 type RouteContext = { params: Promise<{ externalTimeslotId: string }> };
 
 /** Updates capacity only when existing individual and corporate reservations still fit. */
@@ -47,10 +49,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (corporateError) return jsonError(corporateError.message, 500);
 
     const reservedPlaces = (individualReservations ?? 0) + (corporateBookings ?? []).reduce((total, booking) => total + booking.team_size, 0);
+    // A group's team_size reserves several places. Completed groups are included, not just upcoming ones.
     if (capacity < reservedPlaces) {
       return jsonError(`Capacity cannot be lower than the ${reservedPlaces} place${reservedPlaces === 1 ? "" : "s"} already reserved.`, 409);
     }
 
+    // The read/check above and this update are separate requests, not a route-level transaction.
     const { data: updatedSlot, error: updateError } = await database
       .from("event_slots")
       .update({ capacity })
@@ -63,6 +67,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     if (updatedSlot.capacity !== capacity) {
+      // Do not report 200 with an old value if the database did not return the requested capacity.
       console.error("WMS capacity update did not persist the requested value.");
       return jsonError("The requested capacity was not saved. Please retry or contact the VMS team.", 500);
     }
@@ -81,6 +86,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
     return Response.json({ vmsTimeslotId: updatedSlot.id, externalTimeslotId, capacity: updatedSlot.capacity });
   } catch (error) {
+    // A runtime exception is also returned as 503 here, not only missing environment variables.
     console.error("WMS capacity integration configuration failed:", error);
     return jsonError("Integration is not configured.", 503);
   }

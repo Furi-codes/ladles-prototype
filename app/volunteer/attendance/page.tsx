@@ -1,5 +1,6 @@
 "use client";
 
+/** Confirms a scanned/link checkpoint or typed event code and displays the database's attendance result. */
 import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { recordEventAttendance, recordEventAttendanceCode } from "@/lib/actions/volunteer";
@@ -9,6 +10,7 @@ import entryStyles from "./attendance.module.css";
 import AttendanceScanner from "../components/AttendanceScanner";
 import { useVolunteerData } from "../components/VolunteerProvider";
 
+/** Shares saved attendance with other pages by refreshing VolunteerProvider after the write succeeds. */
 export default function AttendancePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -18,8 +20,10 @@ export default function AttendancePage() {
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<{ text: string; success: boolean } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // A ref changes immediately, so two rapid clicks are blocked before React renders isSaving again.
   const saving = useRef(false);
 
+  /** Calls the selected attendance RPC, shows its saved clock-in/out result and always releases the save guard. */
   async function record() {
     if (saving.current || (mode === "qr" && !checkpoint)) return;
     saving.current = true;

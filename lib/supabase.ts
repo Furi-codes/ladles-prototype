@@ -1,3 +1,4 @@
+/** Browser-facing Supabase connection shared by the portal and lib/actions helpers. */
 import { createClient } from '@supabase/supabase-js'
 
 // Public Supabase configuration exposed to browser code by Next.js.
@@ -9,16 +10,17 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file.')
 }
 
-// Shared Supabase client used by the app's data-access functions.
+// This public key does not grant admin access by itself. Database permissions and RLS
+// must still restrict requests using the signed-in user's session.
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-/** Returns the authenticated user for the current browser session, if any. */
+/** Asks Supabase Auth for the session's user; this helper returns only the user, not the error. */
 export async function getCurrentUser() {
   const { data: { user } } = await supabase.auth.getUser()
   return user
 }
 
-/** Returns the current user's matching record from the `profiles` table. */
+/** Reads the profile whose ID matches the Auth user. Query errors are not returned separately here. */
 export async function getCurrentUserProfile() {
   const user = await getCurrentUser()
   if (!user) return null

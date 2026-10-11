@@ -1,5 +1,7 @@
+/** Admin activity-log helpers used after successful management operations and by Settings. */
 import { supabase } from '@/lib/supabase';
 
+/** A stored action with its actor, affected record, optional details and timestamp. */
 export type AdminAuditEntry = {
   id: number;
   admin_id: string | null;
@@ -12,6 +14,7 @@ export type AdminAuditEntry = {
   created_at: string;
 };
 
+/** Caller-supplied action details; the database RPC supplies the administrator identity. */
 type AuditAction = {
   action: string;
   entityType: string;
@@ -21,8 +24,8 @@ type AuditAction = {
 };
 
 /**
- * Records a successful administrator action. Logging must never undo an
- * already-completed user action if the audit service is temporarily unavailable.
+ * Requests an audit entry after a successful action. Returned RPC errors are
+ * logged instead of thrown; an unexpected rejected request is not caught here.
  */
 export async function logAdminAction({
   action,
@@ -44,6 +47,7 @@ export async function logAdminAction({
   }
 }
 
+/** Loads the latest limited activity list, not the complete audit history; errors are thrown to the UI. */
 export async function loadAdminAuditLog(limit = 20): Promise<AdminAuditEntry[]> {
   const { data, error } = await supabase
     .from('admin_audit_log')

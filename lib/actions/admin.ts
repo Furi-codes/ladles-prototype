@@ -1,8 +1,10 @@
+/** Browser calls used by AdminProvider and event/roster screens. Database policies/RPCs enforce admin access. */
 import type { PostgrestResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { AttendanceCheckpoint, AttendanceRecord, Booking, Volunteer, Event, EventCategory, EventSlot } from '@/lib/types'
 import { fetchAllPages } from '@/lib/data-pagination'
 
+/** Fields sent by the event form; an existing slot ID lets the RPC identify an edited range. */
 export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'> & { id?: number }
 
 /** Loads events for the admin dashboard, newest records first. */
@@ -33,22 +35,22 @@ export async function rotateAttendanceEntryCode(checkpointId: string) {
   return supabase.rpc('rotate_attendance_entry_code', { p_checkpoint_id: checkpointId })
 }
 
-/** Loads attendance records. The database function permits all rows only to admins. */
+/** Loads attendance through a paged RPC; the deployed SQL controls which users' records are returned. */
 export async function fetchAdminAttendanceRecords(): Promise<PostgrestResponse<AttendanceRecord>> {
   return fetchAllPages<AttendanceRecord>((from, to) => supabase.rpc('get_attendance_records', {}, { count: 'exact' }).order('booking_id').range(from, to))
 }
 
-/** Finalizes missed bookings for finished events so they can be reported as no-shows. */
+/** Requests no-show finalisation before admin reads; eligible statuses/times are checked by the RPC. */
 export async function markMissedBookingsNoShow() {
   return supabase.rpc('mark_missed_bookings_no_show')
 }
 
-/** Loads profiles alphabetically for the admin volunteer view. */
+/** Loads visible profiles alphabetically; this query itself does not filter role to volunteer. */
 export async function fetchVolunteers() {
   return fetchAllPages<Volunteer>((from, to) => supabase.from('profiles').select('*', { count: 'exact' }).order('full_name', { ascending: true }).order('id').range(from, to))
 }
 
-/** Atomically saves an event and all of its capacity-controlled time slots. */
+/** Sends event details and slot rows in one RPC request; transaction rules belong to the deployed function. */
 export async function saveEventWithSlots(
   eventId: number | null,
   data: Pick<Event, 'title' | 'date' | 'location'>,
@@ -82,7 +84,7 @@ export async function deleteEvent(id: number) {
   return supabase.from('events').delete().eq('id', id)
 }
 
-/** Cancels a future event without deleting its bookings or attendance history. */
+/** Requests cancellation via the corporate-aware RPC, falling back only when that RPC is missing. */
 export async function cancelEvent(eventId: number, message: string) {
   const parameters = { p_event_id: eventId, p_message: message || null }
   const corporateCancellation = await supabase

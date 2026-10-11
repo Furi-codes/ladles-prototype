@@ -1,3 +1,4 @@
+/** Receives WMS attendance outcomes; this is separate from the volunteer's timed clock-in/out record. */
 import {
   getIntegrationDatabase,
   integrationErrorStatus,
@@ -11,6 +12,7 @@ import {
 
 export const runtime = "nodejs";
 
+/** Only these external attendance outcomes are accepted by this endpoint. */
 const attendanceStatuses = new Set(["attended", "not_attended", "unknown"]);
 
 /** Stores a WMS attendance outcome without creating clock times or volunteer hours. */
@@ -27,6 +29,7 @@ export async function POST(request: Request) {
   const recordedAt = typeof body?.recordedAt === "string" ? body.recordedAt : "";
 
   if (!bookingId || !attendanceStatuses.has(attendanceStatus) || source !== "wms" || Number.isNaN(Date.parse(recordedAt))) {
+    // An outcome needs a booking, supported status, WMS source and parseable timestamp before SQL is called.
     return jsonError("vmsBookingId, attendanceStatus, source and recordedAt are required.", 422);
   }
 
@@ -44,6 +47,7 @@ export async function POST(request: Request) {
     }
 
     const outcome = data as { booking_id: number; attendance_status: string; recorded_at: string };
+    // Return the saved RPC result rather than assuming the request values were accepted unchanged.
     await logWmsAction(database, {
       action: "WMS_ATTENDANCE_UPDATED",
       entityType: "BOOKING",
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
       recordedAt: outcome.recorded_at,
     });
   } catch (error) {
+    // This catch groups unexpected runtime failures with configuration failures.
     console.error("WMS attendance integration configuration failed:", error);
     return jsonError("Integration is not configured.", 503);
   }

@@ -1,10 +1,13 @@
+/** Shared validation, authentication and logging for WMS routes. Never import this into browser components. */
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { timingSafeEqual } from "node:crypto";
 
+/** An object-shaped JSON body; each field still needs checking before use. */
 type JsonRecord = Record<string, unknown>;
 
+/** Normalised slot fields from the external system, before mapping them to database parameter names. */
 export type WmsTimeslot = {
   externalTimeslotId: string;
   startTime: string;
@@ -12,6 +15,7 @@ export type WmsTimeslot = {
   capacity: number;
 };
 
+/** Accepted event publish data. External IDs identify the WMS records rather than VMS numeric IDs. */
 export type WmsEventPayload = {
   externalEventId: string;
   title: string;
@@ -24,6 +28,7 @@ export type WmsEventPayload = {
   timeslots: WmsTimeslot[];
 };
 
+/** Keeps route failures in the same JSON error shape while preserving the chosen HTTP status. */
 export function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
@@ -43,6 +48,7 @@ export function requireWmsAuthentication(request: Request): Response | null {
 
   const expected = Buffer.from(expectedToken);
   const supplied = Buffer.from(suppliedToken);
+  // timingSafeEqual requires equal-length buffers. The guard avoids an exception for a wrong-length token.
   const isValid = expected.length === supplied.length && timingSafeEqual(expected, supplied);
 
   return isValid ? null : jsonError("Unauthorized.", 401);
@@ -69,6 +75,7 @@ export function getIntegrationDatabase(): SupabaseClient {
   });
 }
 
+/** WMS action details with a fixed integration actor rather than a signed-in administrator. */
 type WmsAuditAction = {
   action: "WMS_EVENT_PUBLISHED" | "WMS_EVENT_CANCELLED" | "WMS_CAPACITY_UPDATED" | "WMS_ATTENDANCE_UPDATED";
   entityType: "EVENT" | "EVENT_SLOT" | "BOOKING";
@@ -95,6 +102,7 @@ export async function logWmsAction(database: SupabaseClient, entry: WmsAuditActi
   }
 }
 
+/** Reads an object body, returning null for malformed JSON, arrays or primitive values. */
 export async function readJsonRecord(request: Request): Promise<JsonRecord | null> {
   try {
     const value: unknown = await request.json();
@@ -104,9 +112,11 @@ export async function readJsonRecord(request: Request): Promise<JsonRecord | nul
   }
 }
 
+/** Validates/normalises a publish request, returning accepted fields or an error string for HTTP 422. */
 export function parseWmsEventPayload(value: JsonRecord, externalEventId: string): WmsEventPayload | string {
   const payloadExternalId = requiredString(value.externalEventId);
   if (!payloadExternalId || payloadExternalId !== externalEventId) {
+    // Do not let one URL accidentally update a different WMS event named in the body.
     return "externalEventId must match the URL.";
   }
 
@@ -126,19 +136,23 @@ export function parseWmsEventPayload(value: JsonRecord, externalEventId: string)
   return { externalEventId, title, eventDate, locationName, status, category, description, locationUrl, timeslots };
 }
 
+/** Accepts positive JSON numbers only, not numeric strings, zero or fractional capacities/IDs. */
 export function parsePositiveInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
 }
 
+/** Trims text; missing, blank and non-string optional values become null. */
 export function optionalString(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   return typeof value === "string" ? value.trim() || null : null;
 }
 
+/** Uses the same trimming as optional text; callers reject the returned null for required fields. */
 function requiredString(value: unknown): string | null {
   return optionalString(value);
 }
 
+/** Accepts supported status spellings and returns the portal's standard casing. */
 function parseEventStatus(value: unknown): WmsEventPayload["status"] | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toLowerCase();
@@ -147,6 +161,7 @@ function parseEventStatus(value: unknown): WmsEventPayload["status"] | null {
   return null;
 }
 
+/** Maps recognised WMS programme names to portal categories, rejecting unknown names. */
 function parseCategory(value: unknown): WmsEventPayload["category"] | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toLowerCase();
@@ -165,6 +180,7 @@ function parseCategory(value: unknown): WmsEventPayload["category"] | null {
   return categories[normalized] ?? null;
 }
 
+/** Validates every supplied slot. The array can be empty; each supplied ID must be unique. */
 function parseTimeslots(value: unknown): WmsTimeslot[] | null {
   if (!Array.isArray(value)) return null;
 
@@ -180,6 +196,8 @@ function parseTimeslots(value: unknown): WmsTimeslot[] | null {
       return null;
     }
     if (!isTime(startTime) || !isTime(endTime) || startTime >= endTime || ids.has(externalTimeslotId)) {
+      // API times allow minutes/optional seconds; they are not restricted to the form's 15-minute choices.
+      // Reject start strings at/after end strings; formats are not normalised and overlaps are not checked here.
       return null;
     }
     ids.add(externalTimeslotId);
@@ -188,18 +206,22 @@ function parseTimeslots(value: unknown): WmsTimeslot[] | null {
   return slots;
 }
 
+/** Narrows unknown JSON to a non-null object, excluding arrays. */
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Checks YYYY-MM-DD shape and Date.parse acceptance; it is not a strict calendar round-trip check. */
 function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
 }
 
+/** Accepts 24-hour HH:MM or HH:MM:SS within the numeric hour/minute/second limits. */
 function isTime(value: string): boolean {
   return /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value);
 }
 
+/** Maps known missing-record errors to 404, rule/constraint conflicts to 409 and other SQL errors to 500. */
 export function integrationErrorStatus(code?: string): number {
   if (code === "P0002") return 404;
   if (code === "P0001" || code === "23514" || code === "23505") return 409;

@@ -1,9 +1,11 @@
 "use client";
 
+/** Camera QR reader. It passes a checkpoint ID to the attendance page rather than saving attendance itself. */
 import { useEffect, useRef, useState } from "react";
 import { BrowserQRCodeReader } from "@zxing/browser";
 import styles from "../volunteer.module.css";
 
+/** Starts camera decoding on mount and stops its controls after a result or when the effect is cleaned up. */
 export default function AttendanceScanner({ onScan }: { onScan: (checkpoint: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const stoppedRef = useRef(false);
@@ -12,17 +14,20 @@ export default function AttendanceScanner({ onScan }: { onScan: (checkpoint: str
 
   useEffect(() => {
     const reader = new BrowserQRCodeReader();
+    /** Opens the default camera and handles decoded URLs/errors; camera denial becomes visible feedback. */
     async function start() {
       try {
         if (!videoRef.current) return;
         const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, (result, scanError, scannerControls) => {
           controlsRef.current = scannerControls;
           if (result && !stoppedRef.current) {
+            // Stop after one result so repeated camera frames cannot submit multiple checkpoint IDs.
             stoppedRef.current = true;
             scannerControls.stop();
             try {
               const url = new URL(result.getText());
               const checkpoint = url.searchParams.get("checkpoint");
+              // This checks path/parameter only, not URL origin. SQL must still validate the checkpoint.
               if (!url.pathname.endsWith("/volunteer/attendance") || !checkpoint) throw new Error();
               onScan(checkpoint);
             } catch { setError("This is not a valid Ladles of Love attendance QR code."); }

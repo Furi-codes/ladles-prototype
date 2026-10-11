@@ -1,3 +1,4 @@
+/** Profile, consent and photo database calls made from volunteer components and their provider. */
 import { supabase } from '@/lib/supabase'
 import { AVATAR_BUCKET, MAX_AVATAR_BYTES } from '@/lib/avatar'
 import type { Profile, VolunteerConsent } from '@/lib/types'
@@ -7,7 +8,8 @@ export async function fetchUserRole(userId: string) {
   return supabase.from('profiles').select('role, full_name, email').eq('id', userId).single()
 }
 
-/** Saves editable volunteer details without allowing a volunteer to alter their role. */
+/** Updates name/date of birth for the supplied user ID. The caller passes only editable fields;
+ * database policies must still prevent updates to other users or protected fields. */
 export async function updateVolunteerProfile(userId: string, data: { full_name: string; date_of_birth: string }) {
   return supabase
     .from('profiles')
@@ -22,7 +24,7 @@ export async function requestVolunteerEmailChange(email: string) {
   return supabase.auth.updateUser({ email })
 }
 
-/** Loads the volunteer's current consent record, if one has been completed. */
+/** Loads at most one visible consent record. This query relies on RLS to limit it to the current user. */
 export async function fetchVolunteerConsent(): Promise<{ data: VolunteerConsent | null; error: { message: string; code?: string } | null }> {
   const result = await supabase.from('volunteer_consents').select('*').maybeSingle()
   return { data: result.data as VolunteerConsent | null, error: result.error }
@@ -32,6 +34,7 @@ export async function fetchVolunteerConsent(): Promise<{ data: VolunteerConsent 
 export async function saveVolunteerConsent(consentVersion: string) {
   return supabase
     .from('volunteer_consents')
+    // Upsert replaces the existing acceptance for this user instead of creating another row.
     .upsert({
       user_id: (await supabase.auth.getUser()).data.user?.id,
       code_of_conduct_accepted: true,
@@ -44,6 +47,7 @@ export async function saveVolunteerConsent(consentVersion: string) {
     .single()
 }
 
+/** Turns setup/permission failures into messages the photo editor can show without raw storage errors. */
 function photoSaveMessage(error: unknown) {
   const details = error && typeof error === 'object' ? error as { code?: string; message?: string } : {};
   const message = details.message?.toLowerCase() ?? '';
@@ -71,6 +75,7 @@ export async function saveVolunteerAvatar(userId: string, photo: Blob | null) {
         throw new Error('Choose a valid profile photo smaller than 2 MB.');
       }
       uploadedPath = `${userId}/${crypto.randomUUID()}.webp`;
+      // A new path avoids overwriting the previous image before the profile update has succeeded.
       const { error } = await supabase.storage.from(AVATAR_BUCKET).upload(uploadedPath, photo, {
         contentType: 'image/webp', cacheControl: '3600', upsert: false,
       });
@@ -83,11 +88,13 @@ export async function saveVolunteerAvatar(userId: string, photo: Blob | null) {
     profileSaved = true;
 
     if (previousPath?.startsWith(`${userId}/`)) {
+      // Only remove files in this user's folder. Removing a photo uses a null profile path.
       try { await supabase.storage.from(AVATAR_BUCKET).remove([previousPath]); } catch { /* Cleanup must not undo a saved photo. */ }
     }
     return { data, error: null };
   } catch (error) {
     if (uploadedPath && !profileSaved) {
+      // Compensating cleanup, not a transaction: Storage and the profile are separate writes.
       try { await supabase.storage.from(AVATAR_BUCKET).remove([uploadedPath]); } catch { /* Preserve the original error. */ }
     }
     return { data: null, error: photoSaveMessage(error) };

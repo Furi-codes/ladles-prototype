@@ -1,9 +1,12 @@
+/** Browser database helpers called by VolunteerProvider and attendance components, not Server Actions. */
 import { fetchSlotAvailability } from '@/lib/actions/corporate'
 import type { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile } from '@/lib/types'
 
+/** Aggregate chart rows returned by the community RPC, without individual volunteer details. */
 export type CommunityParticipationMonth = { month_start: string; volunteer_count: number }
+/** The three bounded six-month windows understood by the community RPC. */
 export type CommunityParticipationPeriod = "latest_6_months" | "previous_6_months" | "earlier_6_months"
 
 /** Loads events in chronological order for the volunteer dashboard. */
@@ -11,7 +14,7 @@ export async function fetchEventsForVolunteer(): Promise<PostgrestResponse<Event
   return supabase.from('events').select('*').order('date', { ascending: true })
 }
 
-/** Loads booking records used to show slot availability and the user's shifts. */
+/** Loads visible bookings for shifts/availability. Which users' rows are visible depends on database RLS. */
 export async function fetchBookingsForVolunteer(): Promise<PostgrestResponse<Booking>> {
   return supabase.from('bookings').select('*').order('id', { ascending: false })
 }
@@ -27,11 +30,12 @@ export async function fetchEventSlotsForVolunteer(): Promise<PostgrestResponse<E
     availabilityRequest,
   ]);
   if (result.error) return result;
+  // Attach aggregate availability by slot ID. A missing RPC leaves remaining undefined for the UI fallback.
   const remaining = new Map(availability?.map(row => [row.event_slot_id, Number(row.remaining)]));
   return { ...result, data: result.data.map(slot => ({ ...slot, remaining: remaining.get(slot.id) })) };
 }
 
-/** Loads the user's inbox without silently truncating unread counts/history. */
+/** Loads the user's inbox in 200-row batches until a short page; a query error discards the partial result. */
 export async function fetchVolunteerNotifications(userId: string): Promise<{ data: Notification[] | null; error: { message: string } | null }> {
   const rows: Notification[] = [];
   for (let offset = 0; ; offset += 200) {
@@ -39,6 +43,7 @@ export async function fetchVolunteerNotifications(userId: string): Promise<{ dat
       .order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + 199);
     if (error) return { data: null, error };
     rows.push(...(data ?? []));
+    // This loader stops on a short page rather than an exact count, unlike the admin/report loaders.
     if ((data?.length ?? 0) < 200) return { data: rows, error: null };
   }
 }
@@ -48,6 +53,7 @@ export async function fetchVolunteerReminderPreference(userId: string) {
   return supabase.from('volunteer_notification_preferences').select('reminders_enabled').eq('user_id', userId).maybeSingle()
 }
 
+/** Saves the signed-in user's preference through an RPC; the provider checks its returned boolean. */
 export async function saveVolunteerReminderPreference(enabled: boolean) {
   return supabase.rpc('set_volunteer_reminder_preference', { p_enabled: enabled })
 }
@@ -70,12 +76,13 @@ export async function markVolunteerNotificationsRead(ids: number[], userId: stri
     const { data, error } = await supabase.from('notifications').update({ is_read: true })
       .eq('user_id', userId).eq('is_read', false).in('id', ids.slice(offset, offset + 200)).select('id');
     if (error) return { ids: updated, error };
+    // Return actual updated IDs so the inbox can show partial success if a later batch fails.
     updated.push(...(data ?? []).map(row => row.id));
   }
   return { ids: updated, error: null };
 }
 
-/** Records a validated clock-in or clock-out through the attendance QR function. */
+/** Sends a QR checkpoint ID to the attendance RPC. Permission and shift checks happen in the database. */
 export async function recordEventAttendance(checkpointId: string): Promise<PostgrestSingleResponse<AttendanceRecord>> {
   return supabase.rpc('record_event_attendance', { p_checkpoint_id: checkpointId }).single()
 }
@@ -85,6 +92,7 @@ export async function recordEventAttendanceCode(code: string): Promise<{ data: A
   const { data, error } = await supabase.rpc('record_event_attendance_code', { p_code: code })
   if (error) return { data: null, error }
   const result = data as { attendance?: AttendanceRecord; error?: string } | null
+  // A successful transport can still contain a business-rule error inside the RPC's JSON result.
   if (result?.error) return { data: null, error: { message: result.error } }
   if (!result?.attendance) return { data: null, error: { message: 'Attendance could not be confirmed. Please try again.' } }
   return { data: result.attendance, error: null }
@@ -151,7 +159,7 @@ export async function updateVolunteerDateOfBirth(userId: string, dateOfBirth: st
     .single()
 }
 
-/** Books a slot through the database function that enforces capacity atomically. */
+/** Requests a booking through book_event_slot; capacity/duplicate enforcement depends on its deployed SQL. */
 export async function bookEventSlot(eventSlotId: number): Promise<PostgrestSingleResponse<Booking>> {
   return supabase.rpc('book_event_slot', { p_event_slot_id: eventSlotId }).single()
 }

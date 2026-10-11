@@ -1,5 +1,6 @@
 "use client";
 
+/** Analytics workspace: one filter scope feeds the three views and the downloadable CSV. */
 import { useCallback, useState } from "react";
 import { loadReportData, searchReportEvents, searchReportLocations } from "@/lib/actions/corporate";
 import { logAdminAction } from "@/lib/actions/audit";
@@ -11,6 +12,7 @@ import ParticipationTrend from "./ParticipationTrend";
 import visual from "./analytics.module.css";
 import styles from "../admin.module.css";
 
+/** Tabs change the panel, not report data. Arrow/Home/End handlers also move keyboard focus between tabs. */
 type AnalyticsView = "overview" | "events" | "attendance";
 
 const analyticsLabels: Record<AnalyticsView, string> = {
@@ -19,6 +21,7 @@ const analyticsLabels: Record<AnalyticsView, string> = {
   attendance: "Attendance heatmap",
 };
 
+/** Loads report rows when filters change and calculates the display/export values from that result. */
 export default function ReportsManager() {
   const [filter, setFilter] = useState<ReportFilter>(() => presetFilter("Latest 6 months"));
   const [preset, setPreset] = useState<ReportPreset>("Latest 6 months");
@@ -33,9 +36,11 @@ export default function ReportsManager() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const invalid = Boolean(filter.from && filter.to && filter.from > filter.to);
   const rows = data && !loading ? selectedReportRows(data, filter, corporateOnly, company) : [];
+  // Hide calculations/export while a replacement dataset loads rather than export old rows with new filters.
   const scoped = data && !loading ? selectedReportData(data, filter, corporateOnly, company) : null;
   const summary = scoped ? participationSummary(scoped, filter) : null;
   const impact = data ? corporateImpact(data.corporate, data.events, company, filter) : null;
+  /** Sums a calculated numeric column; unique people are counted separately by participationSummary. */
   const total = (key: "bookings" | "attendance" | "individualHours" | "corporateHours") => rows.reduce((sum, row) => sum + row[key], 0);
   const selectedFilters = [
     ["Period", filter.from && filter.to ? `${filter.from} to ${filter.to}` : "All dates"],
@@ -46,15 +51,18 @@ export default function ReportsManager() {
     ...(corporateOnly ? [["Company", data?.companies.find(item => String(item.id) === company)?.name || "All companies"]] : []),
   ];
 
+  /** Resets dates/search labels/company scope together when choosing a preset. */
   function changePreset(next: ReportPreset) {
     setPreset(next); setFilter(presetFilter(next)); setCompany(""); setCorporateOnly(next === "Corporate Participation"); setEventQuery(""); setLocationQuery(""); setEventLabel("");
   }
 
+  /** Marks manually edited filters as Custom Report and keeps the other selected fields. */
   function update(key: keyof ReportFilter, value: string) {
     setPreset("Custom Report");
     setFilter((current) => ({ ...current, [key]: value }));
   }
 
+  /** Downloads the current calculated rows through a temporary browser URL, then logs the export request. */
   async function exportCsv() {
     const csv = reportCsv(rows);
     if (!csv) return;
@@ -63,6 +71,7 @@ export default function ReportsManager() {
     link.href = url;
     link.download = `ladles-report-${filter.from || "all"}-${filter.to || "all"}.csv`;
     link.click();
+    // Clicking requests a download; the browser does not tell us whether the user kept the file.
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     await logAdminAction({ action: "REPORT_EXPORTED", entityType: "REPORT", entityLabel: preset, details: { from: filter.from || null, to: filter.to || null, event_id: filter.event || null, category: filter.category || null, location: filter.location || null, corporate_only: corporateOnly, rows: rows.length } });
   }

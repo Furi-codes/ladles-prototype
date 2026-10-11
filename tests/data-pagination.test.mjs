@@ -1,11 +1,14 @@
 ﻿import assert from 'node:assert/strict';
 import { test } from 'node:test';
+/** Unit tests for corporate allRows using a fake Supabase query chain, not a live database. */
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
+/** Loads the real TypeScript helper with a supplied fake range function for each test scenario. */
 async function loaderWith(range) {
   const source = readFileSync(new URL('../lib/actions/corporate.ts', import.meta.url),'utf8');
   const js = ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
   const key = '__pagination_' + Math.random().toString(36).slice(2);
+  // Separate mock keys keep cached dynamic imports from sharing another test's client.
   globalThis[key] = { from: () => ({ select: () => ({ order: () => ({ range }) }) }) };
   try {
     const mocked = js.replace(/import \{ supabase \} from ['"]@\/lib\/supabase['"];?/, `const supabase = globalThis[${JSON.stringify(key)}];`);
@@ -13,6 +16,7 @@ async function loaderWith(range) {
   } finally { delete globalThis[key]; }
 }
 test('pagination follows exact counts and actual page lengths when the server caps responses', async () => {
+  // Two rows per response simulate a server cap smaller than the requested page of 500.
   const fixture = [1,2,3,4,5].map(id=>({id})); const offsets=[];
   const allRows = await loaderWith(async start => { offsets.push(start); return {data:fixture.slice(start,start+2),error:null,count:fixture.length}; });
   assert.deepEqual(await allRows('fixture'),fixture); assert.deepEqual(offsets,[0,2,4]);

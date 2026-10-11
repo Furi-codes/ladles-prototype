@@ -1,3 +1,4 @@
+/** Lint rules used by npm run lint: Next.js web-vitals/TypeScript checks, excluding build output. */
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";

@@ -1,5 +1,6 @@
 "use client";
 
+/** Account entry screen: switches between password login, volunteer registration and password recovery. */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -8,6 +9,7 @@ import ThemeToggle from "./ThemeToggle";
 import PortalLoadingScreen from "./PortalLoadingScreen";
 import styles from "./LoginForm.module.css";
 
+/** Keeps form values/feedback in state and uses Supabase Auth before choosing a portal route. */
 export default function LoginForm() {
   const router = useRouter();
 
@@ -24,6 +26,7 @@ export default function LoginForm() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    /** Sends an existing session to its portal; a missing profile goes to the volunteer profile guard. */
     async function redirectIfAlreadyLoggedIn() {
       const {
         data: { session },
@@ -50,6 +53,7 @@ export default function LoginForm() {
     redirectIfAlreadyLoggedIn();
   }, [router]);
 
+  /** Stops normal form navigation, signs in, then reads the stored role to choose the destination. */
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
@@ -74,6 +78,7 @@ export default function LoginForm() {
         .single();
 
       if (profileError && profileError.code !== "PGRST116") {
+        // PGRST116 can mean no profile row yet; the volunteer provider handles creating that profile.
         setMessage(`Logged in, but couldn't fetch role: ${profileError.message}`);
         setIsLoading(false);
         return;
@@ -84,6 +89,7 @@ export default function LoginForm() {
     }
   }
 
+  /** Registers an Auth user with name/date-of-birth metadata, then asks them to confirm their email. */
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
 
@@ -99,6 +105,7 @@ export default function LoginForm() {
     setMessage("");
 
     const combinedFullName = `${cleanFirst} ${cleanLast}`;
+    // These values are profile defaults, not an admin role. No profiles insert is made by this handler.
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -125,6 +132,7 @@ export default function LoginForm() {
     setIsLoading(false);
   }
 
+  /** Requests a recovery email pointing to this deployment's update-password page; does not change a password. */
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
     if (!email) {
@@ -148,6 +156,7 @@ export default function LoginForm() {
     setIsLoading(false);
   }
 
+  /** Starts Google's OAuth redirect; the volunteer provider then checks the returning user's profile role. */
   async function handleGoogleLogin() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -163,6 +172,7 @@ export default function LoginForm() {
     return <PortalLoadingScreen message="Ladles of Love is securely opening your portal…" />;
   }
 
+  /** Switches login/register mode and clears feedback/password visibility, while retaining input values. */
   function changeMode(signUp: boolean) { setIsSignUp(signUp); setIsForgotPassword(false); setMessage(""); setShowPassword(false); }
   const title = isForgotPassword ? "Reset your password" : isSignUp ? "Start making a difference" : "Welcome back";
   return <main className={styles.page}>

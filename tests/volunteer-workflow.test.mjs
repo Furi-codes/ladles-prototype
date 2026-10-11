@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+/** Unit tests for countdown, timezone and certificate rules, with fixed dates rather than live accounts. */
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
+/** Compiles a real utility to an in-memory ES module using the project's existing TypeScript dependency. */
 async function loadUtility(name) {
   const source = readFileSync(new URL(`../lib/${name}.ts`, import.meta.url), 'utf8');
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
@@ -34,6 +36,7 @@ test('event and slot expiry use Johannesburg time, including the UTC date bounda
 });
 
 test('certificate totals count only the current volunteer’s finalised completed shifts', () => {
+  // Change one requirement per record so each exclusion rule is tested independently.
   const bookings = Array.from({ length: 8 }, (_, index) => ({ id: index + 1, user_id: index === 7 ? 'other' : 'me', status: index === 6 ? 'Present' : 'Completed' }));
   const valid = { clocked_in_at: '2026-10-01T07:00:00Z', clocked_out_at: '2026-10-01T08:00:00Z', worked_minutes: 60 };
   const records = [

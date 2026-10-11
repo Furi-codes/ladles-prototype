@@ -1,11 +1,14 @@
+/** Shared attendance calculations for live shift displays and the volunteer certificate. */
 import type { AttendanceRecord, Booking, Event, EventSlot } from "./types";
 
 /** Only finalised attendance for this volunteer contributes to certificate totals. */
 export function getVerifiedContribution(bookings: Booking[], attendance: AttendanceRecord[], userId?: string) {
   if (!userId) return { completed: [], totalMinutes: 0 };
+  // Attendance points to a booking, not directly to an event or volunteer.
   const records = new Map(attendance.map(record => [record.booking_id, record]));
   const completed = bookings.filter(booking => {
     const record = records.get(booking.id);
+    // A status alone is not enough: both timestamps and saved minutes must also be valid.
     return booking.user_id === userId && booking.status === "Completed" && !!record &&
       !!record.clocked_in_at && !!record.clocked_out_at &&
       Number.isFinite(Date.parse(record.clocked_in_at)) &&
@@ -17,6 +20,7 @@ export function getVerifiedContribution(bookings: Booking[], attendance: Attenda
 
 /** Calculates a live duration, never counting later than the booked shift end. */
 export function getAttendanceMinutes(record: AttendanceRecord, now = Date.now(), endsAt?: string) {
+  // Saved minutes take priority. The calculation below is only a live estimate.
   if (record.worked_minutes !== null) return record.worked_minutes;
   if (!record.clocked_in_at) return null;
   const clockedIn = new Date(record.clocked_in_at).getTime();
@@ -35,6 +39,7 @@ export function getEventSlotStartAt(event: Pick<Event, "date">, slot: Pick<Event
   return `${event.date}T${slot.start_time.slice(0, 5)}:00+02:00`;
 }
 
+/** Formats recorded or estimated minutes for the UI; null means no duration is available. */
 export function formatWorkedTime(minutes: number | null) {
   if (minutes === null) return "Not recorded";
   const hours = Math.floor(minutes / 60);
@@ -47,12 +52,14 @@ export function formatWorkedTime(minutes: number | null) {
 /** Countdown display only; recorded volunteer hours remain formatted as hours. */
 export function formatShiftCountdown(minutes: number) {
   if (minutes > 24 * 60) {
+    // Round up so an upcoming shift more than a day away is not shown as hundreds of hours.
     const days = Math.ceil(minutes / (24 * 60));
     return `${days} days`;
   }
   return formatWorkedTime(Math.max(0, minutes));
 }
 
+/** Shows a valid timestamp in South African time, or a dash for missing/invalid values. */
 export function formatAttendanceTime(timestamp: string | null) {
   if (!timestamp) return "—";
   const date = new Date(timestamp);

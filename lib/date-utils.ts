@@ -1,3 +1,4 @@
+/** Date helpers used to decide which events and booked shifts have finished. */
 import type { Event, EventSlot } from "./types";
 
 /** Returns today's date in the user's local calendar, formatted for YYYY-MM-DD fields. */
@@ -13,6 +14,7 @@ export function getLocalTimeString(date = new Date()) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+/** Extracts South African calendar parts without using the browser's local timezone. */
 function getBusinessDateTime(date: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Johannesburg",
@@ -26,12 +28,13 @@ function getBusinessDateTime(date: Date) {
   return Object.fromEntries(parts.filter(({ type }) => type !== "literal").map(({ type, value }) => [type, value])) as Record<string, string>;
 }
 
-/** Returns whether a slot has ended in the organisation's configured timezone. */
+/** Checks a slot's date and end time in the hard-coded Africa/Johannesburg timezone. */
 export function hasSlotEnded(event: Pick<Event, "date">, slot: Pick<EventSlot, "end_time">, now = new Date()) {
   const current = getBusinessDateTime(now);
   const currentDate = `${current.year}-${current.month}-${current.day}`;
   const currentTime = `${current.hour}:${current.minute}`;
   const endTime = slot.end_time.slice(0, 5);
+  // YYYY-MM-DD and zero-padded HH:MM can be compared as strings, including equality at the end.
   return event.date < currentDate || (event.date === currentDate && endTime <= currentTime);
 }
 

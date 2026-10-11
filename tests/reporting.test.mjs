@@ -1,15 +1,20 @@
 ﻿import assert from 'node:assert/strict';
 import { test } from 'node:test';
+/** Node unit tests for pure report calculations; fixture rows replace a real database. */
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 // Use the project's compiler without adding a test runtime dependency.
 const source = readFileSync(new URL('../lib/reporting.ts', import.meta.url), 'utf8');
+// Compile the actual implementation in memory. There is no copied report function or live DB connection here.
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { performanceRows, corporateImpact, reportCsv, csvCell, presetFilter, reportPresets, selectedReportRows, selectedReportData, participationSummary } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+// Small, deliberate fixtures make expected totals easy to check. total_slots=999 should not be used.
 const events = [{id:1,title:'Kitchen',date:'2026-09-01',location:'Cape Town',total_slots:999,status:'Scheduled'},{id:2,title:'Other',date:'2026-10-01',location:'Elsewhere',status:'Cancelled'}];
+// The selected event has two slot capacities: 10 + 5 = 15, deliberately different from total_slots=999.
 const slots = [{id:10,event_id:1,capacity:10},{id:11,event_id:1,capacity:5}];
 const bookings = [{id:1,event_id:1,status:'Completed'},{id:2,event_id:1,status:'Present'},{id:3,event_id:1,status:'No show'}];
 const attendance = [{booking_id:1,clocked_in_at:'x',worked_minutes:95},{booking_id:2,clocked_in_at:'x',worked_minutes:null}];
+// Completed and Pending teams reserve 5 + 2 places. The Cancelled team's 100 places must not count.
 const corporate = [{id:1,event_id:1,company_id:4,status:'Completed',team_size:5,attendance_count:4,volunteer_hours:7.5},{id:2,event_id:1,company_id:4,status:'Pending',team_size:2,attendance_count:null,volunteer_hours:null},{id:3,event_id:1,company_id:4,status:'Cancelled',team_size:100,attendance_count:null,volunteer_hours:null}];
 const cancelledCorporate = [{id:4,event_id:2,company_id:4,status:'Completed',team_size:5,attendance_count:5,volunteer_hours:8}];
 const filter = {from:'2026-09-01',to:'2026-09-30',location:'',event:''};
@@ -31,9 +36,15 @@ test('event type filters charts, performance, corporate impact and CSV together'
   assert.equal(presetFilter('Latest 6 months').category,undefined);
 });
 test('reports use actual minutes, slot capacity, recorded corporate attendance and exclude cancelled teams', () => {
+  // Arrange: the shared fixtures above contain two events, three individual bookings and three group states.
+  // Act: call the real calculation with the September filter, selecting the Kitchen event.
   const rows = performanceRows(events,slots,bookings,attendance,corporate,filter);
+  // Assert: one event, capacity 15 from its slots, and 10 reserved places (3 individuals + 5 + 2).
   assert.equal(rows.length,1); assert.equal(rows[0].capacity,15); assert.equal(rows[0].bookings,10);
+  // Two individual clock-ins + four recorded group attendees = 6; 6 / 10 gives 60%.
+  // Only 95 saved individual minutes contribute hours; the null duration does not invent worked time.
   assert.equal(rows[0].attendance,6); assert.equal(rows[0].rate,60); assert.equal(rows[0].individualHours,95/60);
+  // Only the Completed group contributes 7.5 recorded hours; the two non-cancelled groups remain in scope.
   assert.equal(rows[0].corporateHours,7.5); assert.equal(rows[0].groups,2);
 });
 test('filters combine date, event and location; empty denominator is undefined', () => {
@@ -89,6 +100,7 @@ test('one shared scope excludes cancelled events and groups from every analytics
 });
 
 test('monthly and period unique counts deduplicate people; attendance counts visits', () => {
+  // One user appears in two months and twice in one month, exercising both deduplication levels.
   const data = {events:[events[0],{...events[0],id:3,date:'2026-10-02'}],slots:[],corporate:[],
     bookings:[{id:1,event_id:1,user_id:'a'},{id:2,event_id:1,user_id:'a'},{id:3,event_id:3,user_id:'a'},{id:4,event_id:3,user_id:'b'},{id:5,event_id:3,user_id:'c'}],
     attendance:[1,2,3,4].map(booking_id=>({booking_id,clocked_in_at:'2026-11-01T10:00:00Z',worked_minutes:60}))};

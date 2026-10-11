@@ -1,3 +1,4 @@
+/** WMS publish endpoint: validates the contract, calls the event upsert RPC and records activity. */
 import {
   getIntegrationDatabase,
   integrationErrorStatus,
@@ -11,6 +12,7 @@ import {
 
 export const runtime = "nodejs";
 
+/** Next.js supplies dynamic route parameters as a promise, so the handler awaits them. */
 type RouteContext = { params: Promise<{ externalEventId: string }> };
 
 /** Creates or updates one WMS-owned event and its identified time slots. */
@@ -31,6 +33,7 @@ export async function PUT(request: Request, context: RouteContext) {
 
   try {
     const database = getIntegrationDatabase();
+    // The database function owns the save rules. This route maps camelCase JSON to its SQL parameters.
     const { data, error } = await database.rpc("upsert_wms_event", {
       p_external_event_id: payload.externalEventId,
       p_title: payload.title,
@@ -54,6 +57,7 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const event = data as { id: number };
+    // Log only after the write succeeds. The logger does not fail the response if logging fails.
     await logWmsAction(database, {
       action: payload.status === "Cancelled" ? "WMS_EVENT_CANCELLED" : "WMS_EVENT_PUBLISHED",
       entityType: "EVENT",
@@ -74,6 +78,7 @@ export async function PUT(request: Request, context: RouteContext) {
     });
     return Response.json({ eventId: event.id, externalEventId: payload.externalEventId });
   } catch (error) {
+    // This broad catch also reports unexpected runtime failures as configuration errors.
     console.error("WMS event integration configuration failed:", error);
     return jsonError("Integration is not configured.", 503);
   }

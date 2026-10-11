@@ -1,10 +1,14 @@
+/** Pure report calculations shared by the dashboard, charts, performance table and CSV export. */
 import type { AttendanceRecord, Booking, CorporateBooking, Event, EventSlot } from './types';
+/** Empty strings mean no restriction; dates are inclusive event dates, not attendance timestamps. */
 export interface ReportFilter { from: string; to: string; location: string; event: string; category?: string }
 export const reportPresets = ['Latest 6 months', 'Recent Activity', 'Monthly Volunteer Activity', 'Event Attendance', 'Volunteer Hours', 'Corporate Participation', 'Custom Report'] as const;
 export type ReportPreset = typeof reportPresets[number];
+/** Builds starting filters for a preset. The caller can still adjust these dates afterwards. */
 export function presetFilter(preset: ReportPreset, now = new Date()): ReportFilter {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
   const start = new Date(`${today}T12:00:00Z`);
+  // UTC date arithmetic starts from the South African calendar date, avoiding browser-local day shifts.
   if (preset === 'Latest 6 months') {
     start.setUTCDate(1);
     start.setUTCMonth(start.getUTCMonth() - 5);
@@ -13,7 +17,9 @@ export function presetFilter(preset: ReportPreset, now = new Date()): ReportFilt
   start.setUTCDate(start.getUTCDate() - (preset === 'Event Attendance' ? 89 : 29));
   return { from: preset === 'Custom Report' ? '' : ['Monthly Volunteer Activity', 'Volunteer Hours', 'Corporate Participation'].includes(preset) ? `${today.slice(0, 7)}-01` : start.toISOString().slice(0, 10), to: preset === 'Custom Report' ? '' : today, location: '', event: '' };
 }
+/** One event's calculated totals. A null rate means no reserved places, not zero attendance percent. */
 export interface PerformanceRow { id: number; event: string; date: string; capacity: number; bookings: number; attendance: number; rate: number | null; individualHours: number; corporateHours: number; groups: number; confirmed: number }
+/** Related table rows loaded by loadReportData; the ID links are used instead of joined UI objects. */
 export interface AnalyticsData { events: Event[]; slots: EventSlot[]; bookings: Booking[]; attendance: AttendanceRecord[]; corporate: CorporateBooking[] }
 /** One scope for charts, totals, heatmap, table and CSV. Cancelled events are excluded. */
 export function selectedReportData(data: AnalyticsData, filter: ReportFilter, corporateOnly = false, company = ''): AnalyticsData {
@@ -21,11 +27,15 @@ export function selectedReportData(data: AnalyticsData, filter: ReportFilter, co
   const groupEvents = new Set(corporate.map(b => b.event_id));
   const invalid = Boolean(filter.from && filter.to && filter.from > filter.to);
   const events = data.events.filter(e => !invalid && e.status !== 'Cancelled' && eventMatches(e, filter) && (!corporateOnly || groupEvents.has(e.id)));
+  // Keep only rows linked to these selected event IDs, so unrelated activity cannot enter the report.
   const ids = new Set(events.map(e => e.id));
+  // Corporate-only mode removes individual records, including their attendance and hours.
   const bookings = corporateOnly ? [] : data.bookings.filter(b => ids.has(b.event_id));
   const bookingIds = new Set(bookings.map(b => b.id));
+  // Attendance links to bookings, so use booking IDs rather than event IDs for that final filter.
   return { events, bookings, slots: data.slots.filter(s => ids.has(s.event_id)), attendance: data.attendance.filter(a => bookingIds.has(a.booking_id)), corporate: corporate.filter(b => ids.has(b.event_id)) };
 }
+/** Applies the shared scope before calculating rows, so the table and exported CSV agree. */
 export function selectedReportRows(data: { events: Event[]; slots: EventSlot[]; bookings: Booking[]; attendance: AttendanceRecord[]; corporate: CorporateBooking[] }, filter: ReportFilter, corporateOnly = false, company = '') {
   const scoped = selectedReportData(data, filter, corporateOnly, company);
   return performanceRows(scoped.events, scoped.slots, scoped.bookings, scoped.attendance, scoped.corporate, filter);
@@ -39,6 +49,7 @@ export function participationSummary(data: AnalyticsData, filter: ReportFilter) 
   const first = filter.from.slice(0, 7) || eventMonths[0];
   const last = filter.to.slice(0, 7) || eventMonths.at(-1);
   if (first && last && first <= last) {
+    // Include months with no activity so the graph does not skip quiet months.
     const cursor = new Date(`${first}-01T00:00:00Z`);
     while (cursor.toISOString().slice(0, 7) <= last) {
       months.set(cursor.toISOString().slice(0, 7), { volunteers: new Set(), attendance: 0 });
@@ -46,6 +57,8 @@ export function participationSummary(data: AnalyticsData, filter: ReportFilter) 
     }
   }
   const people = new Set<string>();
+  // Sets count each volunteer once per month and once for the whole period.
+  // Attendance increments for every checked-in booking, so repeat visits still count.
   for (const booking of data.bookings) {
     if (!checkedIn.has(booking.id)) continue;
     const month = months.get(eventById.get(booking.event_id)?.date.slice(0, 7) ?? '');
@@ -54,33 +67,45 @@ export function participationSummary(data: AnalyticsData, filter: ReportFilter) 
     month.attendance += 1;
   }
   for (const booking of data.corporate) {
+    // Groups provide attendance totals, not employee IDs; they cannot add unique volunteer counts.
     if (booking.status !== 'Completed') continue;
     const month = months.get(eventById.get(booking.event_id)?.date.slice(0, 7) ?? '');
     if (month) month.attendance += booking.attendance_count ?? 0;
   }
   return { uniqueVolunteers: people.size, months: [...months].map(([month, value]) => ({ month, uniqueVolunteers: value.volunteers.size, attendance: value.attendance })) };
 }
+/** Combines all selected filters; events without a category are treated as Other. */
 export function eventMatches(event: Event, filter: ReportFilter) {
   return (!filter.from || event.date >= filter.from) && (!filter.to || event.date <= filter.to)
     && (!filter.location || event.location === filter.location) && (!filter.event || String(event.id) === filter.event)
     && (!filter.category || (event.category || 'Other') === filter.category);
 }
+/** Calculates event totals from supplied rows. Call selectedReportRows for cancellation/company scope. */
 export function performanceRows(events: Event[], slots: EventSlot[], bookings: Booking[], attendance: AttendanceRecord[], corporate: CorporateBooking[], filter: ReportFilter): PerformanceRow[] {
   return events.filter(e => eventMatches(e, filter)).map(event => {
     const individual = bookings.filter(b => b.event_id === event.id);
+    // Match attendance by booking ID; one event can have several volunteers and time slots.
     const ids = new Set(individual.map(b => b.id));
     const records = attendance.filter(a => ids.has(a.booking_id));
     const groups = corporate.filter(b => b.event_id === event.id && event.status !== 'Cancelled' && b.status !== 'Cancelled');
+    // An individual booking reserves one place; a corporate booking reserves team_size places.
     const total = individual.length + groups.reduce((s, b) => s + b.team_size, 0);
+    // Count each clocked-in booking once. Only Completed groups contribute recorded group attendance.
     const attended = new Set(records.filter(a => Boolean(a.clocked_in_at)).map(a => a.booking_id)).size + groups.reduce((s, b) => s + (b.status === 'Completed' ? b.attendance_count ?? 0 : 0), 0);
+    // Capacity comes from current slots, not the event's possibly older total_slots field.
+    // Individual hours sum saved minutes only; a null saved duration contributes zero, not a live estimate.
+    // This report does not recheck certificate eligibility or derive minutes from timestamps.
+    // Confirmed counts booking records/groups, rather than the number of corporate employees.
     return { id: event.id, event: event.title ?? 'Untitled event', date: event.date ?? '',
       capacity: slots.filter(s => s.event_id === event.id).reduce((n, s) => n + s.capacity, 0),
+      // No reserved places means no meaningful denominator, so rate stays null instead of dividing by zero.
       bookings: total, attendance: attended, rate: total ? attended / total * 100 : null,
       individualHours: records.reduce((n, a) => n + (a.worked_minutes ?? 0), 0) / 60,
       corporateHours: groups.reduce((n, b) => n + (b.status === 'Completed' ? Number(b.volunteer_hours ?? 0) : 0), 0),
       groups: groups.length, confirmed: individual.filter(b => b.status === 'Confirmed').length + groups.filter(b => b.status === 'Confirmed').length };
   });
 }
+/** Totals non-cancelled group participation; recorded attendance/hours require Completed status. */
 export function corporateImpact(bookings: CorporateBooking[], events: Event[], companyId: string, filter: ReportFilter) {
   const ids = new Set(events.filter(e => eventMatches(e, filter)).map(e => e.id));
   const selected = bookings.filter(b => ids.has(b.event_id) && events.find(e => e.id === b.event_id)?.status !== 'Cancelled' && (!companyId || String(b.company_id) === companyId) && b.status !== 'Cancelled');
@@ -94,8 +119,10 @@ export function csvCell(value: string | number | null) {
   if (typeof value === 'string' && /^[\s]*[=+@-]/.test(text)) text = "'" + text;
   return '"' + text.replaceAll('"', '""') + '"';
 }
+/** Converts calculated rows to CSV text, or null for no rows. The UI handles the actual download. */
 export function reportCsv(rows: PerformanceRow[]) {
   if (!rows.length) return null;
   const header = ['Event','Date','Capacity','Reserved places','Recorded attendance','Attendance rate (%)','Verified individual hours','Recorded corporate hours','Corporate groups','Confirmed booking records'];
+  // The UTF-8 BOM helps spreadsheet programs read the text; CRLF separates records.
   return '\uFEFF' + [header, ...rows.map(r => [r.event,r.date,r.capacity,r.bookings,r.attendance,r.rate === null ? null : r.rate.toFixed(2),r.individualHours.toFixed(2),r.corporateHours.toFixed(2),r.groups,r.confirmed])].map(r => r.map(csvCell).join(',')).join('\r\n');
 }

@@ -1,5 +1,6 @@
 "use client";
 
+/** Shares the volunteer's account, bookings, attendance, inbox and UI actions across portal pages. */
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -10,7 +11,9 @@ import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile
 import { useProfilePhotoUrl } from "./useProfilePhotoUrl";
 import { fetchVolunteerReminderPreference, saveVolunteerReminderPreference } from "@/lib/actions/volunteer";
 
+/** Short-lived UI feedback; these messages are separate from stored inbox notifications. */
 type Toast = { id: number; type: "success" | "error" | "info"; message: string };
+/** The data/actions children receive through useVolunteerData instead of passing them through every page. */
 type VolunteerContextValue = {
   user: User | null;
   profile: Profile | null;
@@ -47,6 +50,7 @@ type VolunteerContextValue = {
 const VolunteerContext = createContext<VolunteerContextValue | null>(null);
 export const CONSENT_VERSION = "2026-09-14";
 
+/** Checks the account, loads related rows and exposes actions that save then update shared state. */
 export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -60,6 +64,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationError, setNotificationError] = useState<string | null>(null);
+  // Request numbers prevent a slower, older inbox response from replacing newer results.
   const notificationRequest = useRef(0);
   const [remindersEnabled, setRemindersEnabled] = useState<boolean | null>(null);
   const [reminderPreferenceError, setReminderPreferenceError] = useState<string | null>(null);
@@ -67,6 +72,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // Use the new local image immediately, but only while it matches the saved profile path.
   const savedAvatarUrl = savedAvatar?.path === profile?.avatar_path ? savedAvatar?.url ?? null : null;
   const avatarUrl = useProfilePhotoUrl(
     profile?.avatar_path,
@@ -74,9 +80,11 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => () => {
+    // Object URLs hold browser memory, so release them when replaced or on unmount.
     if (savedAvatar) URL.revokeObjectURL(savedAvatar.url);
   }, [savedAvatar]);
 
+  /** Adds feedback for five seconds without writing anything to the notifications table. */
   const showToast = useCallback((type: Toast["type"], message: string) => {
     const id = Date.now();
     setToasts((current) => [...current, { id, type, message }]);
@@ -84,6 +92,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    /** Redirects absent/admin accounts and resolves a volunteer profile/consent before loading portal data. */
     async function guardVolunteerAccess() {
       let isRedirecting = false;
       try {
@@ -103,6 +112,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
         if (roleError && roleError.code !== "PGRST116") throw roleError;
 
         const metadataDateOfBirth = typeof currentUser.user_metadata.date_of_birth === "string" ? currentUser.user_metadata.date_of_birth : undefined;
+        // Metadata supplies editable profile defaults, not the role used for the access decision.
         const { data: resolvedProfile, error: profileError } = await ensureUserProfile(currentUser.id, currentUser.email, currentUser.user_metadata.full_name, metadataDateOfBirth);
         if (profileError) throw profileError;
         if (!resolvedProfile || resolvedProfile.role !== "volunteer") {
@@ -121,6 +131,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
         isRedirecting = true;
         router.replace("/");
       } finally {
+        // Keep the loading/access screen visible while a redirect is underway.
         if (!isRedirecting) setIsCheckingAccess(false);
       }
     }
@@ -128,6 +139,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     void guardVolunteerAccess();
   }, [router]);
 
+  /** Loads the four related datasets together, keeping existing state if any query fails. */
   const refreshData = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
@@ -153,6 +165,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /** Reloads this user's inbox. Only the latest request can update inbox/error/loading state. */
   const refreshNotifications = useCallback(async () => {
     if (!user) return;
     const request = ++notificationRequest.current;
@@ -168,6 +181,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     } finally { if (request === notificationRequest.current) setNotificationsLoading(false); }
   }, [user]);
 
+  /** Reads the personal reminder switch; no stored preference means reminders start enabled. */
   const loadReminderPreference = useCallback(async () => {
     if (!user) return;
     try {
@@ -182,6 +196,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     if (!isCheckingAccess && user) queueMicrotask(() => void loadReminderPreference());
   }, [isCheckingAccess, loadReminderPreference, user]);
 
+  /** Saves the switch and confirms the returned boolean before updating the UI; returns an error or null. */
   const saveReminderPreference = useCallback(async (enabled: boolean) => {
     if (!user) return "Please sign in to change notification preferences.";
     try {
@@ -197,6 +212,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isCheckingAccess || !user) return;
+    // Realtime refreshes changes promptly; the visible-tab timer/focus refresh is an additional fallback.
     queueMicrotask(() => void refreshNotifications());
     const channel = supabase.channel(`volunteer-notifications-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, () => void refreshNotifications()).subscribe();
@@ -208,6 +224,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isCheckingAccess || !user) return;
+    // These listeners reload related data; they do not create reminders or enforce database permissions.
     queueMicrotask(() => void refreshData());
     const bookingsChannel = supabase.channel("volunteer-bookings").on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => void refreshData()).subscribe();
     const eventsChannel = supabase.channel("volunteer-events").on("postgres_changes", { event: "*", schema: "public", table: "events" }, () => void refreshData()).subscribe();
@@ -221,9 +238,11 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isCheckingAccess, refreshData, user]);
 
+  /** Rejects obvious duplicates in loaded state, calls the booking RPC, then refreshes and shows feedback. */
   const createUserBooking = useCallback(async (slot: EventSlot) => {
     if (!user || !profile) return "Please sign in before booking an event.";
     if (bookings.some((booking) => booking.event_id === slot.event_id && booking.user_id === user.id)) return "You are already signed up for this event.";
+    // This UI check is for feedback; the database must recheck rules against current data.
     const { error } = await bookEventSlot(slot.id);
     if (error) {
       console.error("Failed to create booking:", error);
@@ -234,6 +253,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [bookings, profile, refreshData, showToast, user]);
 
+  /** Deletes a booking scoped to this user; refreshes shared rows only after a successful request. */
   const cancelBooking = useCallback(async (bookingId: number) => {
     if (!user) return;
     const { error } = await cancelUserBooking(bookingId, user.id);
@@ -246,6 +266,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     showToast("info", "Booking cancelled.");
   }, [refreshData, showToast, user]);
 
+  /** Marks one notice read, updates local state after success, and reloads the inbox. */
   const dismissNotification = useCallback(async (notificationId: number) => {
     if (!user) return;
     try {
@@ -256,6 +277,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     } catch { showToast("error", "This update could not be marked read. Please try again."); }
   }, [refreshNotifications, showToast, user]);
 
+  /** Sends only loaded unread IDs; actual updated IDs allow partial success to appear correctly. */
   const markAllNotificationsRead = useCallback(async () => {
     if (!user) return;
     try {
@@ -266,6 +288,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     } catch { showToast("error", "Some updates could not be marked read. Please try again."); }
   }, [notifications, refreshNotifications, showToast, user]);
 
+  /** Saves editable details and replaces the shared profile with the returned database row. */
   const saveProfile = useCallback(async (data: { full_name: string; date_of_birth: string }) => {
     if (!user) return "Please sign in before updating your profile.";
     const { data: updatedProfile, error } = await updateVolunteerProfile(user.id, data);
@@ -278,6 +301,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [showToast, user]);
 
+  /** Saves/removes a prepared photo; a local URL displays a saved upload before its signed URL loads. */
   const saveAvatar = useCallback(async (photo: Blob | null) => {
     if (!user || !profile) return "Please sign in before updating your profile photo.";
     const { data: updatedProfile, error } = await saveVolunteerAvatar(user.id, photo);
@@ -297,6 +321,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [profile, showToast, user]);
 
+  /** Starts Auth's email verification flow; this does not immediately overwrite the profile email. */
   const requestEmailChange = useCallback(async (email: string) => {
     const { error } = await requestVolunteerEmailChange(email);
     if (error) {
@@ -307,6 +332,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [showToast]);
 
+  /** Stores the current agreement version and updates the consent shared with onboarding components. */
   const acceptConsent = useCallback(async () => {
     const { data: savedConsent, error } = await saveVolunteerConsent(CONSENT_VERSION);
     if (error || !savedConsent) {
@@ -321,6 +347,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   return <VolunteerContext.Provider value={{ user, profile, avatarUrl, consent, events, eventSlots, bookings, attendanceRecords, notifications, notificationsLoading, notificationError, refreshNotifications, markAllNotificationsRead, remindersEnabled, reminderPreferenceError, loadReminderPreference, saveReminderPreference, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, saveAvatar, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
 }
 
+/** Accesses the shared provider; using this hook outside its wrapper is a programming error. */
 export function useVolunteerData() {
   const context = useContext(VolunteerContext);
   if (!context) throw new Error("useVolunteerData must be used inside VolunteerProvider");

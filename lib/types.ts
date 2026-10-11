@@ -1,6 +1,9 @@
-/** The lifecycle states a volunteer booking can have. */
+/** Shared data shapes used by the database helpers and React screens. Types do not validate API data at runtime. */
+/** The lifecycle states a volunteer booking can have. Cancellation currently deletes the booking. */
 export type BookingStatus = 'Confirmed' | 'Present' | 'Completed' | 'No show';
+/** The implemented portal roles; the separate corporate self-service flow is currently a mockup. */
 export type UserRole = 'admin' | 'volunteer';
+/** Event cancellation is kept on the event rather than removing its history. */
 export type EventStatus = 'Scheduled' | 'Cancelled';
 
 /** A record from the `profiles` table for an authenticated user. */
@@ -8,6 +11,7 @@ export interface Profile {
   id: string;
   full_name: string;
   email: string;
+  // Optional fields may be absent from older records/queries; their type does not prove a DB column exists.
   role?: UserRole;
   date_of_birth?: string;
   phone?: string;
@@ -32,6 +36,7 @@ export interface Event {
   title: string;
   date: string;
   location: string;
+  // Legacy summary fields. Slot-based views calculate current capacity from EventSlot rows.
   time_slots: string;
   total_slots: number;
   description?: string;
@@ -55,7 +60,7 @@ export interface EventSlot {
   start_time: string;
   end_time: string;
   capacity: number;
-  /** Privacy-safe aggregate; absent until the reviewed migration is installed. */
+  /** Aggregate from get_slot_availability; undefined when that RPC is unavailable. */
   remaining?: number;
   created_at?: string;
   /** Non-null only when the Warehouse Management System owns this time slot. */
@@ -65,6 +70,7 @@ export interface EventSlot {
 /** One of the two event QR checkpoints used to record attendance. */
 export interface AttendanceCheckpoint {
   id: string;
+  /** Typed-code alternative to the QR identifier. Rotating it does not replace id. */
   entry_code: string;
   event_id: number;
   action: 'clock_in' | 'clock_out';
@@ -78,6 +84,7 @@ export interface AttendanceRecord {
   booking_id: number;
   clocked_in_at: string | null;
   clocked_out_at: string | null;
+  // Null minutes represent unfinalised/missing recorded time, not automatically zero worked time.
   worked_minutes: number | null;
   created_at?: string;
 }
@@ -89,6 +96,7 @@ export interface Booking {
   event_id: number;
   user_id: string;
   event_slot_id?: number | null;
+  /** Display text retained alongside the slot ID, including older bookings without a slot link. */
   selected_slot: string;
   status: BookingStatus;
   volunteer_email?: string;
@@ -100,6 +108,7 @@ export interface Notification {
   user_id: string;
   event_id: number;
   type: 'event_cancelled' | 'shift_reminder_24h' | 'shift_reminder_2h';
+  // The reminder schedule is separate from when the notification row was created.
   scheduled_for?: string | null;
   title: string;
   message: string | null;
@@ -119,8 +128,11 @@ export interface Volunteer extends Profile {
 /** Semantic alias used when a profile is handled in volunteer-facing code. */
 export type VolunteerProfile = Profile;
 
+/** States in the implemented admin-managed CSR bookings, not the mockup's payment workflow. */
 export type CorporateStatus = 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
+/** Relationship labels for company records in the admin CSR screen. */
 export type RelationshipStatus = 'Lead' | 'Contacted' | 'Interested' | 'Active Partner' | 'Inactive';
+/** Company/contact details and CSR information managed by administrators. */
 export interface CorporateCompany {
   id: number; name: string; industry: string | null; website: string | null;
   location: string | null; contact_name: string | null; contact_email: string | null;
@@ -129,19 +141,25 @@ export interface CorporateCompany {
   csr_focus_areas: string | null; partnership_potential: 'Low' | 'Medium' | 'High';
   notes: string | null; created_at: string; updated_at: string;
 }
+/** Editable company fields; generated identifiers and timestamps are left to the database. */
 export type CompanyInput = Omit<CorporateCompany, 'id' | 'created_at' | 'updated_at'>;
+/** Group reservation. team_size reserves places; attendance_count and volunteer_hours are recorded totals. */
 export interface CorporateBooking {
   id: number; company_id: number; event_id: number; event_slot_id: number;
   contact_name: string | null; contact_email: string | null; team_size: number;
   status: CorporateStatus; notes: string | null; cancellation_reason?: string | null; attendance_count: number | null;
   volunteer_hours: number | null; created_at: string; updated_at: string;
 }
+/** Booking form fields; the linked slot supplies the event through the save RPC. */
 export type CorporateBookingInput = Omit<CorporateBooking, 'id' | 'event_id' | 'created_at' | 'updated_at'>;
+/** An admin note linked to a company, not a corporate/admin chat message. */
 export interface CorporateNote { id: number; company_id: number; body: string; created_by: string | null; created_at: string }
+/** Singleton settings row. Only shift_reminder_enabled currently controls in-app reminder generation. */
 export interface OrganisationSettings {
   id: 1; organisation_name: string; default_location: string; contact_email: string;
   timezone: 'Africa/Johannesburg'; booking_confirmation_enabled: boolean;
   booking_cancellation_enabled: boolean; shift_reminder_enabled: boolean;
   corporate_booking_confirmation_enabled: boolean; updated_at: string;
 }
+/** Available-place totals returned without exposing other volunteers' booking details. */
 export interface SlotAvailability { event_slot_id: number; remaining: number }
