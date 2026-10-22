@@ -1,0 +1,16 @@
+.avatar { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: #273542; color: #fff; font-weight: 800; line-height: 1; }
+.avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.editor { padding: 24px; }
+.previewRow { display: flex; align-items: center; gap: 20px; }
+.previewLabel { margin: 0; font-size: 14px; font-weight: 750; }
+.previewRow button { margin-top: 12px; }
+.fileInput { display: none; }
+.guidance { margin-top: 22px; padding: 14px 16px; border-radius: 8px; background: #f6f7f9; color: #4e5a67; font-size: 12px; line-height: 1.6; }
+.guidance p { margin: 5px 0 0; }
+.acknowledgement { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; font-size: 13px; line-height: 1.5; }
+.acknowledgement input { margin-top: 3px; accent-color: #d92732; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.editor button:disabled { opacity: .6; cursor: not-allowed; }
+:global(html[data-theme="dark"]) .guidance { background: #243342; color: #c1cfda; }
+:global(html[data-theme="dark"]) .avatar { background: #354b60; }
+@media (max-width: 600px) { .editor { padding: 20px 16px; } .previewRow { gap: 14px; flex-wrap: wrap; } }

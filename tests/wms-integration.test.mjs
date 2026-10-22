@@ -96,15 +96,20 @@ test('WMS publishing preserves :15/:45 times exactly and rejects invalid ranges 
   } finally { f.cleanup(); }
 });
 
+// These route checks use a fake database with the actual compiled handlers, not the deployed WMS or Supabase.
 test('capacity PATCH persists 6 and bookings GET reads the same value', async () => {
+  // Arrange: the fake slot begins with capacity 5 and both handlers share that database state.
   const f = await fixture();
   try {
+    // Act and assert: request capacity 6 and check the update response reports that value.
     const patch = await f.route('timeslots/[externalTimeslotId]/capacity');
     const response = await patch.PATCH(request('PATCH', { capacity: 6 }), slotContext);
     assert.equal(response.status, 200); assert.equal((await response.json()).capacity, 6);
+    // Read through the bookings endpoint too: its total and slot capacity must reflect the update.
     const get = await f.route('events/[externalEventId]/bookings');
     const data = await (await get.GET(request('GET'), { params: Promise.resolve({ externalEventId: 'event' }) })).json();
     assert.equal(data.capacityTotal, 6); assert.equal(data.timeslots[0].capacity, 6);
+    // Check that the lookup used the external slot ID supplied by the other system.
     assert.ok(f.calls.some(call => call.operations?.some(op => op[0] === 'eq' && op[1] === 'external_timeslot_id' && op[2] === 'slot')));
   } finally { f.cleanup(); }
 });

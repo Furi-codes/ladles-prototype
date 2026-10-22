@@ -1,7 +1,7 @@
 /** Shared data shapes used by the database helpers and React screens. Types do not validate API data at runtime. */
 /** The lifecycle states a volunteer booking can have. Cancellation currently deletes the booking. */
 export type BookingStatus = 'Confirmed' | 'Present' | 'Completed' | 'No show';
-/** The implemented portal roles; the separate corporate self-service flow is currently a mockup. */
+/** Corporate membership is separate, so an existing volunteer keeps their profile role. */
 export type UserRole = 'admin' | 'volunteer';
 /** Event cancellation is kept on the event rather than removing its history. */
 export type EventStatus = 'Scheduled' | 'Cancelled';
@@ -14,7 +14,9 @@ export interface Profile {
   // Optional fields may be absent from older records/queries; their type does not prove a DB column exists.
   role?: UserRole;
   date_of_birth?: string;
-  phone?: string;
+  phone?: string | null;
+  /** False for corporate-only signups; existing volunteer records default to true in the new migration. */
+  volunteer_enabled?: boolean;
   avatar_path?: string | null;
   is_present?: boolean;
 }

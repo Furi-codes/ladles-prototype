@@ -12,6 +12,7 @@
 .tabs { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border:1px solid var(--auth-line); background:var(--auth-bg); border-radius:10px; margin-bottom:26px; }
 .tabs button { padding:10px 8px; background:transparent; border:0; border-radius:7px; color:var(--auth-muted); font-size:12px; font-weight:650; cursor:pointer; }
 .tabs button[aria-pressed="true"] { background:var(--auth-surface); color:var(--auth-accent); box-shadow:0 2px 5px rgba(23,43,59,.07); }
+.tabsThree { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .card h2 { margin:10px 0; font-size:28px; line-height:1.2; letter-spacing:-.8px; }
 .intro { margin:0 0 24px; color:var(--auth-muted); font-size:13px; line-height:1.7; }
 .fields { display:grid; gap:16px; border:0; margin:0; padding:0; min-width:0; }

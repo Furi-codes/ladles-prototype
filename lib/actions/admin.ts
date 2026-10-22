@@ -14,6 +14,7 @@ export async function fetchAdminEvents() {
 
 /** Loads all bookings so administrators can monitor attendance and activity. */
 export async function fetchAdminBookings() {
+  // Read each page in a stable ID order so the roster is not limited to the first database response.
   return fetchAllPages<Booking>((from, to) => supabase.from('bookings').select('*', { count: 'exact' }).order('id', { ascending: false }).range(from, to))
 }
 
@@ -111,5 +112,6 @@ export async function updateBookingAttendance(
   bookingId: number,
   status: 'Present' | 'Confirmed'
 ) {
+  // This updates attendance status, not the booked event or time slot. Database policies control who may do it.
   return supabase.from('bookings').update({ status }).eq('id', bookingId)
 }

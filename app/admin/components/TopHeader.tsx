@@ -3,10 +3,13 @@ import styles from "../admin.module.css";
 import Icon from "./Icon";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import { usePathname } from "next/navigation";
+import { corporateBookingsEnabled } from "@/lib/feature-flags";
 
 const pageLabels: Record<string, string> = {
+  "/admin/corporate-bookings": "Corporate bookings",
+  "/admin/directory": "Volunteer directory", "/admin/corporate-accounts": "Corporate accounts",
   "/admin": "Dashboard", "/admin/events": "Events", "/admin/volunteers": "Volunteer rosters",
-  "/admin/csr": "Corporate CSR", "/admin/reports": "Analytics & reports", "/admin/settings": "Settings",
+  "/admin/csr": corporateBookingsEnabled ? "Legacy CSR history" : "Corporate CSR", "/admin/reports": "Analytics & reports", "/admin/settings": "Settings",
 };
 
 export default function TopHeader({ name = "Administrator", email = "", onSignOut, onMenu, menuOpen = false }: { name?: string; email?: string; onSignOut?: () => void; onMenu?: () => void; menuOpen?: boolean }) {

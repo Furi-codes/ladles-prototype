@@ -1,0 +1,17 @@
+/* Only preview controls/layout offsets live here; portal styling comes from the frozen app CSS. */
+*{box-sizing:border-box}
+.legacy-csr-readonly{border:0;padding:0;margin:0;min-width:0}.legacy-csr-readonly a{pointer-events:none}
+.system-preview-toolbar{position:sticky;top:0;z-index:9999;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;min-height:64px;padding:10px 16px;background:#232c38;color:#fff;font:12px/1.4 'Segoe UI',Arial,sans-serif}
+.system-preview-toolbar strong{font-size:12px}.system-preview-toolbar small{display:block;color:#d2d9e2;font-size:10px}
+.system-preview-toolbar nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.system-preview-toolbar button,.system-preview-toolbar select{border:1px solid #ffffff45;background:#ffffff10;color:white;border-radius:6px;padding:6px 9px;font:inherit;cursor:pointer}
+.system-preview-toolbar button[aria-pressed=true]{background:#c91d32}.system-preview-toolbar option{color:#222;background:white}
+.system-preview-toolbar label{display:flex;align-items:center;gap:5px}
+.system-preview-toolbar :focus-visible{outline:3px solid #ffb6bd;outline-offset:2px}
+.preview-guide,.preview-error{padding:24px;margin:20px;border:1px solid #e7e9ee;border-radius:10px;background:#fff;color:#222b36;font:14px/1.6 'Segoe UI',Arial,sans-serif}
+.preview-guide p{margin:10px 0}.proposal-frame{display:block;width:100%;height:calc(100vh - 64px);border:0}
+#system-root .portalUi>aside{top:64px;height:calc(100vh - 64px)}
+#system-root .portalUi header{top:64px}
+#system-root .authThemeToggle{top:80px}
+@media(max-width:1050px){.system-preview-toolbar{position:relative}#system-root .portalUi>aside{top:0;height:100vh}#system-root .portalUi header{top:0}.system-preview-toolbar nav{width:100%}.proposal-frame{height:85vh}}
+@media print{.system-preview-toolbar,.preview-guide{display:none!important}#system-root .portalUi>aside{display:none!important}}

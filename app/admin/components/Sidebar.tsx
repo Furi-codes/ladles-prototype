@@ -4,15 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "../admin.module.css";
 import Icon from "./Icon";
+import { corporateRolloutEnabled, corporateBookingsEnabled } from "@/lib/feature-flags";
 
 type NavLink = { label: string; href: string; icon: "dashboard" | "calendar" | "users" | "building" | "activity" | "settings" };
 const navLinks: NavLink[] = [
   { label: "Dashboard", href: "/admin", icon: "dashboard" as const },
   { label: "Events", href: "/admin/events", icon: "calendar" as const },
   { label: "Volunteer rosters", href: "/admin/volunteers", icon: "users" as const },
+  ...(corporateRolloutEnabled ? [{ label: "Volunteer directory", href: "/admin/directory", icon: "users" as const }] : []),
 ];
 const extraLinks: NavLink[] = [
-  { label: "Corporate CSR", href: "/admin/csr", icon: "building" as const },
+  ...(corporateBookingsEnabled ? [{ label: "Corporate bookings", href: "/admin/corporate-bookings", icon: "building" as const }] : []),
+  ...(corporateRolloutEnabled ? [{ label: "Corporate accounts", href: "/admin/corporate-accounts", icon: "building" as const }] : []),
+  { label: corporateBookingsEnabled ? "Legacy CSR history" : "Corporate CSR", href: "/admin/csr", icon: "building" as const },
   { label: "Analytics & reports", href: "/admin/reports", icon: "activity" as const },
   { label: "Settings", href: "/admin/settings", icon: "settings" as const },
 ];

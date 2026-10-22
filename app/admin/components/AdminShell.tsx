@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useNavigationDrawer } from "@/app/components/useNavigationDrawer";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { useSignOut } from "@/app/components/useSignOut";
 import styles from "../admin.module.css";
 import Sidebar from "./Sidebar";
 import TopHeader from "./TopHeader";
@@ -11,17 +10,12 @@ import { useAdminData } from "./AdminProvider";
 import AdminLoadingScreen from "./AdminLoadingScreen";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
+  const { signOut: handleSignOut, busy: signingOut, error: signOutError } = useSignOut();
   const { adminProfile, isCheckingAccess, loadError } = useAdminData();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   useNavigationDrawer(mobileNavOpen, () => setMobileNavOpen(false), "admin-mobile-navigation", 760);
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.replace("/");
-  }
 
   if (isCheckingAccess) return <AdminLoadingScreen />;
 
@@ -36,6 +30,6 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         {children}
       </main>
     </div>
-    {showSignOutConfirm && <div className={styles.dialogBackdrop} role="presentation"><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="sign-out-title"><h2 id="sign-out-title" className={styles.dialogTitle}>Sign out?</h2><p className={styles.dialogText}>Are you sure you want to sign out of the administration portal?</p><div className={styles.formActions}><button type="button" className={styles.secondaryButton} onClick={() => setShowSignOutConfirm(false)}>Cancel</button><button type="button" className={styles.primaryButton} onClick={handleSignOut}>Sign out</button></div></section></div>}
+    {showSignOutConfirm && <div className={styles.dialogBackdrop} role="presentation"><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="sign-out-title"><h2 id="sign-out-title" className={styles.dialogTitle}>Sign out?</h2><p className={styles.dialogText}>Are you sure you want to sign out of the administration portal?</p>{signOutError && <p className={styles.error} role="alert">{signOutError}</p>}<div className={styles.formActions}><button type="button" disabled={signingOut} className={styles.secondaryButton} onClick={() => setShowSignOutConfirm(false)}>Cancel</button><button type="button" disabled={signingOut} className={styles.primaryButton} onClick={() => void handleSignOut()}>{signingOut ? 'Signing out…' : 'Sign out'}</button></div></section></div>}
   </div>;
 }

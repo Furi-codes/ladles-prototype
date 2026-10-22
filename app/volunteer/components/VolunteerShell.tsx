@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { useSignOut } from "@/app/components/useSignOut";
 import styles from "../volunteer.module.css";
 import { VolunteerAccountContext } from "./VolunteerAccountContext";
 import VolunteerHeader from "./VolunteerHeader";
@@ -13,8 +12,8 @@ import ConfirmDialog from "./ConfirmDialog";
 import { useVolunteerData } from "./VolunteerProvider";
 
 export default function VolunteerShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter(); const { profile, avatarUrl, isCheckingAccess, loadError, toasts } = useVolunteerData(); const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  async function handleSignOut() { await supabase.auth.signOut(); router.replace("/"); }
+  const { signOut: handleSignOut, busy: signingOut, error: signOutError } = useSignOut();
+  const { profile, avatarUrl, isCheckingAccess, loadError, toasts } = useVolunteerData(); const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   if (isCheckingAccess) return <VolunteerLoadingScreen message="Checking volunteer access..." />;
-  return <div className={`portalUi ${styles.shell}`}><a className="portalSkipLink" href="#volunteer-content">Skip to content</a><VolunteerHeader profile={profile} avatarUrl={avatarUrl} onSignOut={() => setShowSignOutConfirm(true)} /><main id="volunteer-content" tabIndex={-1} className={styles.content}>{loadError && <div className={styles.error} role="alert">{loadError}</div>}<VolunteerAccountContext.Provider value={() => setShowSignOutConfirm(true)}>{children}</VolunteerAccountContext.Provider></main><VolunteerNavigation mobile /><ToastContainer toasts={toasts} />{showSignOutConfirm && <ConfirmDialog title="Sign out?" message="Are you sure you want to sign out of the volunteer portal?" confirmLabel="Sign out" onCancel={() => setShowSignOutConfirm(false)} onConfirm={handleSignOut} />}</div>;
+  return <div className={`portalUi ${styles.shell}`}><a className="portalSkipLink" href="#volunteer-content">Skip to content</a><VolunteerHeader profile={profile} avatarUrl={avatarUrl} onSignOut={() => setShowSignOutConfirm(true)} /><main id="volunteer-content" tabIndex={-1} className={styles.content}>{loadError && <div className={styles.error} role="alert">{loadError}</div>}<VolunteerAccountContext.Provider value={() => setShowSignOutConfirm(true)}>{children}</VolunteerAccountContext.Provider></main><VolunteerNavigation mobile /><ToastContainer toasts={toasts} />{showSignOutConfirm && <ConfirmDialog title="Sign out?" message="Are you sure you want to sign out of the volunteer portal?" confirmLabel={signingOut ? "Signing out…" : "Sign out"} busy={signingOut} error={signOutError} onCancel={() => setShowSignOutConfirm(false)} onConfirm={handleSignOut} />}</div>;
 }

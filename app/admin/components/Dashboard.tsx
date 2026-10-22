@@ -22,7 +22,7 @@ export default function Dashboard({ bookings, events, eventSlots, volunteers, is
   const stats = [
     { label: "Upcoming individual bookings", value: upcomingBookings.length, note: "Across upcoming and current events", icon: "users" as const },
     { label: "Upcoming events", value: upcomingEvents.length, note: "From today onward", icon: "calendar" as const },
-    { label: "Registered volunteers", value: volunteers.filter(v => v.role === 'volunteer').length, note: "Volunteer profiles", icon: "users" as const },
+    { label: "Registered volunteers", value: volunteers.filter(v => v.role === 'volunteer' && v.volunteer_enabled !== false).length, note: "Volunteer profiles", icon: "users" as const },
     { label: "Dashboard data", value: isLoading ? "Loading" : hasError ? "Error" : "Loaded", note: hasError ? "Check data connection" : "Current dashboard snapshot", icon: "activity" as const },
   ];
 

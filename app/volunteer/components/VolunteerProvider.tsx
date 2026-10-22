@@ -10,6 +10,8 @@ import { bookEventSlot, cancelUserBooking, ensureUserProfile, fetchBookingsForVo
 import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile, VolunteerConsent } from "@/lib/types";
 import { useProfilePhotoUrl } from "./useProfilePhotoUrl";
 import { fetchVolunteerReminderPreference, saveVolunteerReminderPreference } from "@/lib/actions/volunteer";
+import { corporateRolloutEnabled } from "@/lib/feature-flags";
+import { isValidPhone } from "@/lib/contact-details";
 
 /** Short-lived UI feedback; these messages are separate from stored inbox notifications. */
 type Toast = { id: number; type: "success" | "error" | "info"; message: string };
@@ -39,7 +41,7 @@ type VolunteerContextValue = {
   createUserBooking: (slot: EventSlot) => Promise<string | null>;
   cancelBooking: (bookingId: number) => Promise<void>;
   dismissNotification: (notificationId: number) => Promise<void>;
-  saveProfile: (data: { full_name: string; date_of_birth: string }) => Promise<string | null>;
+  saveProfile: (data: { full_name: string; date_of_birth: string; phone?: string }) => Promise<string | null>;
   saveAvatar: (photo: Blob | null) => Promise<string | null>;
   requestEmailChange: (email: string) => Promise<string | null>;
   acceptConsent: () => Promise<string | null>;
@@ -118,6 +120,11 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
         if (!resolvedProfile || resolvedProfile.role !== "volunteer") {
           isRedirecting = true;
           router.replace("/");
+          return;
+        }
+        if (resolvedProfile.volunteer_enabled === false) {
+          isRedirecting = true;
+          router.replace("/corporate");
           return;
         }
 
@@ -240,14 +247,17 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
 
   /** Rejects obvious duplicates in loaded state, calls the booking RPC, then refreshes and shows feedback. */
   const createUserBooking = useCallback(async (slot: EventSlot) => {
+    // Check signed-in profile and already-loaded bookings before sending the create request.
     if (!user || !profile) return "Please sign in before booking an event.";
     if (bookings.some((booking) => booking.event_id === slot.event_id && booking.user_id === user.id)) return "You are already signed up for this event.";
+    if (corporateRolloutEnabled && !isValidPhone(profile.phone ?? '')) return "Add your cellphone number in My profile before making a new booking. Existing attendance and cancellation remain available.";
     // This UI check is for feedback; the database must recheck rules against current data.
     const { error } = await bookEventSlot(slot.id);
     if (error) {
       console.error("Failed to create booking:", error);
       return error.message || "This booking could not be created. Please try again.";
     }
+    // Reload shared data after the request so the booking list reflects the database response.
     await refreshData();
     showToast("success", "You are signed up for this event.");
     return null;
@@ -289,12 +299,12 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   }, [notifications, refreshNotifications, showToast, user]);
 
   /** Saves editable details and replaces the shared profile with the returned database row. */
-  const saveProfile = useCallback(async (data: { full_name: string; date_of_birth: string }) => {
+  const saveProfile = useCallback(async (data: { full_name: string; date_of_birth: string; phone?: string }) => {
     if (!user) return "Please sign in before updating your profile.";
     const { data: updatedProfile, error } = await updateVolunteerProfile(user.id, data);
     if (error || !updatedProfile) {
       console.error("Failed to save volunteer profile:", error);
-      return "Your profile could not be saved. Please try again.";
+      return error?.message || "Your profile could not be saved. Please try again.";
     }
     setProfile(updatedProfile as Profile);
     showToast("success", "Your profile has been updated.");

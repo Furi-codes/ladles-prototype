@@ -24,6 +24,8 @@
 /exports
 /.exports
 /.demo-assets
+/supabase/.temp/
+/supabase/.branches/
 
 # misc
 .DS_Store

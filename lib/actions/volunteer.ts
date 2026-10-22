@@ -161,6 +161,8 @@ export async function updateVolunteerDateOfBirth(userId: string, dateOfBirth: st
 
 /** Requests a booking through book_event_slot; capacity/duplicate enforcement depends on its deployed SQL. */
 export async function bookEventSlot(eventSlotId: number): Promise<PostgrestSingleResponse<Booking>> {
+  // RPC calls the deployed database function; this helper sends the chosen slot ID, not a user-entered capacity.
+  // Its SQL is not stored here, so this call alone does not prove how concurrent or duplicate requests are handled.
   return supabase.rpc('book_event_slot', { p_event_slot_id: eventSlotId }).single()
 }
 
@@ -169,6 +171,8 @@ export async function cancelUserBooking(
   bookingId: number,
   userId: string
 ): Promise<{ data: null; error: { message: string } | null }> {
+  // Cancellation here is a physical DELETE, not an update to a Cancelled status.
+  // Both filters must match. They narrow the request; database access policies remain necessary.
   const result = await supabase.from('bookings').delete().eq('id', bookingId).eq('user_id', userId)
 
   return {

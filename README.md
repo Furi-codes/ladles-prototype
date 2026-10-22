@@ -35,11 +35,28 @@ A volunteer-management web application for Ladles of Love. Volunteers can book s
 
 The API base path is `/api/integrations/wms/v1`. It supports health checks, event/timeslot publishing, capacity updates, booking retrieval and attendance updates. Requests require the configured WMS bearer token. Integration routes use a server-only database credential.
 
-### Design previews
+### Corporate portal and volunteer directory
 
-`design-preview/` contains standalone HTML previews. The corporate workflow mockup simulates business registration, account approval, booking requests, external-payment deadlines, overdue flags, amendments, notifications and a searchable volunteer directory.
+The real app includes business registration/sign-in, verified-email account approval, corporate-only events, group-booking requests, external-payment deadlines and confirmation, amendments/cancellation, notifications with links, status history, group attendance and CSV/print reports. Administrators can search all volunteer profiles under **Volunteer directory**, see email/cellphone details and use email/call links.
 
-These new workflows are prototypes, not evidence that the corresponding production features have been implemented. The corporate preview uses fictional in-memory data and resets on refresh. It does not create real accounts, send messages or process payments.
+Corporate screens are visible by default. The optional `NEXT_PUBLIC_CORPORATE_ROLLOUT_ENABLED`, `NEXT_PUBLIC_CORPORATE_BOOKINGS_ENABLED`, `NEXT_PUBLIC_CORPORATE_CHANGES_ENABLED` and `NEXT_PUBLIC_CORPORATE_OUTCOMES_ENABLED` switches disable their stages only when explicitly set to `false`. They are not authorization controls.
+
+The four additive corporate migrations are in `supabase/migrations/`. They extend the existing VMS schema; this repository does not contain its full historical baseline. A Next.js/Vercel deployment does not apply SQL. Keep `corporate_private` outside exposed Data API schemas. Review migration history with the database maintainer rather than blindly running `supabase db push`.
+
+Administrator setup:
+
+1. **Corporate accounts → Access settings:** manage registration and cellphone enforcement. Enable database phone enforcement after deploying the updated signup/profile forms; missing numbers block new bookings, not attendance/cancellation.
+2. **Corporate bookings → Booking settings:** enter the actual booking-team email and phone, then open requests. Both are required; no contact details or activity prices are invented.
+3. **Corporate events:** create and publish actual available dates, times, capacities and group limits. No preset activity menu is required.
+4. Approve verified business accounts, review booking requests and set payment deadlines. Requests hold no places; acceptance atomically reserves the group. Overdue bookings are flagged, not automatically cancelled.
+5. Record verified external payments to confirm bookings. Payment/refund discussions stay outside the portal; no money is processed.
+6. Review changes/cancellations and, after the event ends, record actual attendance and optional combined group hours. Corrections retain earlier totals and receipts. Reports load the full filtered scope, not only the visible page.
+
+Configure Supabase Auth email confirmation, SMTP delivery and permitted verification/recovery redirect URLs for each deployment. Built-in Supabase email delivery is limited; public registration needs a suitable email provider. Do not add SMTP credentials or service-role keys to browser code. Google sign-in uses the configured Supabase provider; existing volunteers can add business membership without losing individual bookings.
+
+Corporate events/reservations are separate from volunteer events, WMS timeslots and legacy CSR records. Existing CSR data remains available as **Legacy CSR history**. Company ownership and admin decisions are enforced by RLS and checked functions, not by client-supplied roles.
+
+`design-preview/` remains a separate, fictional mockup; it is not used by the real app. Automated tests cover isolated PostgreSQL workflows/permissions, components and WMS regressions. Real inbox delivery, browser/mobile/print checks and live WMS acceptance still need human verification before production sign-off.
 
 ## Local setup
 
@@ -82,7 +99,7 @@ npm run dev
 
 Open [localhost:3000](http://localhost:3000). The entry page is `app/page.tsx`. Admin and volunteer access depend on the authenticated user's profile role; registering a volunteer does not grant administrator access.
 
-The repository expects an existing Supabase schema, policies and database functions. Installing npm dependencies does not create them. Database setup scripts are not included in this repository; coordinate database configuration with the database maintainer.
+The repository expects an existing Supabase schema, policies and database functions. Installing npm dependencies does not create them. The new `supabase/migrations/` folder contains only the corporate rollout additions, not the historical schema; coordinate application and migration baselining with the database maintainer.
 
 ## Project structure
 
@@ -91,13 +108,15 @@ app/
   components/       Shared interface and authentication components
   admin/            Admin pages, components and styles
   volunteer/        Volunteer pages, components and styles
+  corporate/        Corporate account, event, booking and report workspace
   api/              Server-side API routes, including WMS integration
 lib/
   actions/          Data-access functions
   server/           Server-side integration helpers
   types.ts          Shared TypeScript models
   ...               Reporting, date, attendance and pagination utilities
-tests/              Automated logic, component and mocked route tests
+tests/              Logic, component, mocked route and isolated PostgreSQL tests
+supabase/migrations/ Additive corporate rollout SQL (not automatically applied)
 public/             Static assets
 design-preview/     Standalone HTML/JavaScript design prototypes
 ```
@@ -129,9 +148,9 @@ npm run lint
 npx tsc --noEmit
 ```
 
-The suite includes unit tests for shared logic and tests of components/API routes using controlled mocks. Passing these checks does not replace browser acceptance testing, database tests or live WMS end-to-end testing. SQL test files require a suitable database test environment and should be reviewed before execution.
+The suite includes unit tests for shared logic, tests of components/API routes using controlled mocks, and corporate migration/RLS/workflow tests in an isolated in-memory PostgreSQL instance (`@electric-sql/pglite`). These tests do not use hosted credentials or change the live database. Passing them does not replace browser acceptance testing, full-schema staging tests, separate-connection concurrency tests or live WMS end-to-end testing. Any other SQL test scripts must be reviewed before execution.
 
-There is currently no `npm test` script; use the Node commands above. Keeping tests in the repository does not automatically configure GitHub Actions.
+Use `npm test` to run the complete suite. Keeping tests in the repository does not automatically configure GitHub Actions.
 
 ## Production build and deployment
 

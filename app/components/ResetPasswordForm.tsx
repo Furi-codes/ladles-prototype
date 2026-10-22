@@ -1,114 +1,74 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { supabase } from "@/lib/supabase";
-import ThemeToggle from "./ThemeToggle";
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { supabase } from '@/lib/supabase';
+import ThemeToggle from './ThemeToggle';
+import styles from './LoginForm.module.css';
 
+/** Auth reads the recovery session from the redirect URL. We still verify it with the server. */
 export default function ResetPasswordForm() {
-  const router = useRouter();
-  const [newPassword, setNewPassword] = useState("");
+  const [status, setStatus] = useState<'checking' | 'ready' | 'unavailable' | 'saved'>('checking');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [isChecking, setIsChecking] = useState(true);
-
+  const [message, setMessage] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const pending = useRef(false), saved = useRef(false);
   useEffect(() => {
-    async function checkUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push("/");
-      } else {
-        setIsChecking(false);
+    let active = true;
+    void (async () => {
+      try {
+        const query = new URLSearchParams(window.location.search), fragment = new URLSearchParams(window.location.hash.slice(1));
+        // Do not echo the provider's URL contents: they can include sensitive tokens.
+        if (['error', 'error_code', 'error_description'].some(key => query.has(key) || fragment.has(key))) throw new Error('This password reset link is invalid or has expired. Request a new link below.');
+        const { data, error } = await supabase.auth.getUser();
+        if (error && error.name !== 'AuthSessionMissingError') throw error;
+        if (!data.user) throw new Error('This password reset link is invalid or has expired. Request a new link below.');
+        if (active) { setStatus('ready'); setMessage(''); }
+      } catch (failure) {
+        if (active) { setStatus('unavailable'); setMessage(failure instanceof Error ? failure.message : 'The reset link could not be checked. Retry or request a new link.'); }
       }
-    }
-
-    checkUser();
-  }, [router]);
-
-  async function handleUpdatePassword(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newPassword) return;
-
-    setIsLoading(true);
-    setMessage("");
-
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (error) {
-      setMessage(`Error: ${error.message}`);
-    } else {
-      setMessage("Success! Password updated. Redirecting to your dashboard...");
-      setTimeout(() => {
-        router.push("/");
-      }, 2000);
-    }
-
-    setIsLoading(false);
+    })();
+    return () => { active = false; };
+  }, [attempt]);
+  async function handleUpdatePassword(event: React.FormEvent) {
+    event.preventDefault();
+    if (pending.current || saved.current || status !== 'ready') return;
+    if (newPassword.length < 8 || newPassword.length > 128) { setMessage('Use a password between 8 and 128 characters.'); return; }
+    if (newPassword !== confirmation) { setMessage('The passwords do not match.'); return; }
+    pending.current = true; setIsLoading(true); setMessage('');
+    try {
+      const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      if (!data.user) throw new Error('No updated account was returned. Check your connection and try again.');
+      // Lock immediately, so even a second click before rerender cannot resubmit a saved password.
+      saved.current = true; setStatus('saved'); setNewPassword(''); setConfirmation('');
+      setMessage('Your password has been updated. You can now continue to your account.');
+    } catch (failure) { setMessage(failure instanceof Error ? failure.message : 'Password update could not be confirmed. Please retry.'); }
+    finally { pending.current = false; setIsLoading(false); }
   }
-
-  if (isChecking) {
-    return (
-      <div className="authChecking" style={{ minHeight: "100vh", background: "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        Verifying secure link...
+  return <main className={styles.page}><header className={styles.header}><ThemeToggle /></header>
+    <div className={styles.layout}><section className={styles.formSide} aria-labelledby="reset-title">
+      <div className={styles.brand}><Image src="/Ladles-logo.png" alt="Ladles of Love" width={68} height={68} /><span><strong>LADLES OF LOVE</strong><small>ACCOUNT RECOVERY</small></span></div>
+      <div className={styles.card}><h2 id="reset-title">Set a new password</h2>
+        {status === 'checking' && <p role="status">Verifying secure link…</p>}
+        {message && <p className={status === 'saved' ? styles.notice : styles.error} role={status === 'saved' ? 'status' : 'alert'}>{message}</p>}
+        {status === 'ready' && <form onSubmit={handleUpdatePassword} aria-busy={isLoading}><fieldset className={styles.fields} disabled={isLoading}><legend className={styles.srOnly}>New password</legend>
+          <p className={styles.intro}>Use 8–128 characters and confirm your new password.</p>
+          <div className={styles.field}><label htmlFor="reset-password">New password</label><div className={styles.password}>
+            <input id="reset-password" type={showPassword ? 'text' : 'password'} required minLength={8} maxLength={128} autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} />
+            <button type="button" aria-pressed={showPassword} aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button>
+          </div></div>
+          <div className={styles.field}><label htmlFor="reset-confirmation">Confirm new password</label><input id="reset-confirmation" type={showPassword ? 'text' : 'password'} required minLength={8} maxLength={128} autoComplete="new-password" value={confirmation} onChange={event => setConfirmation(event.target.value)} /></div>
+          <button type="submit" className={styles.submit}>{isLoading ? 'Saving…' : 'Update password'}</button>
+        </fieldset></form>}
+        {status === 'unavailable' && <><button className={styles.google} onClick={() => { setStatus('checking'); setMessage(''); setAttempt(value => value + 1); }}>Retry link check</button><p className={styles.footer}><Link href="/?recovery=1">Request a new reset link</Link></p></>}
+        {status === 'saved' && <Link className={styles.google} href="/">Continue to my account</Link>}
+        {status !== 'saved' && <p className={styles.footer}><Link href="/">Back to sign in</Link></p>}
       </div>
-    );
-  }
-
-  return (
-    <main className="authPage" style={{ minHeight: "100vh", background: "#f3f3f3", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Helvetica Neue', Arial, sans-serif", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: "6px", background: "#ef3a40", zIndex: 100 }} />
-      <ThemeToggle className="authThemeToggle" />
-
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "440px", padding: "0 20px", position: "relative", zIndex: 1 }}>
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div style={{ width: "90px", height: "90px", margin: "0 auto 16px" }}>
-            <Image className="brandLogoImage" src="/Ladles-logo.png" alt="Ladles of Love" width={90} height={90} style={{ objectFit: "contain", width: "100%", height: "100%" }} />
-          </div>
-        </div>
-
-        <div className="authCard" style={{ background: "#ffffff", borderRadius: "12px", padding: "40px 36px", width: "100%", boxShadow: "0 8px 40px rgba(43,51,54,0.10)", border: "1px solid #e0e0e0" }}>
-          <h2 style={{ fontSize: "22px", color: "#2b3336", margin: "0 0 4px", fontWeight: "800" }}>Set New Password</h2>
-          <p style={{ fontSize: "13px", color: "#666", margin: "0 0 28px" }}>Please enter your new secure password.</p>
-
-          <form onSubmit={handleUpdatePassword}>
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#2b3336", marginBottom: "6px", letterSpacing: "1px", textTransform: "uppercase" }}>New Password</label>
-              <div style={{ position: "relative" }}>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  style={{ width: "100%", padding: "12px 14px", borderRadius: "6px", border: "1.5px solid #ddd", background: "#f3f3f3", fontSize: "14px", color: "#2b3336", outline: "none", boxSizing: "border-box", paddingRight: "60px" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", fontSize: "11px", fontWeight: "700", color: "#666", cursor: "pointer", letterSpacing: "0.5px" }}
-                >
-                  {showPassword ? "HIDE" : "SHOW"}
-                </button>
-              </div>
-            </div>
-
-            {message && (
-              <div style={{ padding: "10px", marginBottom: "16px", borderRadius: "6px", background: message.includes("Error") ? "#fee2e2" : "#dcfce7", color: message.includes("Error") ? "#ef3a40" : "#16a34a", fontSize: "12px", textAlign: "center", fontWeight: "600", lineHeight: "1.4" }}>
-                {message}
-              </div>
-            )}
-
-            <button type="submit" disabled={isLoading} style={{ width: "100%", padding: "14px", borderRadius: "6px", border: "none", background: "#ef3a40", color: "#fff", fontSize: "14px", fontWeight: "700", cursor: "pointer", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "12px", boxShadow: "0 4px 14px rgba(239,58,64,0.35)", transition: "background 0.2s" }} onMouseOver={(e) => (e.currentTarget as HTMLButtonElement).style.background = "#2b3336"} onMouseOut={(e) => (e.currentTarget as HTMLButtonElement).style.background = "#ef3a40"}>
-              {isLoading ? "Saving..." : "Update Password"}
-            </button>
-          </form>
-        </div>
-      </div>
-    </main>
-  );
+    </section></div>
+  </main>;
 }

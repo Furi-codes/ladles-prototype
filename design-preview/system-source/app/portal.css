@@ -1,0 +1,43 @@
+/* Shared portal foundation. Auth screens and document print layouts retain their own styles. */
+.portalUi {
+  --portal-bg: #f5f6f9;
+  --portal-surface: #ffffff;
+  --portal-ink: #222b36;
+  --portal-muted: #697582;
+  --portal-line: #e7e9ee;
+  --portal-accent: #c91d32;
+  --portal-accent-hover: #ad182b;
+  --portal-soft: #fff0f2;
+  --portal-shadow: 0 4px 20px #27314206;
+  --portal-font: "Segoe UI", Arial, sans-serif;
+  --portal-sidebar: 228px;
+  --portal-radius: 11px;
+}
+html[data-theme="dark"] .portalUi {
+  --portal-bg: #111820;
+  --portal-surface: #1a2530;
+  --portal-ink: #f0f4f8;
+  --portal-muted: #aebdcb;
+  --portal-line: #354454;
+  --portal-accent: #ff9fa7;
+  --portal-accent-hover: #ffc0c5;
+  --portal-soft: #342127;
+  --portal-shadow: 0 4px 20px #00000012;
+}
+@media screen {
+  .portalUi { font-family: var(--portal-font); font-size: 14px; line-height: 1.5; }
+  .portalUi :where(button, input, select, textarea) { font-family: inherit; }
+  .portalUi :where(button, a, input, select, textarea):focus-visible { outline: 3px solid var(--portal-accent); outline-offset: 3px; }
+  .portalUi :where(button, a) { transition: background-color .16s ease, color .16s ease, border-color .16s ease, box-shadow .16s ease; }
+  .portalUi :where(button:disabled) { cursor: not-allowed; opacity: .6; }
+  .portalUi :where(input, select, textarea) { accent-color: var(--portal-accent); }
+  .portalUi :where(img, svg) { flex-shrink: 0; }
+  .portalUi .themeToggle { min-height: 40px; border-color: var(--portal-line); background: var(--portal-surface); color: var(--portal-muted); font-weight: 600; }
+  .portalUi .themeToggle:hover { background: var(--portal-bg); }
+  .portalSkipLink { position: fixed; left: 16px; top: 12px; z-index: 200; transform: translateY(-160%); padding: 10px 16px; background: var(--portal-surface); color: var(--portal-ink); border: 2px solid var(--portal-accent); border-radius: 8px; }
+  .portalSkipLink:focus { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .portalUi *, .portalUi *::before, .portalUi *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media print { .portalSkipLink { display: none !important; } }

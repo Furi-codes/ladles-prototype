@@ -2,6 +2,8 @@
 import { supabase } from '@/lib/supabase'
 import { AVATAR_BUCKET, MAX_AVATAR_BYTES } from '@/lib/avatar'
 import type { Profile, VolunteerConsent } from '@/lib/types'
+import { corporateRolloutEnabled } from '@/lib/feature-flags'
+import { isValidPhone, normalisePhone } from '@/lib/contact-details'
 
 /** Retrieves the user's role and basic profile details for access checks and admin UI. */
 export async function fetchUserRole(userId: string) {
@@ -10,10 +12,17 @@ export async function fetchUserRole(userId: string) {
 
 /** Updates name/date of birth for the supplied user ID. The caller passes only editable fields;
  * database policies must still prevent updates to other users or protected fields. */
-export async function updateVolunteerProfile(userId: string, data: { full_name: string; date_of_birth: string }) {
+export async function updateVolunteerProfile(userId: string, data: { full_name: string; date_of_birth: string; phone?: string }) {
+  const editable: { full_name: string; date_of_birth: string; phone?: string } = { full_name: data.full_name.trim(), date_of_birth: data.date_of_birth };
+  if (!editable.full_name) return { data: null, error: { message: 'Enter your full name.' } };
+  if (corporateRolloutEnabled) {
+    const phone = normalisePhone(data.phone ?? '');
+    if (!isValidPhone(phone)) return { data: null, error: { message: 'Enter a valid cellphone number.' } };
+    editable.phone = phone;
+  }
   return supabase
     .from('profiles')
-    .update(data)
+    .update(editable)
     .eq('id', userId)
     .select()
     .single()
