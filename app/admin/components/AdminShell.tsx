@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useNavigationDrawer } from "@/app/components/useNavigationDrawer";
 import { useSignOut } from "@/app/components/useSignOut";
+import { useSessionBoundary } from "@/app/components/useSessionBoundary";
 import styles from "../admin.module.css";
 import Sidebar from "./Sidebar";
 import TopHeader from "./TopHeader";
@@ -11,12 +13,16 @@ import AdminLoadingScreen from "./AdminLoadingScreen";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const { signOut: handleSignOut, busy: signingOut, error: signOutError } = useSignOut();
-  const { adminProfile, isCheckingAccess, loadError } = useAdminData();
+  const { adminProfile, isCheckingAccess, accessError, retryAccess, loadError } = useAdminData();
+  const sessionEnded = useSessionBoundary(!isCheckingAccess);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   useNavigationDrawer(mobileNavOpen, () => setMobileNavOpen(false), "admin-mobile-navigation", 760);
 
+  // Do not leave cached volunteer/company details visible after another tab changes the session.
+  if (sessionEnded) return <div className={`portalUi ${styles.shell}`}><main className={styles.content}><h1>Your session has changed</h1><p>Sign in again to load the correct account. Previous administration details have been hidden.</p><Link className={styles.primaryButton} href="/">Continue to sign in</Link></main></div>;
+  if (accessError) return <div className="portalUi"><main className={styles.content}><p className={styles.error} role="alert">{accessError}</p><button className={styles.secondaryButton} onClick={retryAccess}>Retry access check</button></main></div>;
   if (isCheckingAccess) return <AdminLoadingScreen />;
 
   return <div className={`portalUi ${styles.shell}`}>

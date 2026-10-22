@@ -15,8 +15,9 @@ export function useFeatureData<T>(loader: () => Promise<T>) {
     try { const result = await loader(); if (version === request.current) setData(result); } catch (e) { if (version === request.current) { setError(e instanceof Error ? e.message : 'Unable to load data.'); setData(null); } }
     finally { if (version === request.current) setLoading(false); }
   }, [loader]);
-  // A changed loader schedules a new load; cleanup cancels the queued start, not an already-running request.
-  useEffect(() => { let active = true; queueMicrotask(() => { if (active) void reload(); }); return () => { active = false; }; }, [reload]);
+  const invalidate = useCallback(() => { ++request.current; }, []);
+  // Cleanup also makes an in-flight response stale, so a replaced screen cannot restore old records.
+  useEffect(() => { let active = true; queueMicrotask(() => { if (active) void reload(); }); return () => { active = false; invalidate(); }; }, [reload, invalidate]);
   return { data, error, loading, reload };
 }
 /** Shows loading first, then an error with Retry; returns nothing for a successful loaded state. */

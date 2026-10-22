@@ -4,7 +4,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AttendanceCheckpoint, AttendanceRecord, Booking, Event, EventSlot, Volunteer } from "../../../lib/types";
-import { supabase, getCurrentUser } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { fetchUserRole } from "@/lib/actions/profile";
 import { fetchAdminAttendanceCheckpoints, fetchAdminAttendanceRecords, fetchAdminBookings, fetchAdminEvents, fetchAdminEventSlots, fetchVolunteers, markMissedBookingsNoShow } from "@/lib/actions/admin";
 
@@ -21,6 +21,8 @@ type AdminContextValue = {
   adminProfile: AdminProfile;
   isLoading: boolean;
   isCheckingAccess: boolean;
+  accessError: string | null;
+  retryAccess: () => void;
   loadError: string | null;
   fetchData: () => Promise<void>;
 };
@@ -40,30 +42,39 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [accessAttempt, setAccessAttempt] = useState(0);
   // A later refresh invalidates earlier requests, so a slow response cannot restore older data.
   const refreshRequest = useRef(0);
 
   useEffect(() => {
+    let active = true;
     /** Checks Auth and the stored role before showing admin content. RLS still protects database access. */
     async function guardAdminAccess() {
-      const user = await getCurrentUser();
-      if (!user) {
-        router.replace("/");
-        return;
+      try {
+        const { data, error: authError } = await supabase.auth.getUser();
+        if (!active) return;
+        if (authError && authError.name !== 'AuthSessionMissingError') throw authError;
+        if (!data.user) { router.replace("/"); return; }
+        const { data: profile, error } = await fetchUserRole(data.user.id);
+        if (!active) return;
+        // A failed role lookup is not proof that this user is a volunteer.
+        if (error) throw error;
+        if (!profile) throw new Error('Profile unavailable.');
+        if (profile.role !== "admin") { router.replace("/volunteer"); return; }
+        setAdminProfile({ full_name: profile.full_name, email: profile.email });
+        setAccessError(null);
+        setIsCheckingAccess(false);
+      } catch {
+        if (active) setAccessError('Admin access could not be checked. Check your connection and retry.');
       }
-
-      const { data: profile, error } = await fetchUserRole(user.id);
-      if (error || !profile || profile.role !== "admin") {
-        router.replace("/volunteer");
-        return;
-      }
-
-      setAdminProfile({ full_name: profile.full_name, email: profile.email });
-      setIsCheckingAccess(false);
     }
 
     void guardAdminAccess();
-  }, [router]);
+    return () => { active = false; };
+  }, [router, accessAttempt]);
+
+  const retryAccess = () => { setAccessError(null); setAccessAttempt(value => value + 1); };
 
   /** Requests no-show finalisation, then loads six datasets in parallel; only the latest request updates state. */
   const fetchData = useCallback(async () => {
@@ -145,7 +156,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchData, invalidateRefresh, isCheckingAccess]);
 
-  return <AdminContext.Provider value={{ events, bookings, attendanceRecords, eventSlots, attendanceCheckpoints, volunteers, adminProfile, isLoading, isCheckingAccess, loadError, fetchData }}>{children}</AdminContext.Provider>;
+  return <AdminContext.Provider value={{ events, bookings, attendanceRecords, eventSlots, attendanceCheckpoints, volunteers, adminProfile, isLoading, isCheckingAccess, accessError, retryAccess, loadError, fetchData }}>{children}</AdminContext.Provider>;
 }
 
 /** Gets the shared admin context, throwing if a component is outside AdminProvider. */

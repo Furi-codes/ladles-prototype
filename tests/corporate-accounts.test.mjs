@@ -101,6 +101,21 @@ test('approved corporate login routes to bookings only when the separate booking
   assert.equal(await modules({from:from('Approved')}).load('lib/actions/account-routing.ts').accountLandingPath('volunteer'),'/corporate');
 });
 
+test('workspace choice requires both real memberships and never grants corporate-only users volunteer access',async()=>{
+  for(const status of ['Approved','Awaiting approval','Rejected']){
+    const from=()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:{id:'company',status},error:null})});
+    const routing=modules({bookings:true,from}).load('lib/actions/account-routing.ts');
+    assert.equal(await routing.accountLandingPath('volunteer',false,true),'/?workspace=choose');
+    assert.equal(await routing.accountLandingPath('volunteer',true,true),'/?workspace=choose');
+    assert.equal(await routing.accountLandingPath('volunteer',false,false),status==='Approved'?'/corporate/bookings':'/corporate');
+    assert.equal(await routing.accountLandingPath('admin',false,true),'/admin');
+  }
+  const absent=modules({from:()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:null,error:null})})}).load('lib/actions/account-routing.ts');
+  assert.equal(await absent.accountLandingPath('volunteer',false,true),'/volunteer');
+  assert.equal(await absent.accountLandingPath('volunteer',true,true),'/corporate/register');
+  assert.equal(await modules({enabled:false}).load('lib/actions/account-routing.ts').accountLandingPath('volunteer',false,true),'/volunteer');
+});
+
 test('real corporate forms show group/contact review, external payment and admin-only decision controls',()=>{
   const m=modules({bookings:true});
   const event={id:'event',version:1,title:'Corporate session',description:'Admin-authored description',location:'Example venue',starts_at:'2099-11-15T09:15:00+02:00',ends_at:'2099-11-15T10:15:00+02:00',capacity:10,min_group_size:2,max_group_size:8,reserved_places:0,remaining:10,state:'Available'};

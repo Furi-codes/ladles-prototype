@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { corporateRolloutEnabled } from '@/lib/feature-flags';
 import { getCorporateAccountDetail, getCorporateRolloutSettings, reviewCorporateAccount, searchCorporateAccounts, setCorporateRolloutSettings } from '@/lib/actions/corporate-accounts';
 import type { CorporateAccountDetail, CorporateAccountStatus, CorporateRolloutSettings } from '@/lib/corporate-account-types';
@@ -14,11 +15,15 @@ import ui from '@/app/corporate/corporate.module.css';
 
 export default function CorporateAccountAdministration() {
   if (!corporateRolloutEnabled) return <p>Corporate account rollout is not enabled on this deployment.</p>;
-  return <AccountAdministration />;
+  return <Suspense fallback={<p role="status">Loading corporate accounts…</p>}><CorporateAccountRoute /></Suspense>;
+}
+function CorporateAccountRoute() {
+  const accountId = useSearchParams().get('account');
+  return <AccountAdministration key={accountId || 'accounts'} accountId={accountId} />;
 }
 
 /** Separate from legacy CSR: reviews new self-service accounts, not shared volunteer-slot bookings. */
-function AccountAdministration() {
+function AccountAdministration({ accountId }: { accountId: string | null }) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<CorporateAccountStatus | ''>('');
   const [page, setPage] = useState(1);
@@ -30,11 +35,11 @@ function AccountAdministration() {
   const [busy, setBusy] = useState(false);
   const [rolloutDirty, setRolloutDirty] = useState(false);
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('account'); if (!id) return;
+    if (!accountId) return;
     let active = true;
-    void getCorporateAccountDetail(id).then(result => { if (active) setDetail(result); }).catch(failure => { if (active) setError(failure instanceof Error ? failure.message : 'Account could not be opened.'); });
+    void getCorporateAccountDetail(accountId).then(result => { if (active) setDetail(result); }).catch(failure => { if (active) setError(failure instanceof Error ? failure.message : 'Account could not be opened.'); });
     return () => { active = false; };
-  }, []);
+  }, [accountId]);
   const confirmDiscard = useUnsavedChanges(Boolean(reason) || rolloutDirty);
   const loader = useCallback(() => searchCorporateAccounts(query, status, page), [query, status, page]);
   const { data, loading, error: loadError, reload } = useFeatureData(loader);
