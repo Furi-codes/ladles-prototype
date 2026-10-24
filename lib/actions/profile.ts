@@ -13,12 +13,13 @@ export async function fetchUserRole(userId: string) {
 /** Updates name/date of birth for the supplied user ID. The caller passes only editable fields;
  * database policies must still prevent updates to other users or protected fields. */
 export async function updateVolunteerProfile(userId: string, data: { full_name: string; date_of_birth: string; phone?: string }) {
-  const editable: { full_name: string; date_of_birth: string; phone?: string } = { full_name: data.full_name.trim(), date_of_birth: data.date_of_birth };
+  const editable: { full_name: string; date_of_birth: string; phone?: string | null } = { full_name: data.full_name.trim(), date_of_birth: data.date_of_birth };
   if (!editable.full_name) return { data: null, error: { message: 'Enter your full name.' } };
   if (corporateRolloutEnabled) {
     const phone = normalisePhone(data.phone ?? '');
-    if (!isValidPhone(phone)) return { data: null, error: { message: 'Enter a valid cellphone number.' } };
-    editable.phone = phone;
+    if (phone && !isValidPhone(phone)) return { data: null, error: { message: 'Enter a valid cellphone number or leave it blank.' } };
+    // The database stores an omitted/cleared optional number as NULL, not an invalid empty string.
+    editable.phone = phone || null;
   }
   return supabase
     .from('profiles')
@@ -69,8 +70,16 @@ function photoSaveMessage(error: unknown) {
   return 'Your photo could not be saved. Check your connection and try again. Your previous photo has not been replaced.';
 }
 
+/** Both portals have an own-user profile row. Sharing photo storage does not grant
+ * volunteer membership or expose another account's data; RLS still applies. */
+export async function fetchProfileAvatar(userId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('profiles').select('avatar_path').eq('id', userId).single<Pick<Profile, 'avatar_path'>>();
+  if (error || !data) throw new Error('Your saved image could not be loaded. Please retry.');
+  return data.avatar_path ?? null;
+}
+
 /** Uploads a newly prepared photo before changing the profile, preserving the old photo on failure. */
-export async function saveVolunteerAvatar(userId: string, photo: Blob | null) {
+export async function saveProfileAvatar(userId: string, photo: Blob | null) {
   let uploadedPath: string | null = null;
   let profileSaved = false;
   try {
@@ -109,3 +118,6 @@ export async function saveVolunteerAvatar(userId: string, photo: Blob | null) {
     return { data: null, error: photoSaveMessage(error) };
   }
 }
+
+// Keep the existing volunteer call site while corporate uses the same safe upload implementation.
+export const saveVolunteerAvatar = saveProfileAvatar;

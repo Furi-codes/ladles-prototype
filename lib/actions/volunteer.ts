@@ -69,7 +69,7 @@ export async function markVolunteerNotificationRead(notificationId: number, user
     .single()
 }
 
-/** Only the unread records currently shown in the inbox are marked read. */
+/** Mark loaded unread IDs across the complete inbox, including rows below Show more. */
 export async function markVolunteerNotificationsRead(ids: number[], userId: string) {
   const updated: number[] = [];
   for (let offset = 0; offset < ids.length; offset += 200) {

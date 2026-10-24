@@ -51,3 +51,13 @@ test('related activity pagination follows server counts even with reduced API pa
   assert.deepEqual(await actions.reportRelatedRows('bookings','event_id',[1]),[{id:1},{id:2},{id:3}]);
   assert.deepEqual(requests.map(r=>r.operations.find(op=>op[0]==='range')[1]),[0,1,2]);
 });
+
+test('volunteer reports never query legacy CSR tables, even when those tables are unavailable', async () => {
+  const { actions, requests } = await mockedLoader(({table}) => {
+    assert.ok(!table.startsWith('corporate_'), 'Volunteer analytics must not depend on CSR access');
+    return { data: table==='events' ? [{id:9}] : table==='bookings' ? [{id:99}] : [], error:null, count:table==='events'||table==='bookings' ? 1 : 0 };
+  });
+  const result = await actions.loadVolunteerReportData({from:'2026-09-01',to:'2026-09-18',event:'9',location:''});
+  assert.deepEqual(result.corporate, []); assert.deepEqual(result.companies, []);
+  assert.deepEqual(requests.map(r=>r.table).sort(), ['attendance_records','bookings','event_slots','events']);
+});

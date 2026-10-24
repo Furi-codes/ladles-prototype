@@ -28,6 +28,8 @@ export async function getCorporateBookingSettings() {
   if (settings.booking_schema_version !== 1) throw new Error('Corporate bookings are temporarily unavailable. Please contact the booking team.');
   if (corporateChangesEnabled && settings.changes_schema_version !== 1) throw new Error('Corporate change requests are temporarily unavailable. Please contact the booking team.');
   if (corporateOutcomesEnabled && settings.outcomes_schema_version !== 1) throw new Error('Corporate attendance/reporting is temporarily unavailable. Please contact the booking team.');
+  if (corporateOutcomesEnabled && settings.event_hours_schema_version !== 1) throw new Error('Event-hours recording is temporarily unavailable. Please contact the booking team.');
+  if (settings.exclusive_sessions_schema_version !== 1) throw new Error('Exclusive corporate sessions are temporarily unavailable. Please refresh after the database update.');
   return settings;
 }
 export async function configureCorporateBookings(enabled: boolean, email: string, phone: string) {
@@ -44,7 +46,7 @@ export async function searchCorporateBookings(input = emptyWorkflowFilters, page
 export async function saveCorporateEvent(input: CorporateEventInput, reason: string, creationKey: string | null, current?: CorporateEvent) {
   validateCorporateEvent(input);
   const clean: CorporateEventInput = { title: input.title.trim(), description: input.description.trim(), location: input.location.trim(), starts_at: input.starts_at, ends_at: input.ends_at, capacity: input.capacity, min_group_size: input.min_group_size, max_group_size: input.max_group_size, is_published: input.is_published };
-  if (!clean.title || clean.title.length > 180 || !clean.description || clean.description.length > 2000 || !clean.location || clean.location.length > 300 || !reason.trim() || reason.trim().length > 800) throw new Error('Complete the event details and a reason/message for this change.');
+  if (!clean.title || clean.title.length > 180 || !clean.description || clean.description.length > 2000 || !clean.location || clean.location.length > 300 || reason.trim().length > 800 || current && current.affected_bookings !== 0 && !reason.trim()) throw new Error('Complete the event details and a change message for affected companies.');
   return call<CorporateEvent>('corporate_save_event', { p_event_id: current?.id ?? null, p_version: current?.version ?? null, p_details: clean, p_creation_key: creationKey, p_reason: reason.trim() });
 }
 export async function requestCorporateBooking(event: Pick<CorporateEvent, 'id' | 'version'>, size: number, notes: string, key: string) {

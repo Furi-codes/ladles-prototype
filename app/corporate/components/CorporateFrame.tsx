@@ -1,23 +1,60 @@
 "use client";
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import ThemeToggle from '@/app/components/ThemeToggle';
-import { usePathname } from 'next/navigation';
 import { useSignOut } from '@/app/components/useSignOut';
 import { useSessionBoundary } from '@/app/components/useSessionBoundary';
-import { corporateBookingsEnabled, corporateOutcomesEnabled } from '@/lib/feature-flags';
+import type { CorporateAccount } from '@/lib/corporate-account-types';
+import ProfileAvatar from '@/app/volunteer/components/ProfileAvatar';
+import ConfirmDialog from '@/app/volunteer/components/ConfirmDialog';
+import PortalContactFooter from '@/app/components/PortalContactFooter';
+import CorporateNavigation from './CorporateNavigation';
+import CorporateNotificationBell from './CorporateNotificationBell';
+import { corporateBookingsEnabled } from '@/lib/feature-flags';
+import volunteer from '@/app/volunteer/volunteer.module.css';
 import styles from '../corporate.module.css';
 import admin from '@/app/admin/admin.module.css';
 
-/** Uses the existing portal colours and a sticky account bar, without volunteer/WMS data providers. */
-export default function CorporateFrame({ children, signedIn = false, workflowAccess = false }: { children: React.ReactNode; signedIn?: boolean; workflowAccess?: boolean }) {
-  const { signOut: endSession, busy, error } = useSignOut();
+/** Reuse the volunteer presentation, not its data provider: company access remains separate. */
+export default function CorporateFrame({ children, signedIn = false, workflowAccess = false, account, signInEmail, avatarUrl }: {
+  children: React.ReactNode; signedIn?: boolean; workflowAccess?: boolean; account?: CorporateAccount | null; signInEmail?: string; avatarUrl?: string | null;
+}) {
+  const { signOut, busy, error } = useSignOut();
   const sessionEnded = useSessionBoundary(signedIn);
-  const pathname = usePathname();
-  async function signOut() {
-    if (!busy && window.confirm('Sign out of the corporate portal?')) await endSession();
-  }
-  if (sessionEnded) return <div className={`portalUi ${styles.shell}`}><main className={styles.main}><h1>Your session has changed</h1><p>Sign in again to load the correct business account. Previous account details have been hidden.</p><Link className={admin.primaryButton} href="/?portal=corporate">Continue to sign in</Link></main></div>;
-  return <div className={`portalUi ${styles.shell}`}><a className="portalSkipLink" href="#corporate-content">Skip to content</a><header className={styles.header}><Link className={styles.brand} href="/corporate"><Image src="/Ladles-logo.png" alt="Ladles of Love" width={40} height={48} /><span><strong>LADLES OF LOVE</strong><small>CORPORATE PORTAL</small></span></Link><div className={styles.actions}><ThemeToggle />{signedIn ? <button className={admin.secondaryButton} disabled={busy} onClick={() => void signOut()}>{busy ? 'Signing out…' : 'Sign out'}</button> : <Link className={admin.secondaryButton} href="/?portal=corporate">Sign in</Link>}</div></header><main id="corporate-content" className={styles.main}>{error && <p className={admin.error} role="alert">{error}</p>}{signedIn && workflowAccess && corporateBookingsEnabled && <nav className={styles.tabs} aria-label="Corporate workspace">{[['/corporate/bookings','My bookings'],['/corporate/events','Browse events'],['/corporate/updates','Booking updates'],['/corporate','Business profile'],...(corporateOutcomesEnabled ? [['/corporate/reports','Group reports']] : [])].map(([href,label]) => <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>{label}</Link>)}</nav>}{children}</main></div>;
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // Enable the shared button/card rules used by corporate forms as well as volunteer styling.
+  const shell = `portalUi ${admin.shell} ${volunteer.shell} ${styles.shell}`;
+  // The brand returns approved companies to their workspace; the account icon
+  // remains the profile shortcut. Unapproved companies stay on their review page.
+  const homeHref = !signedIn ? '/' : workflowAccess && corporateBookingsEnabled ? '/corporate/bookings' : '/corporate';
+  if (sessionEnded) return <div className={shell}><main className={volunteer.content}><h1 className={volunteer.pageTitle}>Your session has changed</h1><p>Sign in again to load the correct business account. Previous account details have been hidden.</p><Link className={volunteer.primaryButton} href="/">Continue to sign in</Link></main></div>;
+
+  return <div className={shell}>
+    <a className="portalSkipLink" href="#corporate-content">Skip to content</a>
+    <div className={volunteer.topAccent} />
+    <header className={`${volunteer.topbar} ${styles.header}`}>
+      <Link className={volunteer.brand} href={homeHref} aria-label={homeHref === '/corporate/bookings' ? 'Ladles of Love — My bookings' : signedIn ? 'Ladles of Love business profile' : 'Ladles of Love — Sign in'}>
+        <Image className="brandLogoImage" src="/Ladles-logo.png" alt="" width={40} height={48} style={{ objectFit: 'contain' }} priority />
+        <div><p className={volunteer.brandName}>LADLES OF LOVE</p><div className={volunteer.brandSub}>Corporate portal</div></div>
+      </Link>
+      {signedIn && workflowAccess && <CorporateNavigation />}
+      <div className={`${volunteer.topActions} ${styles.headerActions}`}>
+        {signedIn && workflowAccess && corporateBookingsEnabled && <CorporateNotificationBell />}
+        <ThemeToggle />
+        {signedIn ? <>
+          {account && <Link href="/corporate" className={`${volunteer.account} ${styles.headerAccount}`} aria-label="Open business profile" title="Business profile and account settings"><ProfileAvatar name={account.company_name} src={avatarUrl} /><div className={volunteer.accountDetails}><span className={volunteer.accountName}>{account.company_name}</span><span className={volunteer.accountEmail}>{signInEmail || 'Business account'}</span></div></Link>}
+          <button type="button" className={volunteer.signOut} disabled={busy} onClick={() => setConfirmSignOut(true)}>{busy ? 'Signing out…' : 'Sign out'}</button>
+        </> : <Link className={volunteer.secondaryButton} href="/">Sign in</Link>}
+      </div>
+    </header>
+    <main id="corporate-content" tabIndex={-1} className={`${volunteer.content} ${styles.main}`}>
+      {error && !confirmSignOut && <p className={volunteer.error} role="alert">{error}</p>}
+      {children}
+      {signedIn && <PortalContactFooter portal="corporate" />}
+    </main>
+    {signedIn && workflowAccess && <CorporateNavigation mobile />}
+    {confirmSignOut && <ConfirmDialog title="Sign out?" message="Are you sure you want to sign out of the corporate portal?" confirmLabel={busy ? 'Signing out…' : 'Sign out'} busy={busy} error={error} onCancel={() => setConfirmSignOut(false)} onConfirm={() => void signOut()} />}
+  </div>;
 }

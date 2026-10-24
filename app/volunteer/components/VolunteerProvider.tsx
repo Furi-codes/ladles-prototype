@@ -10,8 +10,6 @@ import { bookEventSlot, cancelUserBooking, ensureUserProfile, fetchBookingsForVo
 import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile, VolunteerConsent } from "@/lib/types";
 import { useProfilePhotoUrl } from "./useProfilePhotoUrl";
 import { fetchVolunteerReminderPreference, saveVolunteerReminderPreference } from "@/lib/actions/volunteer";
-import { corporateRolloutEnabled } from "@/lib/feature-flags";
-import { isValidPhone } from "@/lib/contact-details";
 
 /** Short-lived UI feedback; these messages are separate from stored inbox notifications. */
 type Toast = { id: number; type: "success" | "error" | "info"; message: string };
@@ -250,7 +248,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     // Check signed-in profile and already-loaded bookings before sending the create request.
     if (!user || !profile) return "Please sign in before booking an event.";
     if (bookings.some((booking) => booking.event_id === slot.event_id && booking.user_id === user.id)) return "You are already signed up for this event.";
-    if (corporateRolloutEnabled && !isValidPhone(profile.phone ?? '')) return "Add your cellphone number in My profile before making a new booking. Existing attendance and cancellation remain available.";
+    // Cellphone is optional. Any future phone requirement must come from the saved database setting.
     // This UI check is for feedback; the database must recheck rules against current data.
     const { error } = await bookEventSlot(slot.id);
     if (error) {

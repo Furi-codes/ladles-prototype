@@ -10,8 +10,10 @@ export interface CorporateEventInput {
 }
 export interface CorporateEvent extends CorporateEventInput {
   id: string; version: number; reserved_places: number; remaining: number;
-  state: 'Started' | 'Closed' | 'Full' | 'Available' | 'Cancelled'; created_at: string; updated_at: string;
+  state: 'Started' | 'Closed' | 'Full' | 'Reserved' | 'Available' | 'Cancelled'; created_at: string; updated_at: string;
   cancelled_at?: string | null; cancellation_reason?: string | null;
+  /** Returned to administrators only; rechecked under the workflow lock before an edit. */
+  affected_bookings?: number;
 }
 export interface CorporateReservation {
   id: string; account_id: string; event_id: string; group_size: number; status: CorporateReservationStatus;
@@ -38,6 +40,8 @@ export interface CorporateBookingSettings {
   booking_schema_version: number; booking_enabled: boolean; booking_contact_email: string; booking_contact_phone: string;
   changes_schema_version?: number; changes_enabled?: boolean;
   outcomes_schema_version?: number;
+  event_hours_schema_version?: number;
+  exclusive_sessions_schema_version?: number;
 }
 export interface CorporateBookingNotice {
   id: string; account_id: string; booking_id: string; title: string; message: string; created_at: string; is_read: boolean;
@@ -51,14 +55,14 @@ export interface CorporateBookingChange {
   created_at: string; reviewed_at: string | null; review_note: string | null;
   additional_amount: number | null; payment_due_at: string | null;
 }
-/** Group totals entered by admin, not individual volunteers or inferred session duration. */
+/** Actual attendance and whole event duration entered by admin. */
 export interface CorporateGroupAttendance {
-  attendance_count: number; group_hours: number | null; note: string;
+  attendance_count: number; event_hours: number | null; note: string;
   recorded_by_name: string; updated_at: string;
 }
 export interface CorporateOutcomeSummary {
   bookings: number; accepted_places: number; completed_groups: number;
-  attendance_instances: number; group_hours: number; groups_without_hours: number; overdue_bookings: number;
+  attendance_instances: number; event_hours: number; groups_without_hours: number; overdue_bookings: number;
 }
 export interface CorporateOutcomeReport extends PagedRows<CorporateBookingRow> {
   summary: CorporateOutcomeSummary;

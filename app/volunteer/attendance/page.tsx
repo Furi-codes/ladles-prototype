@@ -48,8 +48,8 @@ export default function AttendancePage() {
     }
   }
 
-  return <section className={`${styles.card} ${styles.attendanceCard}`}>
-    <div className={styles.cardHeader}><div><h1 className={styles.cardTitle}>Event attendance</h1><p className={styles.cardHint}>Scan a QR code or enter the organiser’s clock-in or clock-out code.</p></div><button type="button" className={styles.secondaryButton} onClick={() => router.push("/volunteer")}>Back to dashboard</button></div>
+  return <><div className={styles.pageHeading}><div><h1 className={styles.pageTitle}>Attendance</h1><p className={styles.pageDescription}>Scan a QR code or enter the organiser’s clock-in or clock-out code.</p></div></div>
+    <section className={`${styles.card} ${styles.attendanceCard}`}>
     <div className={styles.attendanceBody}>
       {!message?.success && <>
         <div className={entryStyles.methods} aria-label="Attendance method">
@@ -67,5 +67,5 @@ export default function AttendancePage() {
       {message && <div role={message.success ? "status" : "alert"} className={message.success ? styles.messageSuccess : styles.messageError}>{message.text}</div>}
       {message?.success && <div className={styles.modalActions}><button type="button" className={styles.primaryButton} onClick={() => router.push("/volunteer")}>Back to dashboard</button></div>}
     </div>
-  </section>;
+  </section></>;
 }

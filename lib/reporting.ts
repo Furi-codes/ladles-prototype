@@ -126,3 +126,9 @@ export function reportCsv(rows: PerformanceRow[]) {
   // The UTF-8 BOM helps spreadsheet programs read the text; CRLF separates records.
   return '\uFEFF' + [header, ...rows.map(r => [r.event,r.date,r.capacity,r.bookings,r.attendance,r.rate === null ? null : r.rate.toFixed(2),r.individualHours.toFixed(2),r.corporateHours.toFixed(2),r.groups,r.confirmed])].map(r => r.map(csvCell).join(',')).join('\r\n');
 }
+/** Volunteer-only export: no legacy CSR columns or group-hour values. */
+export function volunteerReportCsv(rows: PerformanceRow[]) {
+  if (!rows.length) return null;
+  const header = ['Event','Date','Capacity','Volunteer bookings','Recorded volunteer attendance','Attendance rate (%)','Verified volunteer hours','Confirmed volunteer bookings'];
+  return '\uFEFF' + [header, ...rows.map(r => [r.event,r.date,r.capacity,r.bookings,r.attendance,r.rate===null ? null : r.rate.toFixed(2),r.individualHours.toFixed(2),r.confirmed])].map(r => r.map(csvCell).join(',')).join('\r\n');
+}

@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 const require = createRequire(import.meta.url);
-function fixture() {
+function fixture(search = '') {
   const state = [];
   let cursor = 0;
   const saved = [];
@@ -27,6 +27,7 @@ function fixture() {
   };
   const mocks = {
     react,
+    'next/navigation': { useSearchParams: () => new URLSearchParams(search) },
     '@/lib/actions/corporate': corporate,
     '@/lib/actions/audit': audit,
     './AdminProvider': { useAdminData: () => ({ adminProfile: { full_name: 'Test admin', email: 'admin@example.invalid' } }) },
@@ -60,11 +61,11 @@ const tabs = tree => nodes(tree).filter(node => node.props.role === 'tab');
 test('settings tabs default to notifications and preserve its form while switching sections', () => {
   const f = fixture();
   let tree = f.render();
-  assert.equal(tabs(tree).length, 4);
+  assert.equal(tabs(tree).length, 5);
   assert.equal(panels(tree).filter(panel => !panel.props.hidden)[0].props.id, 'notification-settings');
   assert.ok(!panels(tree).some(panel => panel.props.id === 'organisation-settings'));
   assert.ok(!nodes(tree).some(node => ['default_location', 'contact_email'].includes(node.props.name)));
-  for (let index = 0; index < 4; index++) {
+  for (let index = 0; index < 5; index++) {
     tabs(tree)[index].props.onClick();
     tree = f.render();
     const visible = panels(tree).filter(panel => !panel.props.hidden);
@@ -86,7 +87,7 @@ test('settings tabs support arrow keys, Home and End with focus following select
   let tree = f.render();
   let focused = null;
   tabs(tree).forEach((tab, index) => tab.props.ref({ focus() { focused = index; } }));
-  for (const [key, expected] of [['ArrowLeft', 3], ['Home', 0], ['ArrowRight', 1], ['End', 3], ['ArrowRight', 0]]) {
+  for (const [key, expected] of [['ArrowLeft', 4], ['Home', 0], ['ArrowRight', 1], ['End', 4], ['ArrowRight', 0]]) {
     let prevented = false;
     const selected = tabs(tree).find(tab => tab.props['aria-selected']);
     selected.props.onKeyDown({ key, preventDefault() { prevented = true; } });
@@ -96,6 +97,11 @@ test('settings tabs support arrow keys, Home and End with focus following select
     assert.equal(tabs(tree)[expected].props.tabIndex, 0);
     assert.ok(tabs(tree).filter((_, index) => index !== expected).every(tab => tab.props.tabIndex === -1));
   }
+});
+
+test('booking availability links open Portal contacts directly while invalid sections use the default', () => {
+  assert.equal(panels(fixture('section=contact-settings').render()).find(panel => !panel.props.hidden).props.id, 'contact-settings');
+  assert.equal(panels(fixture('section=not-a-section').render()).find(panel => !panel.props.hidden).props.id, 'notification-settings');
 });
 
 test('saving notification preferences does not submit organisation defaults', async () => {
@@ -115,6 +121,21 @@ test('saving notification preferences does not submit organisation defaults', as
   assert.equal(f.saved[0].contact_email, undefined);
   assert.equal(f.saved[0].timezone, undefined);
   assert.equal(f.saved[0].shift_reminder_enabled, true);
+  assert.equal(f.saved[0].booking_confirmation_enabled, true);
+  assert.equal(f.saved[0].booking_cancellation_enabled, false);
+  assert.equal(f.saved[0].corporate_booking_confirmation_enabled, false);
+});
+
+test('the active reminder control preserves hidden delivery preferences when switched off', async () => {
+  const f = fixture(), tree = f.render();
+  const form = nodes(tree).find(node => node.type === 'form' && node.key === 'version-1');
+  const inputs = nodes(form).filter(node => node.type === 'input');
+  assert.deepEqual(inputs.filter(node => node.props.type === 'checkbox').map(node => node.props.name), ['shift_reminder_enabled']);
+  // Simulate the browser submitting hidden fields with the visible reminder checkbox unchecked.
+  const data = new FormData();
+  for (const node of inputs.filter(node => node.props.type === 'hidden')) data.set(node.props.name, node.props.value);
+  await form.props.action(data);
+  assert.equal(f.saved[0].shift_reminder_enabled, false);
   assert.equal(f.saved[0].booking_confirmation_enabled, true);
   assert.equal(f.saved[0].booking_cancellation_enabled, false);
   assert.equal(f.saved[0].corporate_booking_confirmation_enabled, false);

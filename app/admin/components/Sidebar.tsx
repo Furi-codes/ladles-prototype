@@ -16,8 +16,7 @@ const navLinks: NavLink[] = [
 const extraLinks: NavLink[] = [
   ...(corporateBookingsEnabled ? [{ label: "Corporate bookings", href: "/admin/corporate-bookings", icon: "building" as const }] : []),
   ...(corporateRolloutEnabled ? [{ label: "Corporate accounts", href: "/admin/corporate-accounts", icon: "building" as const }] : []),
-  { label: corporateBookingsEnabled ? "Legacy CSR history" : "Corporate CSR", href: "/admin/csr", icon: "building" as const },
-  { label: "Analytics & reports", href: "/admin/reports", icon: "activity" as const },
+  { label: "Volunteer analytics", href: "/admin/reports", icon: "activity" as const },
   { label: "Settings", href: "/admin/settings", icon: "settings" as const },
 ];
 

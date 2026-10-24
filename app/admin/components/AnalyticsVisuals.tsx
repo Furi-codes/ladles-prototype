@@ -30,10 +30,9 @@ export function AnalyticsOverview({ data }: { data: AnalyticsData }) {
     const eventBookings = data.bookings.filter((booking) => booking.event_id === event.id);
     const bookingIds = new Set(eventBookings.map((booking) => booking.id));
     const eventAttendance = data.attendance.filter((record) => bookingIds.has(record.booking_id));
-    const corporate = data.corporate.filter((booking) => booking.event_id === event.id && booking.status === "Completed");
     current.events += 1;
-    current.attendance += eventBookings.filter((booking) => attendanceByBooking.has(booking.id)).length + corporate.reduce((total, booking) => total + (booking.attendance_count ?? 0), 0);
-    current.hours += eventAttendance.reduce((total, record) => total + (record.worked_minutes ?? 0), 0) / 60 + corporate.reduce((total, booking) => total + Number(booking.volunteer_hours ?? 0), 0);
+    current.attendance += eventBookings.filter((booking) => attendanceByBooking.has(booking.id)).length;
+    current.hours += eventAttendance.reduce((total, record) => total + (record.worked_minutes ?? 0), 0) / 60;
     byCategory.set(category, current);
   }
 
@@ -41,7 +40,7 @@ export function AnalyticsOverview({ data }: { data: AnalyticsData }) {
   const maximum = Math.max(1, ...categories.map(([, value]) => value.hours));
 
   return <section className={`${styles.card} ${visual.categoryCard}`} aria-labelledby="category-comparison">
-      <div className={styles.cardHeader}><div><span className={visual.eyebrow}>Programme breakdown</span><h2 id="category-comparison" className={styles.cardTitle}>Hours by programme</h2><p className={styles.cardHint}>Individual hours + recorded corporate hours.</p></div></div>
+      <div className={styles.cardHeader}><div><span className={visual.eyebrow}>Programme breakdown</span><h2 id="category-comparison" className={styles.cardTitle}>Hours by programme</h2><p className={styles.cardHint}>Verified volunteer hours only.</p></div></div>
       <div className={styles.analyticsBody}>
         {categories.length ? <div className={styles.categoryList}>{categories.map(([category, value]) => <div className={visual.categoryRow} key={category}>
           <div className={visual.categoryLabel}><strong>{category}</strong><span>{value.events} event{value.events === 1 ? "" : "s"} · {value.attendance} attendance instances</span></div>
@@ -86,7 +85,6 @@ export function AttendanceHeatmap({ data }: { data: AnalyticsData }) {
   };
 
   for (const booking of data.bookings) if (checkedIn.has(booking.id)) add(booking.event_id, booking.event_slot_id, 1);
-  for (const booking of data.corporate) if (booking.status === "Completed") add(booking.event_id, booking.event_slot_id, booking.attendance_count ?? 0);
   const maximum = Math.max(1, ...values.values());
   const cellStyle = (count: number): CSSProperties => ({ backgroundColor: count / maximum > .55 ? '#b91c32' : count ? `color-mix(in srgb, var(--portal-accent) ${Math.round(10 + count / maximum * 35)}%, var(--portal-surface))` : 'var(--portal-bg)', color: count / maximum > .55 ? '#fff' : 'var(--portal-ink)' });
 
@@ -108,6 +106,6 @@ export function EventPerformanceChart({ rows }: { rows: PerformanceRow[] }) {
       <div className={visual.categoryLabel}><strong>{row.event}</strong><span>{row.date} · {row.attendance} attended / {row.bookings} reserved</span></div>
       <div className={visual.comparisonBars} role="img" aria-label={`${row.event}: ${row.bookings} reserved places; ${row.attendance} attendance instances`}><span style={{ width: `${row.bookings / maximum * 100}%` }} /><span style={{ width: `${row.attendance / maximum * 100}%` }} /></div>
     </div>)}{!recent.length && <p>No events match this selection.</p>}</div>
-    <p className={styles.analyticsNote}>Attendance may still be incomplete for upcoming or ongoing events. Corporate places are not unique employees.</p>
+    <p className={styles.analyticsNote}>Attendance may still be incomplete for upcoming or ongoing events. Only volunteer attendance is shown.</p>
   </section>;
 }

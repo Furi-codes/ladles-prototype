@@ -55,7 +55,7 @@ export async function saveCorporateBooking(id: number | null, input: CorporateBo
   return data as CorporateBooking;
 }
 /** Loads matching events first, then their slots/bookings/groups and the bookings' attendance. */
-export async function loadReportData(filter: ReportFilter) {
+export async function loadReportData(filter: ReportFilter, includeLegacyCorporate = true) {
   const events: Event[] = [];
   // Reversed dates produce an empty report instead of unrelated data. Category filtering is in reporting.ts.
   if (filter.from && filter.to && filter.from > filter.to) return { events, slots: [], bookings: [], attendance: [], corporate: [], companies: [] };
@@ -76,11 +76,14 @@ export async function loadReportData(filter: ReportFilter) {
   // Related queries use event IDs so rows outside this date/location/event scope are not downloaded.
   const [slots, bookings, corporate, companies] = await Promise.all([
     reportRelatedRows<EventSlot>('event_slots', 'event_id', ids), reportRelatedRows<Booking>('bookings', 'event_id', ids),
-    reportRelatedRows<CorporateBooking>('corporate_bookings', 'event_id', ids), allRows<CorporateCompany>('corporate_companies'),
+    includeLegacyCorporate ? reportRelatedRows<CorporateBooking>('corporate_bookings', 'event_id', ids) : Promise.resolve([] as CorporateBooking[]),
+    includeLegacyCorporate ? allRows<CorporateCompany>('corporate_companies') : Promise.resolve([] as CorporateCompany[]),
   ]);
   const attendance = await reportRelatedRows<AttendanceRecord>('attendance_records', 'booking_id', bookings.map(b => b.id));
   return { events, slots, bookings, attendance, corporate, companies };
 }
+/** Volunteer analytics must not query legacy CSR tables or mix group totals into volunteer figures. */
+export function loadVolunteerReportData(filter: ReportFilter) { return loadReportData(filter, false); }
 /** Small IN batches avoid URL limits; each batch still follows the server's exact count. */
 export async function reportRelatedRows<T>(table: string, column: string, ids: number[]): Promise<T[]> {
   const rows: T[] = [];

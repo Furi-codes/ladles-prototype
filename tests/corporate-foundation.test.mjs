@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {fixture,asUser,rpc,ids,details,openRegistration,register} from './helpers/corporate-database.mjs';
 
+// Historical foundation-stage behaviour. The final replacement rules are tested in account-separation-database.test.mjs.
+
 test('additive migration starts off and preserves existing volunteer/WMS/CSR behaviour',async t=>{
   const db=await fixture(t);
   const settings=await asUser(db,ids.owner,()=>rpc(db,'corporate_get_rollout_settings'));
@@ -95,6 +97,9 @@ test('phone gate applies only to new bookings and directory includes zero-bookin
   await asUser(db,ids.admin,()=>rpc(db,'corporate_set_rollout_settings',[true,true]));
   await assert.rejects(db.query('insert into public.bookings(user_id) values($1)',[ids.owner]),/Add your cellphone/);
   await db.query('delete from public.bookings where user_id=$1',[ids.owner]); // cancellation remains available
+  await asUser(db,ids.admin,()=>rpc(db,'corporate_set_rollout_settings',[true,false]));
+  await db.query('insert into public.bookings(user_id) values($1)',[ids.owner]); // optional again after the setting changes
+  await db.query('delete from public.bookings where user_id=$1',[ids.owner]);
   await asUser(db,ids.owner,()=>db.query('update public.profiles set phone=$1 where id=$2',[details.contact_phone,ids.owner]));
   await db.query('insert into public.bookings(user_id) values($1)',[ids.owner]);
   const directory=await asUser(db,ids.admin,()=>rpc(db,'corporate_volunteer_directory',['','',0,1]));

@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { cleanCorporateAccount, getMyCorporateAccount, registerCorporateAccount, requireCorporateRegistrationOpen } from '@/lib/actions/corporate-accounts';
+import { cleanCorporateAccount, getMyCorporateAccount, requireCorporateRegistrationOpen } from '@/lib/actions/corporate-accounts';
 import type { CorporateAccountInput } from '@/lib/corporate-account-types';
 import CorporateAccountForm from '@/app/corporate/components/CorporateAccountForm';
+import { useSignOut } from './useSignOut';
 import styles from './LoginForm.module.css';
 
 /** Only the business fields live here. Sign-in, branding and tabs belong to the shared entry screen. */
@@ -18,7 +19,9 @@ export default function BusinessRegistration({ onSignIn, onDirtyChange, onBusyCh
   const [checking, setChecking] = useState(true), [checkAttempt, setCheckAttempt] = useState(0);
   const [accessError, setAccessError] = useState(''), [error, setError] = useState('');
   const [receipt, setReceipt] = useState(''), [resending, setResending] = useState(false);
+  const [resendMessage,setResendMessage]=useState('');
   const resendPending = useRef(false);
+  const { signOut, busy: signingOut, error: signOutError } = useSignOut({ redirectTo: '/corporate/register', onSignedOut: () => { setUser(null); } });
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -40,10 +43,10 @@ export default function BusinessRegistration({ onSignIn, onDirtyChange, onBusyCh
 
   async function submit(input: CorporateAccountInput, password: string) {
     const details = cleanCorporateAccount(input);
-    if (user) {
-      // Authenticated users add company membership, not a second Auth login.
-      await registerCorporateAccount(details); router.replace('/corporate'); return;
-    }
+    // Check again at submission: another tab may have signed in since this form was opened.
+    const { data: current, error: sessionError } = await supabase.auth.getUser();
+    if (sessionError && sessionError.name !== 'AuthSessionMissingError') throw sessionError;
+    if (user || current.user) throw new Error('Sign out before registering a separate business account with a different email address.');
     if (password.length < 8 || password.length > 128) throw new Error('Use a password between eight and 128 characters.');
     await requireCorporateRegistrationOpen();
     const { error } = await supabase.auth.signUp({ email: details.contact_email, password, options: {
@@ -60,16 +63,18 @@ export default function BusinessRegistration({ onSignIn, onDirtyChange, onBusyCh
     try {
       const { error } = await supabase.auth.resend({ type: 'signup', email: receipt, options: { emailRedirectTo: `${window.location.origin}/corporate` } });
       if (error) throw error;
+      setResendMessage('If this address still needs verification, another link has been requested. Check your inbox and spam folder before trying again.');
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not request another verification email.'); }
     finally { resendPending.current = false; setResending(false); onBusyChange(false); }
   }
   if (checking) return <p className={styles.intro} role="status">Checking account…</p>;
   if (accessError) return <div className={styles.error} role="alert"><p>{accessError}</p><button type="button" className={styles.textButton} onClick={() => { setChecking(true); setCheckAttempt(value => value + 1); }}>Retry account check</button></div>;
-  if (receipt) return <div className={styles.fields}><div className={styles.notice} role="status"><h3>Check your email</h3><p>If this address can be registered, a verification link will be sent to {receipt}. After verifying, use the shared sign-in to view your account review.</p><p>Already have a login? Sign in with your existing password, then add business access. Submitting this form again does not upgrade an existing account.</p></div>{error && <p className={styles.error} role="alert">{error}</p>}<button type="button" className={styles.submit} disabled={resending} onClick={() => onSignIn(receipt)}>Back to sign in</button><button type="button" className={styles.google} disabled={resending} onClick={() => void resend()}>{resending ? 'Requesting…' : 'Resend verification email'}</button></div>;
+  if (receipt) return <div className={styles.fields}><div className={styles.notice} role="status"><h3>Check your email</h3><p>If this address can be registered, a verification link will be sent to {receipt}. After verifying, sign in to view your business account review.</p><p>A volunteer email cannot be reused for a business account. If this email is already registered, sign in to that account or register the business with a different email.</p></div>{error && <p className={styles.error} role="alert">{error}</p>}{resendMessage && <p className={styles.notice} role="status">{resendMessage}</p>}<button type="button" className={styles.submit} disabled={resending} onClick={() => onSignIn(receipt)}>Back to sign in</button><button type="button" className={styles.google} disabled={resending} onClick={() => void resend()}>{resending ? 'Requesting…' : 'Resend verification email'}</button></div>;
+  if (user) return <div className={styles.fields}><p className={styles.notice}>You’re signed in as {user.email}. A business account must be registered separately, using a different email address.</p>{signOutError && <p className={styles.error} role="alert">{signOutError}</p>}<button type="button" className={styles.submit} disabled={signingOut} onClick={async () => { onBusyChange(true); try { await signOut(); } finally { onBusyChange(false); } }}>{signingOut ? 'Signing out…' : 'Sign out to register a business'}</button></div>;
   return <div className={styles.fields}>
-    <p className={styles.notice}>{user ? `Adding business access to ${user.email}. Your volunteer profile and bookings stay unchanged.` : <>Already have a volunteer or business login? <button type="button" className={styles.textButton} onClick={() => onSignIn()}>Sign in first</button> to use that account. Otherwise, your contact email below becomes your login email.</>}</p>
-    <CorporateAccountForm appearance="auth" key={user?.id || 'new'} initial={user ? { company_name: '', contact_name: user.user_metadata.full_name || '', contact_email: user.email || '', contact_phone: '', billing_address: '' } : undefined} submit={submit} label={user ? 'Request business account approval' : 'Register business'} onDirtyChange={onDirtyChange} onBusyChange={onBusyChange}>
-      {!user ? <p className={styles.intro}>Email verification and admin approval are required. Payment communication happens externally.</p> : null}
+    <CorporateAccountForm appearance="auth" submit={submit} label="Register business" onDirtyChange={onDirtyChange} onBusyChange={onBusyChange}>
+      <p className={styles.intro}>Email verification and admin approval are required. Payment communication happens externally.</p>
     </CorporateAccountForm>
+    <p className={styles.footer}><button type="button" className={styles.textButton} onClick={() => onSignIn()}>Already registered? Sign in</button></p>
   </div>;
 }

@@ -89,6 +89,14 @@ export async function readCorporateAccountNotice(id: string) {
   return call<boolean>('corporate_read_account_notice', { p_notification_id: id });
 }
 
+/** One atomic write covers every visible page. SQL chooses the current user/audience. */
+export async function markAllCorporateNoticesRead() {
+  const count = await call<number>('corporate_read_all_notices');
+  if (!Number.isSafeInteger(count) || count < 0) throw new Error('The read update could not be confirmed. Refresh your notifications before retrying.');
+  return count;
+}
+
 export async function searchVolunteerDirectory(query = '', phoneFilter = '', page = 1) {
-  return call<PagedRows<VolunteerDirectoryItem>>('corporate_volunteer_directory', { p_query: query.trim(), p_phone_filter: phoneFilter, p_offset: Math.max(0, page - 1) * 10, p_limit: 10 });
+  if (query.trim().length>180 || !['','missing','provided'].includes(phoneFilter) || !Number.isSafeInteger(page) || page<1 || (page-1)*10>2147483647) throw new Error('Choose valid directory search, cellphone filter and page.');
+  return call<PagedRows<VolunteerDirectoryItem>>('corporate_volunteer_directory', { p_query: query.trim(), p_phone_filter: phoneFilter, p_offset: (page - 1) * 10, p_limit: 10 });
 }

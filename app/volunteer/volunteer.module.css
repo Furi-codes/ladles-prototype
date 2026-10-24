@@ -1,5 +1,5 @@
 .shell { min-height: 100vh; background: var(--portal-bg, #f5f6f9); color: var(--portal-ink, #222b36); font-family: var(--portal-font, "Segoe UI", Arial, sans-serif); }
-.loadingScreen { display: grid; min-height: 100vh; place-content: center; gap: 16px; padding: 24px; background: #f6f7f9; font-family: "Montserrat", "Segoe UI", sans-serif; text-align: center; }
+.loadingScreen { display: grid; min-height: 100vh; place-content: center; gap: 16px; padding: 24px; background: #f6f7f9; font-family: var(--portal-font, "Segoe UI", Arial, sans-serif); text-align: center; }
 .loadingSpinner { width: 46px; height: 46px; justify-self: center; border: 4px solid rgba(217,39,50,.16); border-top-color: #d92732; border-radius: 50%; animation: volunteerSpin .8s linear infinite; }
 .loadingMessage { margin: 0; color: #657180; font-size: 13px; font-weight: 750; letter-spacing: .7px; text-transform: uppercase; }
 @keyframes volunteerSpin { to { transform: rotate(360deg); } }

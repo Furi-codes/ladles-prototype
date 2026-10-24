@@ -15,14 +15,14 @@ export async function recordCorporateAttendance(booking: CorporateBookingRow, co
   if (!canRecordCorporateAttendance(booking)) throw new Error('Only ended, confirmed/completed bookings without unresolved changes can have attendance recorded.');
   const input = cleanCorporateAttendance(booking.group_size, count, hours, note);
   if (!key) throw new Error('An attendance retry key is required.');
-  return call<CorporateBookingRow>('corporate_record_attendance', { p_booking_id: booking.id, p_version: booking.version, p_request_key: key, p_count: input.attendance_count, p_hours: input.group_hours, p_note: input.note });
+  return call<CorporateBookingRow>('corporate_record_event_attendance', { p_booking_id: booking.id, p_version: booking.version, p_request_key: key, p_count: input.attendance_count, p_hours: input.event_hours, p_note: input.note });
 }
 export async function getCorporateOutcomeReport(filters: CorporateWorkflowFilters, page = 1) {
   if (!Number.isSafeInteger(page) || page < 1 || filters.query.length > 180 || filters.from && filters.to && filters.from > filters.to) throw new Error('Check the report filters and page.');
-  const result = await call<CorporateOutcomeReport>('corporate_outcome_report', { p_query: filters.query.trim(), p_status: filters.status || '', p_from: filters.from || null, p_to: filters.to || null, p_offset: (page - 1) * 10, p_limit: 10 });
+  const result = await call<CorporateOutcomeReport>('corporate_event_outcome_report', { p_query: filters.query.trim(), p_status: filters.status || '', p_from: filters.from || null, p_to: filters.to || null, p_offset: (page - 1) * 10, p_limit: 10 });
   const counts = ['bookings','accepted_places','completed_groups','attendance_instances','groups_without_hours','overdue_bookings'] as const;
   if (!Array.isArray(result.rows) || !Number.isSafeInteger(result.total) || result.total < 0 || result.rows.length !== Math.min(10,Math.max(0,result.total-(page-1)*10)) || typeof result.snapshot !== 'string' || !result.snapshot || !result.summary ||
-    !counts.every(key => Number.isSafeInteger(result.summary[key]) && result.summary[key] >= 0) || result.summary.bookings !== result.total || !Number.isFinite(result.summary.group_hours) || result.summary.group_hours < 0) throw new Error('The report is incomplete. No export can be produced.');
+    !counts.every(key => Number.isSafeInteger(result.summary[key]) && result.summary[key] >= 0) || result.summary.bookings !== result.total || !Number.isSafeInteger(result.summary.event_hours) || result.summary.event_hours < 0) throw new Error('The report is incomplete. No export can be produced.');
   return result;
 }
 /** Don't export only the visible page or silently combine revisions while somebody edits bookings. */

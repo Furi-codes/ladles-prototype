@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { confirmUnsavedNavigation } from '@/lib/unsaved-navigation';
 
 /** Do not send somebody to the login screen while their sign-out request has failed. */
-export function useSignOut({ onSignedOut }: { onSignedOut?: () => void } = {}) {
+export function useSignOut({ onSignedOut, redirectTo = '/' }: { onSignedOut?: () => void; redirectTo?: string } = {}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const pending = useRef(false);
@@ -16,9 +16,9 @@ export function useSignOut({ onSignedOut }: { onSignedOut?: () => void } = {}) {
     try {
       const { error: failure } = await supabase.auth.signOut();
       if (failure) throw failure;
-      // Entry screens already on '/' also need to clear their local workspace-choice state.
+      // A registration screen can clear its local session state and keep its intended destination.
       onSignedOut?.();
-      router.replace('/');
+      router.replace(redirectTo);
     } catch { setError('Sign-out could not be completed. Please check your connection and try again.'); }
     finally { pending.current = false; setBusy(false); }
   }

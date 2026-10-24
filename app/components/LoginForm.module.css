@@ -22,10 +22,6 @@
 .field textarea { resize:vertical; }
 .full { grid-column:1 / -1; }
 .formActions { display:flex; gap:10px; flex-wrap:wrap; }
-.workspaceOption { display:grid; gap:8px; min-height:90px; padding:18px; border:1px solid var(--auth-line); border-radius:10px; background:var(--auth-surface); color:var(--auth-ink); text-align:left; cursor:pointer; font:inherit; }
-.workspaceOption strong { color:var(--auth-accent); font-size:15px; }
-.workspaceOption span { font-size:12px; line-height:1.6; color:var(--auth-muted); }
-.workspaceOption:hover { border-color:var(--auth-accent); }
 .field input::placeholder { color:var(--auth-muted); opacity:.8; }
 .field input:focus,.field textarea:focus { outline:0; border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-soft); }
 .nameRow { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }

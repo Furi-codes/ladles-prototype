@@ -22,6 +22,8 @@ A volunteer-management web application for Ladles of Love. Volunteers can book s
 - Participation certificates for eligible verified attendance
 - In-app notifications and personal shift-reminder preferences
 
+Volunteer cellphone numbers are optional at registration and in the profile. When provided, their format is validated; clearing a number stores `NULL`. The separate administrator-controlled booking requirement can be enabled later if needed.
+
 ### Admin portal
 
 - Dashboard with upcoming events, bookings and participation information
@@ -41,20 +43,23 @@ The real app includes business registration/sign-in, verified-email account appr
 
 Corporate screens are visible by default. The optional `NEXT_PUBLIC_CORPORATE_ROLLOUT_ENABLED`, `NEXT_PUBLIC_CORPORATE_BOOKINGS_ENABLED`, `NEXT_PUBLIC_CORPORATE_CHANGES_ENABLED` and `NEXT_PUBLIC_CORPORATE_OUTCOMES_ENABLED` switches disable their stages only when explicitly set to `false`. They are not authorization controls.
 
-The four additive corporate migrations are in `supabase/migrations/`. They extend the existing VMS schema; this repository does not contain its full historical baseline. A Next.js/Vercel deployment does not apply SQL. Keep `corporate_private` outside exposed Data API schemas. Review migration history with the database maintainer rather than blindly running `supabase db push`.
+The additive corporate migrations are in `supabase/migrations/`. They extend the existing VMS schema; this repository does not contain its full historical baseline. A Next.js/Vercel deployment does not apply SQL. Keep `corporate_private` outside exposed Data API schemas. Review migration history with the database maintainer rather than blindly running `supabase db push`.
 
 Administrator setup:
 
 1. **Corporate accounts → Access settings:** manage registration and cellphone enforcement. Enable database phone enforcement after deploying the updated signup/profile forms; missing numbers block new bookings, not attendance/cancellation.
 2. **Corporate bookings → Booking settings:** enter the actual booking-team email and phone, then open requests. Both are required; no contact details or activity prices are invented.
-3. **Corporate events:** create and publish actual available dates, times, capacities and group limits. No preset activity menu is required.
-4. Approve verified business accounts, review booking requests and set payment deadlines. Requests hold no places; acceptance atomically reserves the group. Overdue bookings are flagged, not automatically cancelled.
+3. **Corporate events:** save drafts or publish actual sessions with a date/time, location and one maximum group size. The calendar labels available, reserved, unpublished, cancelled and past sessions. No preset activity menu is required.
+4. Approve verified business accounts, review booking requests and set payment deadlines. Requests reserve nothing; acceptance atomically reserves the entire session for one company and rejects competing requests with notifications. Overdue bookings retain the reservation until an admin acts.
 5. Record verified external payments to confirm bookings. Payment/refund discussions stay outside the portal; no money is processed.
-6. Review changes/cancellations and, after the event ends, record actual attendance and optional combined group hours. Corrections retain earlier totals and receipts. Reports load the full filtered scope, not only the visible page.
+6. Review changes/cancellations and, after the event ends, record actual attendance and optional whole event hours (12 people attending a two-hour event records 2 hours, not 24). Unknown hours remain blank; zero is explicit. Corrections retain earlier totals and receipts. Completed-booking reports, CSV and printing use the same event-duration values and load the full filtered scope, not only the visible page.
+7. Use the admin notification bell for account and booking updates, unread counts and links to the affected records. Contact controls reveal email/phone details before offering Copy or optional email/calling-app actions. Corporate reporting is separate from volunteer analytics.
 
-Configure Supabase Auth email confirmation, SMTP delivery and permitted verification/recovery redirect URLs for each deployment. Built-in Supabase email delivery is limited; public registration needs a suitable email provider. Do not add SMTP credentials or service-role keys to browser code. Google sign-in uses the configured Supabase provider; existing volunteers can add business membership without losing individual bookings.
+Configure Supabase Auth email confirmation, SMTP delivery and permitted verification/recovery redirect URLs for each deployment. Built-in Supabase email delivery is limited; public registration needs a suitable email provider. Do not add SMTP credentials or service-role keys to browser code. Google sign-in uses the configured Supabase provider. Volunteer and business accounts are separate: someone using both needs different email addresses. One sign-in screen routes each account to its own portal; a volunteer login cannot be converted into a business account.
 
-Corporate events/reservations are separate from volunteer events, WMS timeslots and legacy CSR records. Existing CSR data remains available as **Legacy CSR history**. Company ownership and admin decisions are enforced by RLS and checked functions, not by client-supplied roles.
+Corporate events/reservations are separate from volunteer events, WMS timeslots and legacy CSR records. The old Legacy CSR history page has been removed; historical database records are preserved. Company ownership and admin decisions are enforced by RLS and checked functions, not by client-supplied roles.
+
+SMTP supplies Auth verification and password-recovery email delivery only. Booking, approval, payment, change and cancellation updates remain in-app; configuring SMTP does not add operational booking emails. Before release, verify the real booking-team contact details, SMTP sender, allowed redirect URLs and inbox delivery. Expired verification links offer a resend action; expired recovery links offer a new password-reset request.
 
 `design-preview/` remains a separate, fictional mockup; it is not used by the real app. Automated tests cover isolated PostgreSQL workflows/permissions, components and WMS regressions. Real inbox delivery, browser/mobile/print checks and live WMS acceptance still need human verification before production sign-off.
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Event } from "@/lib/types";
 import { inboxItems, notificationDate, notificationLabel, unreadNotifications } from "@/lib/notification-utils";
 import styles from "../volunteer.module.css";
@@ -14,15 +14,19 @@ export default function NotificationPanel({ compact = false }: { compact?: boole
   const [unreadOnly, setUnreadOnly] = useState(true);
   const [visible, setVisible] = useState(10);
   const [busy, setBusy] = useState<number | "all" | null>(null);
+  const pending = useRef(false);
+  const [actionError, setActionError] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const unread = unreadNotifications(notifications);
   const items = inboxItems(notifications, unreadOnly);
 
   async function markRead(id?: number) {
-    if (busy !== null) return;
+    if (pending.current) return; pending.current = true;
+    setActionError('');
     setBusy(id ?? "all");
     try { if (id === undefined) await markAllNotificationsRead(); else await dismissNotification(id); }
-    finally { setBusy(null); }
+    catch { setActionError('Notifications could not be marked as read. Please try again.'); }
+    finally { pending.current = false; setBusy(null); }
   }
 
   if (compact) {
@@ -35,8 +39,9 @@ export default function NotificationPanel({ compact = false }: { compact?: boole
 
   return <>
     <section className={styles.card}>
-      <div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Your inbox</h2><p className={styles.cardHint}>Event updates and reminders. Marking read keeps the message in your history.</p></div><div className={ui.actions}><button type="button" disabled={notificationsLoading} className={styles.secondaryButton} onClick={() => void refreshNotifications()}>Refresh</button><button type="button" disabled={busy !== null || unread === 0 || Boolean(notificationError)} className={styles.secondaryButton} onClick={() => void markRead()}>{busy === "all" ? "Updating..." : "Mark all read"}</button></div></div>
+      <div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Your inbox</h2><p className={styles.cardHint}>Event updates and reminders. Marking read keeps the message in your history.</p></div><div className={ui.actions}><button type="button" disabled={notificationsLoading || busy !== null} className={styles.secondaryButton} onClick={() => void refreshNotifications()}>Refresh</button><button type="button" disabled={notificationsLoading || busy !== null || unread === 0 || Boolean(notificationError)} className={styles.secondaryButton} onClick={() => void markRead()}>{busy === "all" ? "Updating..." : "Mark all as read"}</button></div></div>
       <div className={ui.filters} aria-label="Inbox filter">{[true, false].map(value => <button type="button" key={String(value)} className={value === unreadOnly ? styles.primaryButton : styles.secondaryButton} aria-pressed={value === unreadOnly} onClick={() => { setUnreadOnly(value); setVisible(10); }}>{value ? `Unread (${unread})` : `All (${notifications.length})`}</button>)}<Link href="/volunteer/profile#notification-preferences" className={styles.secondaryButton}>Notification settings</Link></div>
+      {actionError && <div className={ui.error} role="alert">{actionError}</div>}
       {notificationError && <div className={ui.error} role="alert">{notificationError} <button className={styles.secondaryButton} onClick={() => void refreshNotifications()} disabled={notificationsLoading}>Try again</button></div>}
       {notificationsLoading && notifications.length === 0 ? <p className={ui.empty} role="status">Loading your notifications...</p> : !notificationError && items.length === 0 ? <div className={ui.empty}><strong>{unreadOnly ? "You’re all caught up" : "No notifications yet"}</strong><p>Event updates and shift reminders will appear here.</p></div> : <div>
         {items.slice(0, visible).map(notification => {

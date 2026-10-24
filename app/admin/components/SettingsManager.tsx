@@ -1,23 +1,27 @@
 "use client";
 import { useRef, useState, type KeyboardEvent } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { loadSettings, saveNotificationSettings, saveAdminName } from '@/lib/actions/corporate';
 import { logAdminAction, loadAdminAuditLog } from '@/lib/actions/audit';
 import { useAdminData } from './AdminProvider';
 import { Field, FeatureState, useFeatureData } from './FeatureShared';
 import AdminAccessManager from './AdminAccessManager';
+import PortalContactSettings from './PortalContactSettings';
 import styles from '../admin.module.css';
 import ui from './management.module.css';
 import visual from './analytics.module.css';
-const settingsSections = [['notification-settings','Notifications'],['access-settings','Administrator access'],['activity-settings','Recent activity'],['account-settings','My account']] as const;
+const settingsSections = [['notification-settings','Notifications'],['contact-settings','Portal contacts'],['access-settings','Administrator access'],['activity-settings','Recent activity'],['account-settings','My account']] as const;
 type SettingsSection = typeof settingsSections[number][0];
-const preferences = [ ['booking_confirmation_enabled','Booking confirmation (future delivery)'], ['booking_cancellation_enabled','Booking cancellation (future delivery)'], ['shift_reminder_enabled','In-app shift reminders: 24 hours and 2 hours before'], ['corporate_booking_confirmation_enabled','Corporate booking confirmation (future delivery)'] ] as const;
+// Preserve stored delivery preferences, but only expose the reminder setting that currently has an effect.
+const futurePreferences = ['booking_confirmation_enabled', 'booking_cancellation_enabled', 'corporate_booking_confirmation_enabled'] as const;
 export default function SettingsManager() {
+  const requestedSection = useSearchParams().get('section');
   const { data, loading, error, reload } = useFeatureData(loadSettings);
   const { data: auditEntries, loading: auditLoading, error: auditError, reload: reloadAudit } = useFeatureData(loadAdminAuditLog);
   const { adminProfile } = useAdminData();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [section, setSection] = useState<SettingsSection>('notification-settings');
+  const [section, setSection] = useState<SettingsSection>(settingsSections.some(([id]) => id === requestedSection) ? requestedSection as SettingsSection : 'notification-settings');
   const tabButtons = useRef<Array<HTMLButtonElement | null>>([]);
   function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     const next = event.key === 'ArrowRight' ? (index + 1) % settingsSections.length
@@ -57,9 +61,10 @@ export default function SettingsManager() {
   }
   return <div className={ui.workspace}><div className={`${visual.tabs} ${ui.settingsTabs}`} role="tablist" aria-label="Settings sections">{settingsSections.map(([id,label], index) => <button key={id} ref={button => { tabButtons.current[index] = button; }} type="button" role="tab" id={`tab-${id}`} aria-controls={id} aria-selected={section === id} tabIndex={section === id ? 0 : -1} disabled={busy} onClick={() => setSection(id)} onKeyDown={event => navigateTabs(event, index)}>{label}</button>)}</div><FeatureState error={error} loading={loading} retry={reload} />{message && <p role="status" className={styles.helper}>{message}</p>}
     {data && <><form action={save} key={data.settings.updated_at} className={`${styles.featureStack} ${ui.settingsPanel}`} hidden={section !== 'notification-settings'}>
-      <section id="notification-settings" role="tabpanel" aria-labelledby="tab-notification-settings" tabIndex={0} hidden={section !== 'notification-settings'} className={`${styles.card} ${ui.settingsPanel}`}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Notification preferences</h2><p className={styles.cardHint}>Control in-app shift reminders and store future delivery preferences.</p></div></div><div className={`${styles.featureBody} ${styles.featureStack}`}><p className={styles.helper}>Shift reminders appear in the volunteer inbox at the 24-hour and 2-hour thresholds, checked every five minutes. Late bookings receive the next applicable reminder. Turning this off stops new reminders, not event cancellation updates. The other preferences are stored for future integration; email and SMS delivery are not enabled.</p>{preferences.map(([key,label]) => <label key={key} className={ui.preference}><input type="checkbox" name={key} defaultChecked={data.settings[key]} /> {label}</label>)}<button className={styles.primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save settings'}</button></div></section>
+      <section id="notification-settings" role="tabpanel" aria-labelledby="tab-notification-settings" tabIndex={0} hidden={section !== 'notification-settings'} className={`${styles.card} ${ui.settingsPanel}`}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Shift reminders</h2><p className={styles.cardHint}>Control automatic reminders in the volunteer inbox.</p></div></div><div className={`${styles.featureBody} ${styles.featureStack}`}><p className={styles.helper}>Reminders become due 24 hours and 2 hours before a shift, with checks every five minutes. Late bookings receive the next applicable reminder. Volunteers can also turn reminders off in their own profile. Turning this off stops new reminders; event cancellation updates continue. These reminders are in-app only.</p>{futurePreferences.map(key => data.settings[key] ? <input key={key} type="hidden" name={key} value="true" /> : null)}<label className={ui.preference}><input type="checkbox" name="shift_reminder_enabled" defaultChecked={data.settings.shift_reminder_enabled} />In-app shift reminders: 24 hours and 2 hours before</label><button className={styles.primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save settings'}</button></div></section>
     </form>
     <div id="access-settings" role="tabpanel" aria-labelledby="tab-access-settings" tabIndex={0} hidden={section !== 'access-settings'} className={ui.settingsPanel}><AdminAccessManager admins={data.admins} reload={reload} /></div></>}
+    <div id="contact-settings" role="tabpanel" aria-labelledby="tab-contact-settings" tabIndex={0} hidden={section !== 'contact-settings'} className={ui.settingsPanel}><PortalContactSettings busyChanged={setBusy} /></div>
     <section id="activity-settings" role="tabpanel" aria-labelledby="tab-activity-settings" tabIndex={0} hidden={section !== 'activity-settings'} className={`${styles.card} ${ui.settingsPanel}`}><div className={styles.cardHeader}><h2 className={styles.cardTitle}>Recent admin & WMS activity</h2><button type="button" className={styles.secondaryButton} onClick={() => void reloadAudit()} disabled={auditLoading}>Refresh</button></div><div className={styles.featureBody}>
       {auditError && <p role="alert" className={styles.error}>{auditError}</p>}
       {auditLoading && <p role="status" className={styles.helper}>Loading activity…</p>}

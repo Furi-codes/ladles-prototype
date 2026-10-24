@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useVolunteerData } from "../components/VolunteerProvider";
 import ProfilePhotoEditor from "../components/ProfilePhotoEditor";
 import NotificationPreferences from "../components/NotificationPreferences";
@@ -43,7 +42,6 @@ export default function VolunteerProfilePage() {
   return <>
     <section className={styles.pageHeading}>
       <div><h1 className={styles.pageTitle}>My profile</h1><p className={styles.pageDescription}>Manage your volunteer details and account settings.</p></div>
-      <Link href="/volunteer" className={styles.secondaryButton}>Back to dashboard</Link>
     </section>
     <section className={`${styles.card} ${styles.profileAccountControls}`} aria-labelledby="account-controls">
       <div><h2 id="account-controls" className={styles.cardTitle}>Account & appearance</h2><p className={styles.cardHint}>Choose your display theme or sign out of your account.</p></div>
@@ -55,17 +53,16 @@ export default function VolunteerProfilePage() {
       <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Personal details</h2><p className={styles.cardHint}>Keep these details accurate for bookings and attendance.</p></div></div><form className={styles.settingsBody} onSubmit={saveDetails}>
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-name">Full name</label><input id="profile-name" className={styles.input} required value={fullName} onChange={(event) => setFullName(event.target.value)} /></div>
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-dob">Date of birth</label><input id="profile-dob" className={styles.input} required type="date" max={new Date().toISOString().slice(0, 10)} value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} /></div>
-        {corporateRolloutEnabled && <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-phone">Cellphone number</label><input id="profile-phone" className={styles.input} type="tel" autoComplete="tel" required maxLength={25} value={phone} onChange={event => setPhone(event.target.value)} /><p className={styles.cardHint}>Needed before a new booking. Existing shifts, attendance and cancellations remain accessible.</p></div>}
+        {corporateRolloutEnabled && <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-phone">Cellphone number (optional)</label><input id="profile-phone" className={styles.input} type="tel" autoComplete="tel" maxLength={25} value={phone} onChange={event => setPhone(event.target.value)} /><p className={styles.cardHint}>Add a number if you would like the team to be able to contact you by phone.</p></div>}
         {profileError && <div className={styles.messageError} role="alert">{profileError}</div>}
         <div className={styles.modalActions}><button className={styles.primaryButton} disabled={isSavingProfile}>{isSavingProfile ? "Saving..." : "Save details"}</button></div>
       </form></section>
-      <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Email address</h2><p className={styles.cardHint}>Changing your email requires confirmation through Supabase.</p></div></div><form className={styles.settingsBody} onSubmit={changeEmail}>
+      <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Email address</h2><p className={styles.cardHint}>Follow the confirmation links sent by email to finish changing your sign-in address.</p></div></div><form className={styles.settingsBody} onSubmit={changeEmail}>
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-email">Email address</label><input id="profile-email" className={styles.input} required type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></div>
         {emailError && <div className={styles.messageError} role="alert">{emailError}</div>}
         <div className={styles.modalActions}><button className={styles.secondaryButton} disabled={email === profile?.email || isSavingEmail}>{isSavingEmail ? "Requesting..." : "Request email change"}</button></div>
       </form></section>
       <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Volunteer acknowledgements</h2><p className={styles.cardHint}>Your current onboarding consent record.</p></div></div><div className={styles.settingsBody}><div className={styles.consentSummary}><span>Code of conduct</span><strong>{consent?.code_of_conduct_accepted ? "Accepted" : "Not recorded"}</strong><span>Information use</span><strong>{consent?.data_use_accepted ? "Accepted" : "Not recorded"}</strong><span>Information accuracy</span><strong>{consent?.information_accuracy_accepted ? "Accepted" : "Not recorded"}</strong></div>{consent?.accepted_at && <p className={styles.cardHint}>Accepted on {new Date(consent.accepted_at).toLocaleDateString("en-ZA")}</p>}</div></section>
     </div>
-    {corporateRolloutEnabled && <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Business / corporate access</h2><p className={styles.cardHint}>Use this login as a main company contact without changing your volunteer bookings.</p></div><Link className={styles.secondaryButton} href="/corporate/register">Register / open business account</Link></div></section>}
   </>;
 }

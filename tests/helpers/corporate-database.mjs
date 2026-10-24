@@ -4,7 +4,7 @@ import {PGlite} from '@electric-sql/pglite';
 // A tiny existing-VMS schema, plus the real migrations. No hosted credentials or network.
 export const ids={admin:'00000000-0000-4000-8000-000000000001',owner:'00000000-0000-4000-8000-000000000002',other:'00000000-0000-4000-8000-000000000003',unverified:'00000000-0000-4000-8000-000000000004',admin2:'00000000-0000-4000-8000-000000000005',signup:'00000000-0000-4000-8000-000000000006'};
 export const details={company_name:'Example Business',contact_name:'Example Contact',contact_email:'contact@example.invalid',contact_phone:'+27 21 555 1234',billing_address:'12 Fictional Street, Cape Town, 8000'};
-export async function fixture(t,{bookings=false,changes=false,outcomes=false}={}){
+export async function fixture(t,{bookings=false,changes=false,outcomes=false,separation=false}={}){
   const db=new PGlite();t.after(()=>db.close());
   await db.exec(`
     create role anon; create role authenticated;
@@ -32,9 +32,10 @@ export async function fixture(t,{bookings=false,changes=false,outcomes=false}={}
     update public.profiles set role='admin' where id in ('${ids.admin}','${ids.admin2}');
   `);
   await db.exec(readFileSync(new URL('../../supabase/migrations/20261022091901_corporate_account_foundation.sql',import.meta.url),'utf8'));
-  if(bookings||changes||outcomes)await db.exec(readFileSync(new URL('../../supabase/migrations/20261022091921_corporate_booking_workflow.sql',import.meta.url),'utf8'));
-  if(changes||outcomes)await db.exec(readFileSync(new URL('../../supabase/migrations/20261022091927_corporate_booking_changes.sql',import.meta.url),'utf8'));
-  if(outcomes)await db.exec(readFileSync(new URL('../../supabase/migrations/20261022091932_corporate_attendance_reports.sql',import.meta.url),'utf8'));
+  if(bookings||changes||outcomes||separation)await db.exec(readFileSync(new URL('../../supabase/migrations/20261022091921_corporate_booking_workflow.sql',import.meta.url),'utf8'));
+  if(changes||outcomes||separation)await db.exec(readFileSync(new URL('../../supabase/migrations/20261022091927_corporate_booking_changes.sql',import.meta.url),'utf8'));
+  if(outcomes||separation)await db.exec(readFileSync(new URL('../../supabase/migrations/20261022091932_corporate_attendance_reports.sql',import.meta.url),'utf8'));
+  if(separation)await db.exec(readFileSync(new URL('../../supabase/migrations/20261022162335_separate_corporate_accounts.sql',import.meta.url),'utf8'));
   return db;
 }
 export async function asUser(db,id,operation,role='authenticated'){

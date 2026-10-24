@@ -1,0 +1,15 @@
+.footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--portal-line);font-size:13px;color:var(--portal-muted)}
+.footer>details{max-width:700px}.footer summary{list-style:none;cursor:pointer}.footer summary::-webkit-details-marker{display:none}
+.panel{display:grid;gap:16px;margin-top:12px;padding:20px;border:1px solid var(--portal-line);border-radius:10px;background:var(--portal-surface);color:var(--portal-ink)}
+.panel h2{margin:0;font-size:15px}.contact{min-width:0;padding-top:14px;border-top:1px solid var(--portal-line)}
+.contact h3{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 6px;font-size:13px}.contact h3 span{font-size:11px;font-weight:500;color:var(--portal-muted)}
+.contact p{margin:6px 0 10px;overflow-wrap:anywhere;font-size:13px}.panel button,.panel a{min-height:40px;max-width:100%;white-space:normal}
+.feedback{display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:12px}.feedback p{margin:0}
+.editor,.fields{display:grid;gap:18px;min-width:0}.fields{margin:0;padding:0;border:0}
+.contactEditor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto auto;align-items:end;gap:14px;padding:16px;border:1px solid var(--portal-line);border-radius:9px}
+.primary{display:flex;align-items:center;gap:7px;min-height:42px;font-size:12px;white-space:nowrap}.primary input{accent-color:var(--portal-accent)}
+.actions,.saveActions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.saveActions{justify-content:flex-end;padding-top:16px;border-top:1px solid var(--portal-line)}
+.srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+.editor .fields>.srOnly{width:1px;max-width:1px;float:none;margin:-1px}
+@media(max-width:1100px){.contactEditor{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.contactEditor{grid-template-columns:minmax(0,1fr);padding:14px}.panel{padding:16px}.panel button,.panel a,.footer summary{min-height:44px}.saveActions{align-items:stretch;flex-direction:column}.saveActions button{width:100%}.contactEditor input{font-size:16px}.footer{margin-top:24px}}

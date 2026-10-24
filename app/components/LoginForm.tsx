@@ -1,16 +1,14 @@
 "use client";
 
-/** One entry screen for sign-in, both registration forms, recovery and dual-workspace selection. */
+/** One entry screen for sign-in, separate volunteer/business registrations and recovery. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { corporateRolloutEnabled } from '@/lib/feature-flags';
 import { isValidPhone, normalisePhone } from '@/lib/contact-details';
-import { accountLandingPath, workspaceChoicePath } from '@/lib/actions/account-routing';
-import type { Profile } from '@/lib/types';
-import { useSignOut } from './useSignOut';
-import { useSessionBoundary } from './useSessionBoundary';
+import { accountLandingPath } from '@/lib/actions/account-routing';
+import { hasAuthLinkError } from '@/lib/auth-link';
 import BusinessRegistration from './BusinessRegistration';
 import ThemeToggle from './ThemeToggle';
 import PortalLoadingScreen from './PortalLoadingScreen';
@@ -27,16 +25,13 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
   const [email, setEmail] = useState(''), [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false), [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false), [message, setMessage] = useState('');
-  const [chooseWorkspace, setChooseWorkspace] = useState(false);
+  const [verificationNeeded, setVerificationNeeded] = useState(false), [verificationRequested, setVerificationRequested] = useState(false);
   const [businessDirty, setBusinessDirty] = useState(false), [businessBusy, setBusinessBusy] = useState(false);
-  const pending = useRef(false), businessPending = useRef(false), businessContinuation = useRef(false);
-  const returnToSignIn = () => { setChooseWorkspace(false); setEmail(''); setPassword(''); currentMode.current = 'signin'; setMode('signin'); setMessage(''); };
-  const { signOut, busy: signingOut, error: signOutError } = useSignOut({ onSignedOut: returnToSignIn });
+  const pending = useRef(false), businessPending = useRef(false);
   const isSignUp = mode === 'volunteer', isForgotPassword = mode === 'recovery', isBusiness = mode === 'business';
   const busy = isLoading || businessBusy;
 
   const openDestination = useCallback((destination: string) => {
-    if (destination === workspaceChoicePath) { setChooseWorkspace(true); return; }
     setIsRedirecting(true); router.replace(destination);
   }, [router]);
 
@@ -44,17 +39,20 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
     let active = true;
     async function checkExistingLogin() {
       const query = new URLSearchParams(window.location.search);
-      businessContinuation.current = corporateRolloutEnabled && query.get('portal') === 'corporate';
       if (query.get('recovery') === '1') { currentMode.current = 'recovery'; setMode('recovery'); return; }
-      // A signed-in volunteer must be able to add business access without being redirected away.
+      if (hasAuthLinkError(window.location.search,window.location.hash)) {
+        currentMode.current='signin';setMode('signin');setVerificationNeeded(true);
+        setMessage('This email verification link is invalid or has expired. Enter your sign-in email below and request a new verification link.');return;
+      }
+      // The registration component checks existing sessions and never converts a volunteer account.
       if (initialMode !== 'signin') return;
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
       if (!active || !session?.user || currentMode.current !== 'signin') return;
       const { data: profile, error: profileError } = await supabase.from('profiles')
-        .select(corporateRolloutEnabled ? 'role, volunteer_enabled' : 'role').eq('id', session.user.id).single<Pick<Profile, 'role' | 'volunteer_enabled'>>();
+        .select('role').eq('id', session.user.id).single();
       if (profileError && profileError.code !== 'PGRST116') throw new Error('Account access could not be checked. Please check your connection and retry.');
-      const destination = await accountLandingPath(profile?.role, businessContinuation.current, profile?.volunteer_enabled === true);
+      const destination = await accountLandingPath(profile?.role);
       if (!active || currentMode.current !== 'signin') return;
       setEmail(session.user.email || ''); openDestination(destination);
     }
@@ -66,7 +64,10 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
     if (pending.current) return;
     pending.current = true; setIsLoading(true); setMessage('');
     try { await request(); }
-    catch (failure) { setMessage(`Error: ${failure instanceof Error ? failure.message : 'Account request failed. Please try again.'}`); }
+    catch (failure) {
+      if (failure && typeof failure==='object' && 'code' in failure && failure.code==='email_not_confirmed') setVerificationNeeded(true);
+      setMessage(`Error: ${failure instanceof Error ? failure.message : 'Account request failed. Please try again.'}`);
+    }
     finally { pending.current = false; setIsLoading(false); }
   }
 
@@ -77,10 +78,10 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
       if (error) throw error;
       if (!data.user) throw new Error('No account was returned. Please try signing in again.');
       const { data: profile, error: profileError } = await supabase.from('profiles')
-        .select(corporateRolloutEnabled ? 'role, volunteer_enabled' : 'role').eq('id', data.user.id).single<Pick<Profile, 'role' | 'volunteer_enabled'>>();
+        .select('role').eq('id', data.user.id).single();
       if (profileError && profileError.code !== 'PGRST116') throw new Error('Logged in, but account access could not be checked. Please retry.');
-      // A user with both memberships chooses; corporate-only users are never offered volunteer access.
-      const destination = await accountLandingPath(profile?.role, businessContinuation.current, profile?.volunteer_enabled === true);
+      // Membership is stored in the database; the chosen registration tab does not grant portal access.
+      const destination = await accountLandingPath(profile?.role);
       setPassword(''); openDestination(destination);
     });
   }
@@ -90,7 +91,7 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
     const cleanFirst = firstName.trim(), cleanLast = lastName.trim();
     if (!cleanFirst || !cleanLast || !dateOfBirth || !email || !password) { setMessage('Please fill out your First Name, Last Name, Date of Birth, Email, and Password.'); return; }
     if (password.length < 8 || password.length > 128) { setMessage('Please use a password between eight and 128 characters.'); return; }
-    if (corporateRolloutEnabled && !isValidPhone(phone)) { setMessage('Please enter a valid cellphone number.'); return; }
+    if (corporateRolloutEnabled && phone.trim() && !isValidPhone(phone)) { setMessage('Please enter a valid cellphone number or leave it blank.'); return; }
     await runAuthRequest(async () => {
       const { error } = await supabase.auth.signUp({ email: email.trim(), password, options: {
         emailRedirectTo: `${window.location.origin}/`,
@@ -99,6 +100,7 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
       if (error) throw error;
       setMessage('If this address can be registered, a confirmation link will be sent. Verify your email, then sign in. Already have a login? Use your existing password.');
       setFirstName(''); setLastName(''); setDateOfBirth(''); setPhone(''); setPassword('');
+      setVerificationNeeded(true);setVerificationRequested(false);
       currentMode.current = 'signin'; setMode('signin');
     });
   }
@@ -113,11 +115,22 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
     });
   }
 
+  async function resendVerification() {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setMessage('Please enter a valid sign-in email address first.');return; }
+    if (verificationRequested) return;
+    await runAuthRequest(async () => {
+      const {error}=await supabase.auth.resend({type:'signup',email:email.trim(),options:{emailRedirectTo:window.location.origin+'/'}});
+      if(error) throw error;
+      setVerificationRequested(true);
+      setMessage('If this address needs verification, a new link has been requested. Check your inbox and spam folder, then sign in after verifying.');
+    });
+  }
+
   async function handleGoogleLogin() {
     await runAuthRequest(async () => {
-      // Return through shared account routing, so OAuth does not bypass the workspace choice.
+      // Google uses the same stored account type as password sign-in.
       const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: {
-        redirectTo: businessContinuation.current ? `${window.location.origin}/?portal=corporate` : `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/`,
       } });
       if (error) throw error;
     });
@@ -126,58 +139,44 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
   function changeMode(next: EntryMode) {
     if (pending.current || businessPending.current) return false;
     if (businessDirty && !window.confirm('Discard your unsaved business registration details?')) return false;
-    currentMode.current = next; setMode(next); setBusinessDirty(false); setMessage(''); setShowPassword(false); setPassword('');
-    if (next !== 'signin') businessContinuation.current = false;
+    currentMode.current = next; setMode(next); setBusinessDirty(false); setMessage(''); setShowPassword(false); setPassword('');setVerificationNeeded(false);setVerificationRequested(false);
     return true;
   }
   function continueBusinessSignIn(address?: string) {
-    if (changeMode('signin')) { businessContinuation.current = true; if (address) setEmail(address); }
+    if (changeMode('signin') && address) setEmail(address);
   }
 
   if (isRedirecting) return <PortalLoadingScreen message="Ladles of Love is securely opening your portal…" />;
-  const title = chooseWorkspace ? 'Choose your workspace' : isForgotPassword ? 'Reset your password' : isBusiness ? 'Register your organisation' : isSignUp ? 'Start making a difference' : 'Welcome back';
+  const title = isForgotPassword ? 'Reset your password' : isBusiness ? 'Register your organisation' : isSignUp ? 'Start making a difference' : 'Welcome back';
   return <main className={styles.page}>
     <header className={styles.header}><ThemeToggle /></header>
     <div className={styles.layout}><section className={styles.formSide} aria-labelledby="auth-title">
       <div className={styles.brand}><Image src="/Ladles-logo.png" alt="Ladles of Love" width={68} height={68} preload /><span><strong>LADLES OF LOVE</strong><small>{corporateRolloutEnabled ? 'COMMUNITY PORTAL' : 'VOLUNTEER PORTAL'}</small></span></div>
       <div className={styles.card}>
-        {!chooseWorkspace && !isForgotPassword && <div className={`${styles.tabs} ${corporateRolloutEnabled ? styles.tabsThree : ''}`} aria-label="Account access">
+        {!isForgotPassword && <div className={`${styles.tabs} ${corporateRolloutEnabled ? styles.tabsThree : ''}`} aria-label="Account access">
           <button type="button" disabled={busy} aria-pressed={mode === 'signin'} onClick={() => changeMode('signin')}>Sign in</button>
           <button type="button" disabled={busy} aria-pressed={isSignUp} onClick={() => changeMode('volunteer')}>Volunteer registration</button>
           {corporateRolloutEnabled && <button type="button" disabled={busy} aria-pressed={isBusiness} onClick={() => changeMode('business')}>Business registration</button>}
         </div>}
-        <span className={styles.eyebrow}>{chooseWorkspace ? 'One account, separate workspaces' : isForgotPassword ? 'Account recovery' : isBusiness ? 'Bring your team together' : isSignUp ? 'Join the community' : 'Your next act of kindness starts here'}</span>
+        <span className={styles.eyebrow}>{isForgotPassword ? 'Account recovery' : isBusiness ? 'Bring your team together' : isSignUp ? 'Join the community' : 'Your next act of kindness starts here'}</span>
         <h2 id="auth-title">{title}</h2>
-        <p className={styles.intro}>{chooseWorkspace ? 'Your volunteer and business activity is kept in separate workspaces.' : isForgotPassword ? 'Enter your email and we’ll send you a reset link.' : isBusiness ? 'Register your business and main contact for admin approval. Already have a login? Use that account.' : isSignUp ? 'Create your volunteer account to book shifts and track your contribution.' : corporateRolloutEnabled ? 'One sign-in for volunteering and business bookings. We’ll open the workspace available to your account.' : 'Manage your shifts and view your impact.'}</p>
-        {chooseWorkspace ? <WorkspaceChoice email={email} openDestination={openDestination} signOut={signOut} signingOut={signingOut} error={signOutError} returnToSignIn={returnToSignIn} /> : isBusiness ? corporateRolloutEnabled ? <BusinessRegistration onSignIn={continueBusinessSignIn} onDirtyChange={setBusinessDirty} onBusyChange={value => { businessPending.current = value; setBusinessBusy(value); }} /> : <p className={styles.notice}>Business registration is not open yet. Use Sign in or Volunteer registration above.</p> : <>
+        <p className={styles.intro}>{isForgotPassword ? 'Enter your email and we’ll send you a reset link.' : isBusiness ? 'Enter your organisation and main contact details. Business and volunteer accounts use separate email addresses.' : isSignUp ? 'Create your account for individual volunteer shifts. Business bookings require a separate business account.' : corporateRolloutEnabled ? 'Sign in with your volunteer or business account. We’ll open the correct portal.' : 'Manage your shifts and view your impact.'}</p>
+        {isBusiness ? corporateRolloutEnabled ? <BusinessRegistration onSignIn={continueBusinessSignIn} onDirtyChange={setBusinessDirty} onBusyChange={value => { businessPending.current = value; setBusinessBusy(value); }} /> : <p className={styles.notice}>Business registration is not open yet. Use Sign in or Volunteer registration above.</p> : <>
           <form onSubmit={isForgotPassword ? handleResetPassword : isSignUp ? handleSignUp : handleLogin} aria-busy={isLoading}><fieldset className={styles.fields} disabled={isLoading}><legend className={styles.srOnly}>{title}</legend>
             {isSignUp && <><div className={styles.nameRow}><div className={styles.field}><label htmlFor="first-name">First name</label><input id="first-name" autoComplete="given-name" required value={firstName} onChange={event => setFirstName(event.target.value)} /></div><div className={styles.field}><label htmlFor="last-name">Last name</label><input id="last-name" autoComplete="family-name" required value={lastName} onChange={event => setLastName(event.target.value)} /></div></div><div className={styles.field}><label htmlFor="birth-date">Date of birth</label><input id="birth-date" type="date" autoComplete="bday" required max={new Date().toISOString().slice(0,10)} value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} /></div></>}
-            {isSignUp && corporateRolloutEnabled && <div className={styles.field}><label htmlFor="signup-phone">Cellphone number</label><input id="signup-phone" type="tel" autoComplete="tel" required maxLength={25} value={phone} onChange={event => setPhone(event.target.value)} /></div>}
-            <div className={styles.field}><label htmlFor="auth-email">Email address</label><input id="auth-email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" /></div>
+            {isSignUp && corporateRolloutEnabled && <div className={styles.field}><label htmlFor="signup-phone">Cellphone number (optional)</label><input id="signup-phone" type="tel" autoComplete="tel" maxLength={25} value={phone} onChange={event => setPhone(event.target.value)} /></div>}
+            <div className={styles.field}><label htmlFor="auth-email">Email address</label><input id="auth-email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={event => { setEmail(event.target.value);setVerificationRequested(false); }} placeholder="you@example.com" /></div>
             {!isForgotPassword && <div className={styles.field}><div className={styles.labelRow}><label htmlFor="auth-password">Password</label>{!isSignUp && <button className={styles.textButton} type="button" onClick={() => changeMode('recovery')}>Forgot password?</button>}</div><div className={styles.password}><input id="auth-password" type={showPassword ? 'text' : 'password'} autoComplete={isSignUp ? 'new-password' : 'current-password'} required minLength={isSignUp ? 8 : undefined} maxLength={isSignUp ? 128 : undefined} value={password} onChange={event => setPassword(event.target.value)} placeholder={isSignUp ? 'Create a password' : 'Enter your password'} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div></div>}
             {message && <div className={/error|failed|please fill|couldn't|please enter|please use/i.test(message) ? styles.error : styles.notice} role="status">{message}</div>}
             <button type="submit" className={styles.submit}>{isLoading ? 'Please wait…' : isForgotPassword ? 'Send reset link' : isSignUp ? 'Create volunteer account' : 'Sign in'}<span aria-hidden="true">→</span></button>
           </fieldset></form>
+          {mode==='signin' && verificationNeeded && <button type="button" className={styles.google} disabled={busy || verificationRequested} onClick={()=>void resendVerification()}>{verificationRequested ? 'Verification requested' : 'Resend verification email'}</button>}
           {!isForgotPassword && <><div className={styles.divider}><span>or continue with</span></div><button type="button" className={styles.google} disabled={isLoading} onClick={() => void handleGoogleLogin()}><GoogleIcon />Continue with Google</button></>}
           <p className={styles.footer}>{isForgotPassword ? <button type="button" disabled={busy} className={styles.textButton} onClick={() => changeMode('signin')}>← Back to sign in</button> : isSignUp ? <>Already have a login? <button type="button" disabled={busy} className={styles.textButton} onClick={() => changeMode('signin')}>Sign in</button></> : corporateRolloutEnabled ? 'New here? Choose Volunteer registration or Business registration above.' : 'New here? Choose Volunteer registration above.'}</p>
         </>}
       </div><p className={styles.support}>Your time matters. Thank you for choosing to give it.</p>
     </section></div>
   </main>;
-}
-
-/** This boundary is mounted afresh for each login, so another tab cannot leave a stale account choice. */
-export function WorkspaceChoice({ email, openDestination, signOut, signingOut, error, returnToSignIn }: {
-  email: string; openDestination: (path: string) => void; signOut: () => Promise<void>; signingOut: boolean; error: string; returnToSignIn: () => void;
-}) {
-  const sessionEnded = useSessionBoundary(true);
-  if (sessionEnded) return <div className={styles.notice}><p>Your session has changed. Sign in again to load the correct account.</p><button type="button" className={styles.textButton} onClick={returnToSignIn}>Return to sign in</button></div>;
-  return <div className={styles.fields}>
-    {email && <p className={styles.notice}>Signed in as {email}. Choose where you want to continue.</p>}
-    <button type="button" className={styles.workspaceOption} disabled={signingOut} onClick={() => openDestination('/volunteer')}><strong>Volunteer workspace</strong><span>Book individual shifts, record attendance and view your impact.</span></button>
-    <button type="button" className={styles.workspaceOption} disabled={signingOut} onClick={() => openDestination('/corporate')}><strong>Business workspace</strong><span>View your organisation’s approval, group bookings and payment updates.</span></button>
-    {error && <p className={styles.error} role="alert">{error}</p>}<button type="button" className={styles.textButton} disabled={signingOut} onClick={() => void signOut()}>{signingOut ? 'Signing out…' : 'Sign out / use another account'}</button>
-  </div>;
 }
 
 function GoogleIcon() {

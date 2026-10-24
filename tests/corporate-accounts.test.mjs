@@ -101,19 +101,16 @@ test('approved corporate login routes to bookings only when the separate booking
   assert.equal(await modules({from:from('Approved')}).load('lib/actions/account-routing.ts').accountLandingPath('volunteer'),'/corporate');
 });
 
-test('workspace choice requires both real memberships and never grants corporate-only users volunteer access',async()=>{
+test('sign-in routes each separate account to its own portal without a workspace chooser',async()=>{
   for(const status of ['Approved','Awaiting approval','Rejected']){
     const from=()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:{id:'company',status},error:null})});
     const routing=modules({bookings:true,from}).load('lib/actions/account-routing.ts');
-    assert.equal(await routing.accountLandingPath('volunteer',false,true),'/?workspace=choose');
-    assert.equal(await routing.accountLandingPath('volunteer',true,true),'/?workspace=choose');
-    assert.equal(await routing.accountLandingPath('volunteer',false,false),status==='Approved'?'/corporate/bookings':'/corporate');
-    assert.equal(await routing.accountLandingPath('admin',false,true),'/admin');
+    assert.equal(await routing.accountLandingPath('volunteer'),status==='Approved'?'/corporate/bookings':'/corporate');
+    assert.equal(await routing.accountLandingPath('admin'),'/admin');
   }
   const absent=modules({from:()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:null,error:null})})}).load('lib/actions/account-routing.ts');
-  assert.equal(await absent.accountLandingPath('volunteer',false,true),'/volunteer');
-  assert.equal(await absent.accountLandingPath('volunteer',true,true),'/corporate/register');
-  assert.equal(await modules({enabled:false}).load('lib/actions/account-routing.ts').accountLandingPath('volunteer',false,true),'/volunteer');
+  assert.equal(await absent.accountLandingPath('volunteer'),'/volunteer');
+  assert.equal(await modules({enabled:false}).load('lib/actions/account-routing.ts').accountLandingPath('volunteer'),'/volunteer');
 });
 
 test('real corporate forms show group/contact review, external payment and admin-only decision controls',()=>{
@@ -123,7 +120,8 @@ test('real corporate forms show group/contact review, external payment and admin
   const markup=renderToStaticMarkup(React.createElement(forms.CorporateRequestForm,{event,account:details,committed(){},dirtyChanged(){}}));
   for(const text of ['Group size','Billing address','not rewrite','No payment is processed','Review &amp; submit request'])assert.ok(markup.includes(text),text);
   const eventMarkup=renderToStaticMarkup(React.createElement(forms.CorporateEventForm,{committed(){},dirtyChanged(){}}));
-  assert.match(eventMarkup,/step="900"/);assert.match(eventMarkup,/Minimum per booking/);assert.match(eventMarkup,/Publish for corporate requests/);
+  assert.match(eventMarkup,/step="900"/);assert.match(eventMarkup,/Maximum group size/);assert.match(eventMarkup,/Save draft/);assert.match(eventMarkup,/Publish event/);
+  assert.doesNotMatch(eventMarkup,/Minimum per booking|Total capacity|Reason \/ message/);
   const {CorporateBookingPanel}=m.load('app/corporate/components/CorporateBookingList.tsx');
   const props={detail:{booking:{id:'booking',account_id:'account',status:'Pending payment',version:2,event,group_size:3,contact_snapshot:details,notes:'',payment_due_at:'2099-11-14T10:00:00+02:00'},payments:[],history:[]},settings:{booking_enabled:true},dirtyChanged(){},refresh(){},committed:async()=>{}};
   const admin=renderToStaticMarkup(React.createElement(CorporateBookingPanel,{...props,admin:true}));
@@ -131,7 +129,7 @@ test('real corporate forms show group/contact review, external payment and admin
   assert.match(admin,/Record external payment &amp; confirm/);assert.match(admin,/Wait \/ extend deadline/);assert.match(admin,/Reject booking/);
   assert.doesNotMatch(owner,/Record external payment &amp; confirm|Reject booking/);assert.match(owner,/Online change requests are not enabled/);
   const sidebar=renderToStaticMarkup(React.createElement(m.load('app/admin/components/Sidebar.tsx').default));
-  assert.match(sidebar,/Corporate bookings/);assert.match(sidebar,/Legacy CSR history/);
+  assert.match(sidebar,/Corporate bookings/);assert.doesNotMatch(sidebar,/Legacy CSR history|\/admin\/csr/);
 });
 
 test('disabled rollout makes no database request and preserves existing login destinations',async()=>{
@@ -161,7 +159,7 @@ test('account routing recognises corporate membership without changing a volunte
   const seen=[];const member=modules({from:table=>{const chain={select:()=>chain,eq:(key,value)=>{seen.push([table,key,value]);return chain;},maybeSingle:async()=>({data:{id:'company'},error:null})};return chain;}});
   assert.equal(await member.load('lib/actions/account-routing.ts').accountLandingPath('volunteer'),'/corporate');assert.deepEqual(seen,[['corporate_accounts','owner_user_id','owner']]);
   const absent=modules({from:()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:null,error:null})})});
-  assert.equal(await absent.load('lib/actions/account-routing.ts').accountLandingPath('volunteer',true),'/corporate/register');
+  assert.equal(await absent.load('lib/actions/account-routing.ts').accountLandingPath('volunteer'),'/volunteer');
   const failed=modules({from:()=>({select(){return this;},eq(){return this;},maybeSingle:async()=>({data:null,error:{message:'Access lookup failed'}})})});
   await assert.rejects(failed.load('lib/actions/account-routing.ts').accountLandingPath('volunteer'),/Access lookup failed/);
 });
@@ -201,7 +199,7 @@ test('real change UI exposes owner proposals, admin review, history and external
   assert.match(owner,/Request booking change/);assert.match(owner,/Request cancellation/);assert.doesNotMatch(owner,/Review &amp; approve/);
   const proposal={id:'change',kind:'Amendment',status:'Requested',reason:'Different group size',created_at:'2026-10-21T12:00:00Z',target_snapshot:event,proposed_size:5};
   const admin=renderToStaticMarkup(React.createElement(actions.default,{booking:{...booking,pending_change:proposal},admin:true,settings:{changes_enabled:true},dirtyChanged(){},committed:async()=>{}}));
-  assert.match(admin,/Review &amp; approve amendment/);assert.match(admin,/Decline amendment/);assert.match(admin,/Proposed places are not reserved/);
+  assert.match(admin,/Review &amp; approve amendment/);assert.match(admin,/Decline amendment/);assert.match(admin,/proposed session is not reserved/);
   const review=renderToStaticMarkup(React.createElement(actions.CorporateChangeReviewForm,{booking:{...booking,pending_change:proposal},approve:true,dirtyChanged(){},committed:async()=>{}}));
   assert.match(review,/Additional external payment agreed/);assert.match(review,/Earlier payments stay recorded/);
   const cancel=renderToStaticMarkup(React.createElement(m.load('app/corporate/components/CorporateCancellationControls.tsx').CorporateCancelEventForm,{event,dirtyChanged(){},committed(){}}));
@@ -255,8 +253,8 @@ test('attendance/report contracts respect emergency switches and a missing schem
 
 test('report export loads every page, checks a full-scope revision and rejects missing, duplicate or changed pages',async()=>{
   const filters={query:'Example',from:'',to:'',status:''};
-  const report=(offset,snapshot='v1')=>({rows:Array.from({length:offset?5:10},(_,i)=>({id:'booking-'+(offset+i)})),total:15,snapshot,summary:{bookings:15,accepted_places:50,completed_groups:3,attendance_instances:20,group_hours:0,groups_without_hours:3,overdue_bookings:0}});
-  let calls=0;const full=modules({bookings:true,changes:true,outcomes:true,rpc:async(name,args)=>{assert.equal(name,'corporate_outcome_report');calls++;return {data:report(args.p_offset),error:null};}}).load('lib/actions/corporate-outcomes.ts');
+  const report=(offset,snapshot='v1')=>({rows:Array.from({length:offset?5:10},(_,i)=>({id:'booking-'+(offset+i)})),total:15,snapshot,summary:{bookings:15,accepted_places:50,completed_groups:3,attendance_instances:20,event_hours:0,groups_without_hours:3,overdue_bookings:0}});
+  let calls=0;const full=modules({bookings:true,changes:true,outcomes:true,rpc:async(name,args)=>{assert.equal(name,'corporate_event_outcome_report');calls++;return {data:report(args.p_offset),error:null};}}).load('lib/actions/corporate-outcomes.ts');
   const rows=await full.loadAllCorporateOutcomeRows(filters);assert.equal(rows.length,15);assert.equal(calls,3);
   for(const type of ['changed','missing','duplicate']){
     const bad=modules({bookings:true,changes:true,outcomes:true,rpc:async(name,args)=>{const data=report(args.p_offset,args.p_offset&&type==='changed'?'v2':'v1');if(args.p_offset&&type==='missing')data.rows=[];if(args.p_offset&&type==='duplicate')data.rows[0].id='booking-0';return {data,error:null};}}).load('lib/actions/corporate-outcomes.ts');

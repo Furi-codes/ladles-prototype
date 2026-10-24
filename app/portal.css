@@ -27,7 +27,9 @@ html[data-theme="dark"] .portalUi {
 @media screen {
   .portalUi { font-family: var(--portal-font); font-size: 14px; line-height: 1.5; }
   .portalUi :where(button, input, select, textarea) { font-family: inherit; }
-  .portalUi :where(button, a, input, select, textarea):focus-visible { outline: 3px solid var(--portal-accent); outline-offset: 3px; }
+  .portalUi :where(button, a, input, select, textarea, summary):focus-visible { outline: 3px solid var(--portal-accent); outline-offset: 3px; }
+  .portalUi :where(p, dd, summary) { overflow-wrap: anywhere; }
+  .portalUi :where(button, summary) { touch-action: manipulation; }
   .portalUi :where(button, a) { transition: background-color .16s ease, color .16s ease, border-color .16s ease, box-shadow .16s ease; }
   .portalUi :where(button:disabled) { cursor: not-allowed; opacity: .6; }
   .portalUi :where(input, select, textarea) { accent-color: var(--portal-accent); }
@@ -41,3 +43,4 @@ html[data-theme="dark"] .portalUi {
   .portalUi *, .portalUi *::before, .portalUi *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 @media print { .portalSkipLink { display: none !important; } }
+@media screen and (max-width:600px) { .portalUi input:not([type=checkbox]):not([type=radio]), .portalUi select, .portalUi textarea { font-size:16px; } }
