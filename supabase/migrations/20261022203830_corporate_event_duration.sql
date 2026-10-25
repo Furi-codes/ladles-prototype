@@ -1,3 +1,7 @@
+-- Adds whole-event hours and the matching attendance/report functions.
+-- An event lasting two hours records 2 hours once; missing hours stay null instead of being
+-- inferred from group size.
+
 -- Corporate hours now mean the duration of the event, recorded once per group booking.
 -- Keep historical combined hours intact; they cannot be safely converted to duration.
 begin;
@@ -7,6 +11,7 @@ alter table public.corporate_group_attendance add constraint corporate_attendanc
 comment on column public.corporate_group_attendance.group_hours is 'Legacy combined person-hours. Not event duration; retained for historical records.';
 comment on column public.corporate_group_attendance.event_hours is 'Whole event hours, independent of group size. Null means not yet recorded.';
 
+-- Return the saved workflow settings and supported schema versions.
 create or replace function corporate_private.booking_settings() returns jsonb language plpgsql security definer set search_path='' as $$
 begin
   perform corporate_private.require_user();
@@ -16,6 +21,8 @@ begin
     from public.corporate_rollout_settings where id=1);
 end $$;
 
+-- Save actual attendance and whole-event hours with version/retry checks, then complete the
+-- booking.
 create function corporate_private.record_event_attendance(p_booking_id uuid,p_version integer,p_request_key uuid,p_count integer,p_hours numeric,p_note text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations; e public.corporate_events;
@@ -57,6 +64,8 @@ begin
   return corporate_private.booking_json(b);
 end $$;
 
+-- Report the scoped booking outcomes using whole-event hours rather than multiplying by
+-- attendees.
 create function corporate_private.event_outcome_report(p_query text,p_status text,p_from date,p_to date,p_offset integer,p_limit integer)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); v_admin boolean:=public.is_admin(); result jsonb;
@@ -96,6 +105,8 @@ create or replace function corporate_private.record_attendance(p_booking_id uuid
 returns jsonb language plpgsql security invoker set search_path='' as $$
 begin raise exception 'Please refresh or update the corporate portal to record event hours.' using errcode='22023'; end $$;
 
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.corporate_record_event_attendance(p_booking_id uuid,p_version integer,p_request_key uuid,p_count integer,p_hours numeric,p_note text)
 returns jsonb language sql security invoker set search_path='' as $$select corporate_private.record_event_attendance(p_booking_id,p_version,p_request_key,p_count,p_hours,p_note)$$;
 create function public.corporate_event_outcome_report(p_query text default '',p_status text default '',p_from date default null,p_to date default null,p_offset integer default 0,p_limit integer default 10)

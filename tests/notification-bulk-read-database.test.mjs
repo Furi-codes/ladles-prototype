@@ -1,3 +1,9 @@
+/**
+ * Checks mark-all-read behaviour across audiences without deleting history.
+ * These checks use an isolated local database, so test writes cannot alter the hosted app. They
+ * do not prove a live deployment or email delivery.
+ */
+
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';

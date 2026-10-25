@@ -1,3 +1,6 @@
+-- Adds separate volunteer/corporate contact settings and their protected operations.
+-- Primary contact rules are checked in the database before corporate requests can be opened.
+
 -- One admin-managed contact list per portal. Existing corporate primary fields
 -- remain a compatibility projection for older deployments and booking gates.
 create table public.portal_contact_settings (
@@ -24,6 +27,7 @@ update public.portal_contact_settings set contacts=(
   ) entries
 ) where portal='corporate';
 
+-- Validate the portal contact entries and their primary selections before saving.
 create function corporate_private.clean_portal_contacts(p_contacts jsonb) returns jsonb
 language plpgsql immutable set search_path='' as $$
 declare entry jsonb; clean jsonb:='[]'; kind text; label text; value text;
@@ -54,6 +58,7 @@ begin
   return clean;
 end $$;
 
+-- Return the selected portal's contact methods within the caller's permitted view.
 create function corporate_private.portal_contacts(p_portal text) returns jsonb
 language plpgsql stable security definer set search_path='' as $$
 declare uid uuid:=corporate_private.require_user(); result jsonb;
@@ -68,6 +73,7 @@ begin
   return result;
 end $$;
 
+-- Let admin save approved portal contacts, with history for the settings change.
 create function corporate_private.save_portal_contacts(p_portal text,p_version integer,p_contacts jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare uid uuid:=corporate_private.require_user(); clean jsonb; previous public.portal_contact_settings; email text; phone text; enabled boolean;
@@ -116,6 +122,7 @@ end $$;
 create trigger corporate_contacts_compatibility after update of booking_contact_email,booking_contact_phone on public.corporate_rollout_settings
   for each row execute function corporate_private.sync_legacy_portal_contacts();
 
+-- Require valid primary corporate contacts before admin opens new requests.
 create function corporate_private.set_contact_booking_availability(p_enabled boolean) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare uid uuid:=corporate_private.require_user(); current public.corporate_rollout_settings;
@@ -129,6 +136,8 @@ begin
   return corporate_private.configure_bookings(p_enabled,current.booking_contact_email,current.booking_contact_phone);
 end $$;
 
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.get_portal_contacts(p_portal text) returns jsonb language sql stable security invoker set search_path='' as $$select corporate_private.portal_contacts(p_portal)$$;
 create function public.save_portal_contacts(p_portal text,p_version integer,p_contacts jsonb) returns jsonb language sql security invoker set search_path='' as $$select corporate_private.save_portal_contacts(p_portal,p_version,p_contacts)$$;
 create function public.set_corporate_booking_availability(p_enabled boolean) returns jsonb language sql security invoker set search_path='' as $$select corporate_private.set_contact_booking_availability(p_enabled)$$;

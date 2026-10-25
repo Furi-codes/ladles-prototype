@@ -1,10 +1,16 @@
-﻿import assert from 'node:assert/strict';
+/**
+ * Checks report scopes, participation calculations and safe CSV formatting.
+ * Dependencies are mocked or source/helpers are checked locally. These tests do not replace
+ * testing the deployed UI and external services.
+ */
+
+import assert from 'node:assert/strict';
 import { test } from 'node:test';
 /** Node unit tests for pure report calculations; fixture rows replace a real database. */
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 // Use the project's compiler without adding a test runtime dependency.
-const source = readFileSync(new URL('../lib/reporting.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../features/admin/utils/reporting.ts', import.meta.url), 'utf8');
 // Compile the actual implementation in memory. There is no copied report function or live DB connection here.
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { performanceRows, corporateImpact, reportCsv, csvCell, presetFilter, reportPresets, selectedReportRows, selectedReportData, participationSummary } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);

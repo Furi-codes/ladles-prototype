@@ -1,3 +1,10 @@
+/**
+ * Checks readable history details, safe errors and the absence of raw diagnostic dumps in UI
+ * code.
+ * Dependencies are mocked or source/helpers are checked locally. These tests do not replace
+ * testing the deployed UI and external services.
+ */
+
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -19,8 +26,8 @@ function load(file) {
   vm.runInThisContext(`(function(require,module,exports){${js}\n})`, { filename: full })(dependency, compiledModule, compiledModule.exports);
   return compiledModule.exports;
 }
-const { userFacingError } = load('lib/user-facing-error.ts');
-const { activityDetails, activityAction } = load('lib/admin-activity.ts');
+const { userFacingError } = load('lib/errors/user-facing.ts');
+const { activityDetails, activityAction } = load('features/admin/utils/activity.ts');
 
 test('technical errors never become user messages, while business validation remains useful', () => {
   const fallback = 'Your booking could not be saved. Please try again.';
@@ -53,7 +60,7 @@ test('activity details show readable dates, capacity changes and ranges without 
   assert.equal(rows.find(row => row.label === 'New capacity').value, '6');
   assert.equal(rows.find(row => row.label === 'Rows exported').value, '0');
   assert.equal(rows.find(row => row.label === 'Bookable range 1').value, '09:15–10:15 · 6 places');
-  const Component = load('app/admin/components/ActivityDetails.tsx').default;
+  const Component = load('features/admin/settings/ActivityDetails.tsx').default;
   const html = renderToStaticMarkup(React.createElement(Component, { details }));
   assert.match(html, /View details|<dt>Location<\/dt>/); assert.doesNotMatch(html, /<pre|metadata_saved|request_key|SELECT|hidden-event|hidden-slot|Not for the UI/);
   assert.equal(activityAction('WMS_CAPACITY_UPDATED'), 'Capacity updated by WMS');
@@ -70,7 +77,7 @@ test('production pages have no raw code dumps or JSON serialization used directl
       if (entry.isDirectory()) visitDirectory(file); else if (file.endsWith('.tsx')) files.push(file);
     }
   }
-  visitDirectory(resolve(root, 'app'));
+  for (const directory of ['app','features','components']) visitDirectory(resolve(root, directory));
   for (const file of files) {
     const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     function visit(node) {

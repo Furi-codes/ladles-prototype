@@ -1,6 +1,11 @@
-/** Admin routes share one data provider and navigation shell instead of repeating them on every page. */
-import { AdminProvider } from "./components/AdminProvider";
-import AdminShell from "./components/AdminShell";
+/**
+ * Wraps admin routes in their shared data provider and workspace shell.
+ * Next.js keeps this layout across child-route navigation, so pages can reuse the same header
+ * and loaded data.
+ */
+
+import { AdminProvider } from "@/features/admin/shell/AdminProvider";
+import AdminShell from "@/features/admin/shell/AdminShell";
 
 /** Places the shell and page children inside the provider so both can use useAdminData. */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

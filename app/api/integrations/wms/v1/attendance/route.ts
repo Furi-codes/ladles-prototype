@@ -1,4 +1,8 @@
-/** Receives WMS attendance outcomes; this is separate from the volunteer's timed clock-in/out record. */
+/**
+ * Accepts WMS attendance updates for synced volunteer bookings.
+ * Shared server authentication and payload checks run before the protected database operation.
+ */
+
 import {
   getIntegrationDatabase,
   integrationErrorStatus,

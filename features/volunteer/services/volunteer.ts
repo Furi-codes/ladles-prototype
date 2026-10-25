@@ -1,0 +1,183 @@
+/**
+ * Loads volunteer rows and submits bookings, cancellations and attendance.
+ * Paged queries handle API row limits; sensitive booking and attendance rules stay in the
+ * deployed database functions.
+ */
+
+import { fetchSlotAvailability } from '@/lib/supabase/availability'
+import type { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase/client'
+import { fetchAllPages } from '@/lib/supabase/pagination'
+import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile } from '@/lib/types'
+
+/** Aggregate chart rows returned by the community RPC, without individual volunteer details. */
+export type CommunityParticipationMonth = { month_start: string; volunteer_count: number }
+/** The three bounded six-month windows understood by the community RPC. */
+export type CommunityParticipationPeriod = "latest_6_months" | "previous_6_months" | "earlier_6_months"
+
+/** Loads events in chronological order for the volunteer dashboard. */
+export async function fetchEventsForVolunteer(): Promise<PostgrestResponse<Event>> {
+  return fetchAllPages<Event>((from, to) => supabase.from('events').select('*', { count: 'exact' }).order('date', { ascending: true }).order('id').range(from, to))
+}
+
+/** Loads visible bookings for shifts/availability. Which users' rows are visible depends on database RLS. */
+export async function fetchBookingsForVolunteer(): Promise<PostgrestResponse<Booking>> {
+  return fetchAllPages<Booking>((from, to) => supabase.from('bookings').select('*', { count: 'exact' }).order('id', { ascending: false }).range(from, to))
+}
+
+/** Loads the ranges and capacities available for volunteer booking. */
+export async function fetchEventSlotsForVolunteer(): Promise<PostgrestResponse<EventSlot>> {
+  const availabilityRequest = fetchSlotAvailability().catch((error: unknown) => {
+    console.error("Unexpected slot availability failure:", error);
+    throw new Error("Availability could not be loaded. Please try again.");
+  });
+  const [result, availability] = await Promise.all([
+    fetchAllPages<EventSlot>((from, to) => supabase.from('event_slots').select('*', { count: 'exact' }).order('start_time', { ascending: true }).order('id').range(from, to)),
+    availabilityRequest,
+  ]);
+  if (result.error) return result;
+  // Attach aggregate availability by slot ID. A missing RPC leaves remaining undefined for the UI fallback.
+  const remaining = new Map(availability?.map(row => [row.event_slot_id, Number(row.remaining)]));
+  return { ...result, data: result.data.map(slot => ({ ...slot, remaining: remaining.get(slot.id) })) };
+}
+
+/** Loads the user's inbox in 200-row batches until a short page; a query error discards the partial result. */
+export async function fetchVolunteerNotifications(userId: string): Promise<{ data: Notification[] | null; error: { message: string } | null }> {
+  const rows: Notification[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const { data, error } = await supabase.from('notifications').select('*').eq('user_id', userId)
+      .order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + 199);
+    if (error) return { data: null, error };
+    rows.push(...(data ?? []));
+    // This loader stops on a short page rather than an exact count, unlike the admin/report loaders.
+    if ((data?.length ?? 0) < 200) return { data: rows, error: null };
+  }
+}
+
+/** Marks one notice as read for the signed-in volunteer. */
+export async function markVolunteerNotificationRead(notificationId: number, userId: string) {
+  return supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId)
+    .eq('user_id', userId)
+    .select('id')
+    .single()
+}
+
+/** Mark loaded unread IDs across the complete inbox, including rows below Show more. */
+export async function markVolunteerNotificationsRead(ids: number[], userId: string) {
+  const updated: number[] = [];
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const { data, error } = await supabase.from('notifications').update({ is_read: true })
+      .eq('user_id', userId).eq('is_read', false).in('id', ids.slice(offset, offset + 200)).select('id');
+    if (error) return { ids: updated, error };
+    // Return actual updated IDs so the inbox can show partial success if a later batch fails.
+    updated.push(...(data ?? []).map(row => row.id));
+  }
+  return { ids: updated, error: null };
+}
+
+/** Sends a QR checkpoint ID to the attendance RPC. Permission and shift checks happen in the database. */
+export async function recordEventAttendance(checkpointId: string): Promise<PostgrestSingleResponse<AttendanceRecord>> {
+  return supabase.rpc('record_event_attendance', { p_checkpoint_id: checkpointId }).single()
+}
+
+/** Code entry uses the same attendance checks as QR scanning. */
+export async function recordEventAttendanceCode(code: string): Promise<{ data: AttendanceRecord | null; error: { message: string } | null }> {
+  const { data, error } = await supabase.rpc('record_event_attendance_code', { p_code: code })
+  if (error) return { data: null, error }
+  const result = data as { attendance?: AttendanceRecord; error?: string } | null
+  // A successful transport can still contain a business-rule error inside the RPC's JSON result.
+  if (result?.error) return { data: null, error: { message: result.error } }
+  if (!result?.attendance) return { data: null, error: { message: 'Attendance could not be confirmed. Please try again.' } }
+  return { data: result.attendance, error: null }
+}
+
+/** Loads attendance for the signed-in volunteer, including any live clock-in. */
+export async function fetchVolunteerAttendanceRecords(): Promise<PostgrestResponse<AttendanceRecord>> {
+  return fetchAllPages<AttendanceRecord>((from, to) => supabase.rpc('get_attendance_records', {}, { count: 'exact' }).order('booking_id').range(from, to))
+}
+
+/**
+ * Returns an existing profile, or creates a volunteer profile for a newly
+ * authenticated user who does not yet have one.
+ */
+export async function ensureUserProfile(
+  userId: string,
+  email: string | undefined,
+  fullName?: string,
+  dateOfBirth?: string
+): Promise<PostgrestSingleResponse<Profile>> {
+  const { data: existingProfile, error: selectError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle()
+
+  // Return the query error unchanged so the caller can display or handle it.
+  if (selectError) {
+    return { data: null, error: selectError } as PostgrestSingleResponse<Profile>
+  }
+
+  // Keep the display email in sync after Supabase confirms an email change.
+  if (existingProfile) {
+    if (email && existingProfile.email !== email) {
+      return await supabase
+        .from('profiles')
+        .update({ email })
+        .eq('id', userId)
+        .select()
+        .single() as PostgrestSingleResponse<Profile>
+    }
+    return { data: existingProfile as Profile, error: null } as PostgrestSingleResponse<Profile>
+  }
+
+  // Fall back to a readable name and a non-empty email when OAuth metadata is absent.
+  const profilePayload: Omit<Profile, 'phone'> & { role: string } = {
+    id: userId,
+    full_name: fullName || email?.split('@')[0] || 'Volunteer',
+    email: email || `${userId}@placeholder.local`,
+    role: 'volunteer',
+    date_of_birth: dateOfBirth,
+  }
+
+  return supabase.from('profiles').insert([profilePayload]).select().single()
+}
+
+/** Saves the volunteer's date of birth to their own profile. */
+export async function updateVolunteerDateOfBirth(userId: string, dateOfBirth: string) {
+  return supabase
+    .from('profiles')
+    .update({ date_of_birth: dateOfBirth })
+    .eq('id', userId)
+    .select()
+    .single()
+}
+
+/** Requests a booking through book_event_slot; capacity/duplicate enforcement depends on its deployed SQL. */
+export async function bookEventSlot(eventSlotId: number): Promise<PostgrestSingleResponse<Booking>> {
+  // RPC calls the deployed database function; this helper sends the chosen slot ID, not a user-entered capacity.
+  // Its SQL is not stored here, so this call alone does not prove how concurrent or duplicate requests are handled.
+  return supabase.rpc('book_event_slot', { p_event_slot_id: eventSlotId }).single()
+}
+
+/** Deletes one booking, restricted to the user who owns it. */
+export async function cancelUserBooking(
+  bookingId: number,
+  userId: string
+): Promise<{ data: null; error: { message: string } | null }> {
+  // Cancellation here is a physical DELETE, not an update to a Cancelled status.
+  // Both filters must match. They narrow the request; database access policies remain necessary.
+  const result = await supabase.from('bookings').delete().eq('id', bookingId).eq('user_id', userId)
+
+  return {
+    data: result.data as null,
+    error: result.error ? { message: result.error.message } : null,
+  }
+}
+
+/** Returns privacy-safe monthly attendance totals for one bounded six-month period. */
+export async function fetchCommunityParticipation(period: CommunityParticipationPeriod): Promise<PostgrestResponse<CommunityParticipationMonth>> {
+  return supabase.rpc('get_community_participation_for_period', { p_period: period })
+}

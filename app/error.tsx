@@ -1,7 +1,11 @@
 "use client";
+/**
+ * Shows the route error fallback with a retry action.
+ * Users see a safe recovery message rather than internal exception details.
+ */
 
 import Link from 'next/link';
-import styles from './volunteer/volunteer.module.css';
+import styles from '@/styles/volunteer.module.css';
 
 /** Unhandled page failures get a recovery screen, never the exception or its stack trace. */
 export default function PageError({ reset }: { reset: () => void }) {

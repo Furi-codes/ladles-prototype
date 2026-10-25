@@ -1,6 +1,11 @@
-/** Shared validation, authentication and logging for WMS routes. Never import this into browser components. */
+/**
+ * Contains WMS authentication, server database access and payload validation.
+ * Secret keys stay on the server, and shared parsers keep all integration endpoints using the
+ * same input rules.
+ */
+
 import "server-only";
-import { userFacingError } from '@/lib/user-facing-error';
+import { userFacingError } from '@/lib/errors/user-facing';
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { timingSafeEqual } from "node:crypto";

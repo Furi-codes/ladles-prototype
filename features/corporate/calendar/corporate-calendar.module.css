@@ -1,0 +1,98 @@
+/**
+ * Styles the corporate month calendar and session states.
+ * CSS module classes stay scoped to this UI; changes here affect presentation rather than
+ * booking or permission rules.
+ */
+
+.calendar{
+  padding:20px;min-width:0;
+  --cal-available:#1e6a43;--cal-available-bg:#edf8f0;
+  --cal-reserved:#1f5a9b;--cal-reserved-bg:#eaf2fc;
+  --cal-draft:#785c00;--cal-draft-bg:#fff7d6;
+  --cal-cancelled:#a21e35;--cal-cancelled-bg:#fff0f2;
+}
+:global(html[data-theme="dark"]) .calendar{
+  --cal-available:#99e5b7;--cal-available-bg:#17382b;
+  --cal-reserved:#a9ceff;--cal-reserved-bg:#1b304d;
+  --cal-draft:#f4d77f;--cal-draft-bg:#3c3219;
+  --cal-cancelled:#ffb0bf;--cal-cancelled-bg:#44202b;
+}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.toolbar h2{margin:0;font-size:16px;font-weight:650}
+.toolbar p,.hint,.agenda>p{margin:6px 0;color:var(--portal-muted);font-size:12px;line-height:1.6}
+.monthPicker input{min-height:40px;max-width:180px;padding:6px 10px;border:1px solid var(--portal-line);border-radius:7px;background:var(--portal-surface);color:var(--portal-ink);font:inherit;font-size:13px}
+.layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(240px,1fr);gap:20px;align-items:start}
+.layout>div{min-width:0}
+.month{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:4px}
+.month th{padding:6px 0;color:var(--portal-muted);font-size:11px;font-weight:600;text-align:center}
+.month td{padding:0;vertical-align:top}
+/* One fixed-size date button per cell keeps every week aligned, even on busy days.
+   Counts and status dots give an overview; complete records stay in the agenda. */
+.month .day{
+  position:relative;display:grid;grid-template-rows:28px 14px 8px;
+  place-items:center;align-content:center;gap:2px;
+  width:100%;height:80px;min-height:80px;box-sizing:border-box;padding:8px 4px;
+  border:1px solid var(--portal-line);border-radius:9px;background:var(--portal-bg);
+  color:var(--portal-ink);text-align:center;font:inherit;cursor:pointer;
+}
+.day strong{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;font-size:13px;font-weight:600}
+.month .hasSessions{background:var(--portal-surface);border-color:var(--portal-muted)}
+.day[aria-current=date] strong{background:var(--portal-accent);color:var(--portal-surface)}
+.month .day[aria-pressed=true]{background:var(--portal-soft);border:2px solid var(--portal-accent);color:var(--portal-ink)}
+.month .day:disabled{color:var(--portal-muted);cursor:not-allowed}
+.month .day:not(:disabled):hover{border-color:var(--portal-accent)}
+.month .past{background:var(--portal-bg);color:var(--portal-muted);border-style:dashed}
+.past strong{text-decoration:line-through;text-decoration-thickness:1px}
+.day .daySummary{font-size:10px;line-height:14px;white-space:nowrap}
+.day .dayCount{display:none}
+.day .dayMarkers{display:flex;justify-content:center;gap:4px;min-height:8px}
+.day .stateDot{display:block;width:7px;height:7px;box-sizing:border-box;border:1px solid currentColor;border-radius:50%}
+.stateDot[data-state=available]{background:var(--cal-available);color:var(--cal-available)}
+.stateDot[data-state=reserved]{background:var(--cal-reserved);color:var(--cal-reserved)}
+.stateDot[data-state=unpublished]{background:transparent;color:var(--cal-draft);border-style:dashed}
+.stateDot[data-state=cancelled]{background:var(--cal-cancelled);color:var(--cal-cancelled)}
+.stateDot[data-state=past]{background:var(--portal-muted);color:var(--portal-muted)}
+.day:focus-visible{outline:3px solid var(--portal-accent);outline-offset:2px}
+.agenda{min-width:0;border:1px solid var(--portal-line);border-radius:9px;padding:16px;background:var(--portal-bg)}
+.agenda>h3{margin:0 0 12px}
+.item{display:grid;gap:8px;padding:16px 0;border-top:1px solid var(--portal-line);overflow-wrap:anywhere}
+.item h3{margin:0;font-size:14px;font-weight:650}
+.item p{margin:0;font-size:12px;color:var(--portal-muted);line-height:1.6}
+.item>span{justify-self:start}
+.item[data-state=cancelled]>h3{text-decoration:line-through}
+.item[data-state=past]{border-top-style:dashed}
+.srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:0 0 16px}
+.legend li{margin:0}
+.status{display:block;margin-top:4px;padding:4px 6px;border:1px solid var(--portal-line);border-radius:5px;background:var(--portal-bg);color:var(--portal-muted);font-size:10px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
+.legend .status{margin:0}
+.item>.status{justify-self:start}
+.status[data-state=available]{background:var(--cal-available-bg);color:var(--cal-available);border-color:var(--cal-available)}
+.status[data-state=reserved]{background:var(--cal-reserved-bg);color:var(--cal-reserved);border-color:var(--cal-reserved)}
+.status[data-state=unpublished]{background:var(--cal-draft-bg);color:var(--cal-draft);border-color:var(--cal-draft);border-style:dashed}
+.status[data-state=cancelled]{background:var(--cal-cancelled-bg);color:var(--cal-cancelled);border-color:var(--cal-cancelled);text-decoration:line-through}
+.status[data-state=past]{border-style:dashed;color:var(--portal-muted)}
+/**
+ * Apply these layout changes when (max-width:1000px) matches the screen.
+ */
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.agenda{margin-top:4px}}
+@media screen and (max-width:600px){
+  .calendar{padding:10px;max-width:100%;box-sizing:border-box}
+  .toolbar{gap:12px}
+  .toolbar>div:last-child{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));width:100%;gap:6px}
+  .toolbar>div:last-child>button{grid-column:span 1;min-width:0;min-height:44px;padding:6px 4px}
+  .toolbar>div:last-child>button:nth-last-child(-n+2){grid-column:span 3}
+  .monthPicker{grid-column:span 4;min-width:0}
+  .monthPicker input{width:100%;max-width:none;min-width:0;font-size:16px;box-sizing:border-box}
+  .month{border-spacing:2px}
+  .month .day{height:72px;min-height:72px;padding:7px 2px}
+  .day .daySummary{visibility:hidden}
+  .day .dayCount{display:block;position:absolute;top:4px;right:4px;font-size:9px;line-height:12px;color:var(--portal-muted)}
+  .day .dayMarkers{gap:2px}
+  .day .stateDot{width:6px;height:6px}
+  .status{font-size:9px;padding:3px 2px}
+  .legend .status{padding:4px 7px}
+  .agenda{padding:12px}
+  .agenda .status{font-size:11px}
+  .agenda button{width:100%;min-height:44px}
+}

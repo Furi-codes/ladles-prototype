@@ -1,4 +1,8 @@
-/** Next.js configuration; the empty object currently keeps the framework's defaults. */
+/**
+ * Holds the Next.js build/runtime options for this project.
+ * The object is currently empty, so Next.js uses its default configuration.
+ */
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {

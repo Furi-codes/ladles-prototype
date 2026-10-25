@@ -1,3 +1,7 @@
+-- Adds recorded group attendance, corrections and scoped outcome reports.
+-- This original migration uses the earlier hours model; later event-duration migration replaces
+-- the active report/recording path.
+
 -- Corporate attendance/reports. No volunteer/WMS events, bookings or capacity are reused.
 begin;
 alter table public.corporate_rollout_settings add column outcomes_schema_version integer not null default 1 check(outcomes_schema_version=1);
@@ -30,6 +34,7 @@ create table corporate_private.attendance_requests (
 alter table corporate_private.attendance_requests enable row level security;
 revoke all on corporate_private.attendance_requests from public,anon,authenticated;
 
+-- Return the saved workflow settings and supported schema versions.
 create or replace function corporate_private.booking_settings() returns jsonb language plpgsql security definer set search_path='' as $$
 begin
   perform corporate_private.require_user();
@@ -38,6 +43,7 @@ begin
     'changes_schema_version',changes_schema_version,'changes_enabled',changes_enabled,'outcomes_schema_version',outcomes_schema_version)
     from public.corporate_rollout_settings where id=1);
 end $$;
+-- Build the booking response with related event and workflow state.
 create or replace function corporate_private.booking_json(b public.corporate_reservations) returns jsonb language sql stable set search_path='' as $$
   select(to_jsonb(b)-'request_payload'-'request_key')||jsonb_build_object('event',(select corporate_private.event_json(e) from public.corporate_events e where e.id=b.event_id),
     'is_overdue',b.status in ('Pending payment','Pending additional payment') and b.payment_due_at<=now(),
@@ -45,6 +51,8 @@ create or replace function corporate_private.booking_json(b public.corporate_res
     'attendance',(select to_jsonb(g)-'booking_id'-'recorded_by' from public.corporate_group_attendance g where g.booking_id=b.id))
 $$;
 
+-- Record or correct the original group-attendance model; later migration adds the
+-- whole-event-hours path.
 create function corporate_private.record_attendance(p_booking_id uuid,p_version integer,p_request_key uuid,p_count integer,p_hours numeric,p_note text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations; e public.corporate_events;
@@ -86,6 +94,7 @@ begin
   return corporate_private.booking_json(b);
 end $$;
 
+-- Return the earlier outcome report within the caller's allowed booking scope.
 create function corporate_private.outcome_report(p_query text,p_status text,p_from date,p_to date,p_offset integer,p_limit integer)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); v_admin boolean:=public.is_admin(); result jsonb;
@@ -120,6 +129,8 @@ begin
   return result;
 end $$;
 
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.corporate_record_attendance(p_booking_id uuid,p_version integer,p_request_key uuid,p_count integer,p_hours numeric,p_note text)
 returns jsonb language sql security invoker set search_path='' as $$select corporate_private.record_attendance(p_booking_id,p_version,p_request_key,p_count,p_hours,p_note)$$;
 create function public.corporate_outcome_report(p_query text default '',p_status text default '',p_from date default null,p_to date default null,p_offset integer default 0,p_limit integer default 10)

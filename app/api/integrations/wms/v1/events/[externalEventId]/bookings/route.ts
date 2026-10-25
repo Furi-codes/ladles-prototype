@@ -1,6 +1,11 @@
-/** Read-only WMS snapshot of individual bookings and current capacity for externally identified slots. */
+/**
+ * Returns the WMS-owned event's booking sync data.
+ * The integration is server-authenticated and paged; corporate portal reservations use a
+ * separate workflow.
+ */
+
 import { getIntegrationDatabase, jsonError, requireWmsAuthentication } from "@/lib/server/wms-integration";
-import { fetchAllPages, fetchRowsByIds } from "@/lib/data-pagination";
+import { fetchAllPages, fetchRowsByIds } from "@/lib/supabase/pagination";
 
 export const runtime = "nodejs";
 

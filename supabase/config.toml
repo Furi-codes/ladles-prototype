@@ -1,3 +1,7 @@
+# Records this Supabase project's local identifier and password-policy configuration.
+# It contains configuration rather than credentials; SMTP and the full historical database
+# schema are not defined here.
+
 # Only declared settings are pushed. Keep existing email, redirect and provider configuration.
 project_id = "ladles-prototype"
 

@@ -1,7 +1,13 @@
+-- Updates admin corporate notices, reports and related booking workflow details.
+-- These replacements extend earlier functions while retaining the existing records and
+-- permission checks.
+
 -- Admin inbox and event-change safeguards. Keep all historical CSR and volunteer records.
 begin;
 
 create index corporate_admin_notice_order_idx on public.corporate_account_notifications(created_at desc,id desc) where audience='admin';
+-- Return combined admin account/booking notices and the unread total for the current
+-- administrator.
 create function corporate_private.admin_notices(p_kind text,p_unread boolean,p_offset integer,p_limit integer)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); result jsonb;
@@ -24,6 +30,8 @@ begin
   return result;
 end $$;
 
+-- Save an event using the expected version or creation key, and notify affected bookings where
+-- required.
 create or replace function corporate_private.save_event(p_event_id uuid,p_version integer,p_details jsonb,p_creation_key uuid,p_reason text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); v jsonb:=corporate_private.clean_event(p_details); e public.corporate_events; v_before jsonb; b public.corporate_reservations;
 begin
@@ -77,6 +85,8 @@ begin
   return corporate_private.event_json(e);
 end $$;
 
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.corporate_admin_notices(p_kind text default '',p_unread boolean default false,p_offset integer default 0,p_limit integer default 10)
 returns jsonb language sql security invoker set search_path='' as $$ select corporate_private.admin_notices(p_kind,p_unread,p_offset,p_limit) $$;
 revoke all on function corporate_private.admin_notices(text,boolean,integer,integer),public.corporate_admin_notices(text,boolean,integer,integer) from public,anon,authenticated;
@@ -95,6 +105,7 @@ create or replace function corporate_private.event_json(e public.corporate_event
         (b.event_id=e.id or exists(select 1 from public.corporate_booking_changes c where c.booking_id=b.id and c.target_event_id=e.id and c.status='Requested')))) else '{}'::jsonb end
 $$;
 
+-- Search volunteer profiles for administrators, including people without bookings.
 create or replace function corporate_private.volunteer_directory(p_query text,p_phone_filter text,p_offset integer,p_limit integer) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); result jsonb; v_query text:=btrim(coalesce(p_query,''));
 begin

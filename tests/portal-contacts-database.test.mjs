@@ -1,3 +1,9 @@
+/**
+ * Checks portal contact visibility, primary contact validation and admin-only edits.
+ * These checks use an isolated local database, so test writes cannot alter the hosted app. They
+ * do not prove a live deployment or email delivery.
+ */
+
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';

@@ -1,3 +1,7 @@
+-- Adds personal 24-hour/2-hour reminder choices for volunteer and corporate sessions.
+-- Scheduled generators check opt-outs and deduplication separately from mandatory
+-- booking/account updates.
+
 -- Personal in-app reminders. Booking decisions/cancellations are mandatory inbox history.
 begin;
 
@@ -41,6 +45,7 @@ begin
   return v_user;
 end $$;
 
+-- Return the current user's 24-hour and 2-hour reminder choices.
 create function notification_private.get_reminder_preferences(p_portal text) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=notification_private.reminder_user(p_portal); result jsonb; legacy_enabled boolean:=true;
@@ -53,6 +58,7 @@ begin
   return coalesce(result,jsonb_build_object('portal',p_portal,'reminder_24h',legacy_enabled,'reminder_2h',legacy_enabled));
 end $$;
 
+-- Save both personal reminder choices and handle the related optional reminders.
 create function notification_private.set_reminder_preferences(p_portal text,p_24h boolean,p_2h boolean) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=notification_private.reminder_user(p_portal);
@@ -79,6 +85,8 @@ begin
   return notification_private.get_reminder_preferences(p_portal);
 end $$;
 
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.get_personal_reminder_preferences(p_portal text) returns jsonb
 language sql security invoker set search_path='' as $$select notification_private.get_reminder_preferences(p_portal)$$;
 create function public.set_personal_reminder_preferences(p_portal text,p_24h boolean,p_2h boolean) returns jsonb
@@ -90,6 +98,7 @@ begin
   return p_enabled;
 end $$;
 
+-- Generate eligible volunteer shift reminders using saved preferences and deduplication keys.
 create or replace function notification_private.generate_shift_reminders(p_now timestamptz default now()) returns integer
 language plpgsql security invoker set search_path='' as $$
 declare inserted integer;
@@ -136,6 +145,7 @@ begin
   return inserted;
 end $$;
 
+-- Generate eligible company-session reminders using saved preferences and deduplication keys.
 create function notification_private.generate_corporate_reminders(p_now timestamptz default now()) returns integer
 language plpgsql security invoker set search_path='' as $$
 declare inserted integer;

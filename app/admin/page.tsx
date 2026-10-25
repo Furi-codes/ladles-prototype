@@ -1,8 +1,13 @@
 "use client";
+/**
+ * Opens the admin dashboard at its Next.js route.
+ * The route delegates to feature components, keeping URL structure separate from the larger
+ * screen implementation.
+ */
 
-import PageHeader from "./components/PageHeader";
-import Dashboard from "./components/Dashboard";
-import { useAdminData } from "./components/AdminProvider";
+import PageHeader from "@/features/admin/shell/PageHeader";
+import Dashboard from "@/features/admin/dashboard/Dashboard";
+import { useAdminData } from "@/features/admin/shell/AdminProvider";
 
 export default function AdminPage() {
   const { bookings, events, eventSlots, volunteers, isLoading, loadError } = useAdminData();

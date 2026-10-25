@@ -1,0 +1,8 @@
+/**
+ * Styles the attendance QR and entry-code printing.
+ * CSS module classes stay scoped to this UI; changes here affect presentation rather than
+ * booking or permission rules.
+ */
+
+.code { margin: 12px 0; padding: 12px; border: 1px solid var(--border, #dce1e9); border-radius: 8px; background: var(--surface-muted, #f5f6fa); font: 700 clamp(18px, 3vw, 26px) monospace; letter-spacing: .1em; user-select: all; }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }

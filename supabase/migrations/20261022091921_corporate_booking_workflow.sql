@@ -1,3 +1,7 @@
+-- Adds corporate sessions, booking requests, payment records and workflow history.
+-- This is the original capacity-based workflow; later migrations change sessions to exclusive
+-- company reservations.
+
 -- Corporate booking workflow. Requires the account foundation; not applied by Next.js.
 -- New corporate UUIDs/capacity have no foreign keys to volunteer events, slots or legacy CSR bookings.
 begin;
@@ -87,6 +91,7 @@ create index corporate_workflow_history_account_idx on public.corporate_workflow
 alter table public.corporate_account_notifications add column target_kind text not null default 'account' check(target_kind in ('account','booking')),
   add column target_id uuid;
 
+-- Check whether the current identity owns an approved, verified business account.
 create function corporate_private.approved_owner() returns boolean language sql stable security definer set search_path='' as $$
   select auth.uid() is not null and exists(select 1 from public.corporate_accounts a join auth.users u on u.id=a.owner_user_id
     where a.owner_user_id=auth.uid() and a.status='Approved' and u.email_confirmed_at is not null and not coalesce(u.is_anonymous,false))
@@ -132,18 +137,21 @@ begin
 end $$;
 create trigger corporate_reservation_capacity before insert or update or delete on public.corporate_reservations for each row execute function corporate_private.reservation_capacity();
 
+-- Return the saved workflow settings and supported schema versions.
 create function corporate_private.booking_settings() returns jsonb language plpgsql security definer set search_path='' as $$
 begin
   perform corporate_private.require_user();
   return (select jsonb_build_object('booking_schema_version',booking_schema_version,'booking_enabled',booking_enabled,
     'booking_contact_email',booking_contact_email,'booking_contact_phone',booking_contact_phone) from public.corporate_rollout_settings where id=1);
 end $$;
+-- Stop new booking/acceptance operations when requests are closed.
 create function corporate_private.require_bookings_open() returns void language plpgsql set search_path='' as $$
 begin
   if not exists(select 1 from public.corporate_rollout_settings where id=1 and booking_enabled and booking_contact_email<>'' and booking_contact_phone<>'') then
     raise exception 'Corporate requests are not open yet. Admin must configure booking contact details and enable this workflow.' using errcode='55000';
   end if;
 end $$;
+-- Check admin access and contact input before changing booking availability.
 create function corporate_private.configure_bookings(p_enabled boolean,p_email text,p_phone text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); v_before jsonb; result jsonb; v_email text:=btrim(coalesce(p_email,'')); v_phone text:=regexp_replace(btrim(coalesce(p_phone,'')),'[[:space:]]+',' ','g');
 begin
@@ -161,10 +169,12 @@ begin
   return corporate_private.booking_settings();
 end $$;
 
+-- Build the event response, including the current reservation/availability values.
 create function corporate_private.event_json(e public.corporate_events) returns jsonb language sql stable set search_path='' as $$
   select (to_jsonb(e)-'creation_key'-'creation_payload') || jsonb_build_object('remaining',e.capacity-e.reserved_places,
     'state',case when e.starts_at<=now() then 'Started' when not e.is_published then 'Closed' when e.capacity-e.reserved_places<e.min_group_size then 'Full' else 'Available' end)
 $$;
+-- Keep booking history and audience-specific in-app updates with the workflow action.
 create function corporate_private.write_workflow_action(b public.corporate_reservations,p_actor uuid,p_action text,p_before jsonb,p_reason text,p_audiences text)
 returns void language plpgsql security definer set search_path='' as $$
 declare v_actor text:=coalesce((select full_name from public.profiles where id=p_actor),'Account owner'); v_audience text;
@@ -178,6 +188,7 @@ begin
   end loop;
 end $$;
 
+-- Validate event fields before a create or edit operation.
 create function corporate_private.clean_event(p_details jsonb) returns jsonb language plpgsql set search_path='' as $$
 declare v_start timestamptz; v_end timestamptz; v_capacity integer; v_min integer; v_max integer;
 begin
@@ -197,6 +208,8 @@ begin
     'starts_at',v_start,'ends_at',v_end,'capacity',v_capacity,'min_group_size',v_min,'max_group_size',v_max,'is_published',(p_details->>'is_published')::boolean);
 end $$;
 
+-- Save an event using the expected version or creation key, and notify affected bookings where
+-- required.
 create function corporate_private.save_event(p_event_id uuid,p_version integer,p_details jsonb,p_creation_key uuid,p_reason text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); v jsonb:=corporate_private.clean_event(p_details); e public.corporate_events; v_before jsonb; b public.corporate_reservations;
 begin
@@ -238,6 +251,8 @@ begin
   return corporate_private.event_json(e);
 end $$;
 
+-- Create a booking request after checking the current event and request key; requesting does
+-- not itself accept the booking.
 create function corporate_private.request_booking(p_event_id uuid,p_event_version integer,p_group_size integer,p_notes text,p_request_key uuid) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); a public.corporate_accounts; e public.corporate_events; b public.corporate_reservations;
   payload jsonb:=jsonb_build_object('event_id',p_event_id,'event_version',p_event_version,'group_size',p_group_size,'notes',btrim(coalesce(p_notes,'')));
@@ -295,6 +310,7 @@ begin
   return to_jsonb(b);
 end $$;
 
+-- Close the booking/request with an explanation and release any reservation it held.
 create function corporate_private.reject_booking(p_booking_id uuid,p_version integer,p_reason text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations; event_id uuid; v_before jsonb;
 begin
@@ -310,6 +326,8 @@ begin
   return to_jsonb(b);
 end $$;
 
+-- Record an external receipt and confirm the eligible booking; no payment is processed by this
+-- function.
 create function corporate_private.record_payment(p_booking_id uuid,p_version integer,p_request_key uuid,p_reference text,p_received_on date,p_note text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations; payment public.corporate_payment_records; event_id uuid; v_before jsonb;
 begin
@@ -335,10 +353,12 @@ begin
   return to_jsonb(b);
 end $$;
 
+-- Build the booking response with related event and workflow state.
 create function corporate_private.booking_json(b public.corporate_reservations) returns jsonb language sql stable set search_path='' as $$
   select (to_jsonb(b)-'request_payload'-'request_key') || jsonb_build_object('event',(select corporate_private.event_json(e) from public.corporate_events e where e.id=b.event_id),
     'is_overdue',b.status in ('Pending payment','Pending additional payment') and b.payment_due_at<=now())
 $$;
+-- Return a scoped booking review, including its stored workflow details.
 create function corporate_private.booking_detail(p_booking_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations;
 begin
@@ -348,6 +368,7 @@ begin
     'history',coalesce((select jsonb_agg(to_jsonb(h) order by h.created_at desc,h.id desc) from(select * from public.corporate_workflow_history where booking_id=b.id order by created_at desc,id desc limit 50) h),'[]'::jsonb));
 end $$;
 
+-- Apply caller visibility and search/date filters before returning an event page.
 create function corporate_private.search_events(p_query text,p_from date,p_to date,p_offset integer,p_limit integer) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); result jsonb;
 begin
@@ -360,6 +381,7 @@ begin
   select jsonb_build_object('rows',coalesce((select jsonb_agg(corporate_private.event_json(p) order by p.starts_at,p.id) from paged p),'[]'::jsonb),'total',(select count(*) from matched)) into result;
   return result;
 end $$;
+-- Apply caller visibility and booking/attention filters before returning a booking page.
 create function corporate_private.search_bookings(p_query text,p_status text,p_from date,p_to date,p_offset integer,p_limit integer) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); result jsonb;
 begin
@@ -385,6 +407,7 @@ begin
   select jsonb_build_object('rows',coalesce((select jsonb_agg(to_jsonb(p) order by p.created_at desc,p.id desc) from paged p),'[]'::jsonb),'total',(select count(*) from matched)) into result;
   return result;
 end $$;
+-- Return booking updates for the permitted audience with read state and pagination.
 create function corporate_private.workflow_notices(p_offset integer,p_limit integer) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); result jsonb;
 begin
@@ -396,6 +419,8 @@ begin
   return result;
 end $$;
 
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.corporate_booking_settings() returns jsonb language sql security invoker set search_path='' as $$select corporate_private.booking_settings()$$;
 create function public.corporate_configure_bookings(p_enabled boolean,p_email text,p_phone text) returns jsonb language sql security invoker set search_path='' as $$select corporate_private.configure_bookings(p_enabled,p_email,p_phone)$$;
 create function public.corporate_save_event(p_event_id uuid,p_version integer,p_details jsonb,p_creation_key uuid,p_reason text) returns jsonb language sql security invoker set search_path='' as $$select corporate_private.save_event(p_event_id,p_version,p_details,p_creation_key,p_reason)$$;

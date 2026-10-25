@@ -1,9 +1,19 @@
+/**
+ * Builds the disposable local Postgres fixture used by the corporate database tests.
+ * It applies real migrations to a small test schema; no hosted database credentials or network
+ * are used.
+ */
+
 import {readFileSync} from 'node:fs';
 import {PGlite} from '@electric-sql/pglite';
 
 // A tiny existing-VMS schema, plus the real migrations. No hosted credentials or network.
 export const ids={admin:'00000000-0000-4000-8000-000000000001',owner:'00000000-0000-4000-8000-000000000002',other:'00000000-0000-4000-8000-000000000003',unverified:'00000000-0000-4000-8000-000000000004',admin2:'00000000-0000-4000-8000-000000000005',signup:'00000000-0000-4000-8000-000000000006'};
 export const details={company_name:'Example Business',contact_name:'Example Contact',contact_email:'contact@example.invalid',contact_phone:'+27 21 555 1234',billing_address:'12 Fictional Street, Cape Town, 8000'};
+/**
+ * Create a disposable local Postgres database with a small existing-VMS schema, then apply the
+ * requested real migrations. Each test closes its own database.
+ */
 export async function fixture(t,{bookings=false,changes=false,outcomes=false,separation=false}={}){
   const db=new PGlite();t.after(()=>db.close());
   await db.exec(`
@@ -38,6 +48,10 @@ export async function fixture(t,{bookings=false,changes=false,outcomes=false,sep
   if(separation)await db.exec(readFileSync(new URL('../../supabase/migrations/20261022162335_separate_corporate_accounts.sql',import.meta.url),'utf8'));
   return db;
 }
+/**
+ * Set the simulated request identity/role for a test operation so database ownership and
+ * permission checks can be exercised.
+ */
 export async function asUser(db,id,operation,role='authenticated'){
   await db.exec('begin');
   try{
@@ -46,9 +60,19 @@ export async function asUser(db,id,operation,role='authenticated'){
     const result=await operation();await db.exec('commit');return result;
   }catch(error){await db.exec('rollback');throw error;}
 }
+/**
+ * Call the named public SQL function with bound parameters rather than inserting test values
+ * into SQL text.
+ */
 export async function rpc(db,name,args=[]){
   const placeholders=args.map((_,i)=>'$'+(i+1)).join(',');
   return (await db.query(`select public.${name}(${placeholders}) as result`,args)).rows[0].result;
 }
+/**
+ * Use the admin identity to open registration in the local test database.
+ */
 export async function openRegistration(db){await asUser(db,ids.admin,()=>rpc(db,'corporate_set_rollout_settings',[true,false]));}
+/**
+ * Register sample company details as the chosen local test user.
+ */
 export async function register(db,id=ids.owner,input=details){return asUser(db,id,()=>rpc(db,'corporate_register_account',[JSON.stringify(input)]));}

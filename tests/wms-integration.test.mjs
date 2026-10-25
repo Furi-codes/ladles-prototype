@@ -1,3 +1,9 @@
+/**
+ * Checks WMS payload rules and route responses with mocked server dependencies.
+ * Dependencies are mocked or source/helpers are checked locally. These tests do not replace
+ * testing the deployed UI and external services.
+ */
+
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -9,9 +15,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
-const paginationUrl = moduleUrl(compile(readFileSync(new URL('../lib/data-pagination.ts', import.meta.url), 'utf8')));
-const safeErrorUrl = moduleUrl(compile(readFileSync(new URL('../lib/user-facing-error.ts', import.meta.url), 'utf8')));
-const timeOptions = await import(moduleUrl(compile(readFileSync(new URL('../lib/event-time-options.ts', import.meta.url), 'utf8'))));
+const paginationUrl = moduleUrl(compile(readFileSync(new URL('../lib/supabase/pagination.ts', import.meta.url), 'utf8')));
+const safeErrorUrl = moduleUrl(compile(readFileSync(new URL('../lib/errors/user-facing.ts', import.meta.url), 'utf8')));
+const timeOptions = await import(moduleUrl(compile(readFileSync(new URL('../features/admin/utils/event-times.ts', import.meta.url), 'utf8'))));
 
 async function fixture({ stale = false, reservations = 0, found = true, corporate = [], bookings = [], profiles = [], pageLimit = 500, missingCount = false, auditFailure = '', rpcError = false } = {}) {
   const key = '__wms_test_' + Math.random().toString(36).slice(2);
@@ -66,12 +72,12 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.invalid';
   process.env.SUPABASE_SECRET_KEY = 'test-only-key';
   const helper = compile(readFileSync(new URL('../lib/server/wms-integration.ts', import.meta.url), 'utf8'))
-    .replace(/['"]@\/lib\/user-facing-error['"]/, JSON.stringify(safeErrorUrl))
+    .replace(/['"]@\/lib\/errors\/user-facing['"]/, JSON.stringify(safeErrorUrl))
     .replace('import "server-only";', '')
     .replace(/import \{ createClient \} from "@supabase\/supabase-js";/, `const createClient = () => globalThis[${JSON.stringify(key)}];`);
   const helperUrl = moduleUrl(helper);
   const helpers = await import(helperUrl);
-  const route = async path => import(moduleUrl(compile(readFileSync(new URL(`../app/api/integrations/wms/v1/${path}/route.ts`, import.meta.url), 'utf8')).replace('"@/lib/server/wms-integration"', JSON.stringify(helperUrl)).replace('"@/lib/data-pagination"', JSON.stringify(paginationUrl))));
+  const route = async path => import(moduleUrl(compile(readFileSync(new URL(`../app/api/integrations/wms/v1/${path}/route.ts`, import.meta.url), 'utf8')).replace('"@/lib/server/wms-integration"', JSON.stringify(helperUrl)).replace('"@/lib/supabase/pagination"', JSON.stringify(paginationUrl))));
   return { calls, helpers, route, cleanup: () => { delete globalThis[key]; } };
 }
 const request = (method, body, token = 'test-only-token') => new Request('https://example.invalid', { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -184,7 +190,7 @@ test('completed corporate groups prevent capacity reductions before any write', 
 
 test('rendered dashboard uses current slot capacity, never the stale event summary', async () => {
   const require = createRequire(import.meta.url);
-  let source = ts.transpileModule(readFileSync(new URL('../app/admin/components/Dashboard.tsx', import.meta.url), 'utf8'), {
+  let source = ts.transpileModule(readFileSync(new URL('../features/admin/dashboard/Dashboard.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   source = source

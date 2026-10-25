@@ -1,9 +1,12 @@
+// TypeScript/Next.js compiler settings. This format supports comments (JSONC).
+// Next.js emits the application build; TypeScript checks the source without emitting files here.
 {
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
+    // Check nullable values and types before code reaches a running page.
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -18,10 +21,12 @@
         "name": "next"
       }
     ],
+    // @/ starts at the project root, keeping imports readable when feature files move folders.
     "paths": {
       "@/*": ["./*"]
     }
   },
+  // Include application source and Next.js-generated route types in the type check.
   "include": [
     "next-env.d.ts",
     "**/*.ts",

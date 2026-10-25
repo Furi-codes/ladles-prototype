@@ -1,8 +1,13 @@
-/** Root page wrapper: global styles, page metadata and the shared light/dark theme provider. */
+/**
+ * Wraps every route with global styles, metadata and the shared theme provider.
+ * The early theme script runs before interactive rendering so the initial page can use the
+ * saved/system theme.
+ */
+
 import type { Metadata } from "next";
 import Script from "next/script";
-import "./globals.css";
-import { ThemeProvider } from "./components/ThemeProvider";
+import "@/styles/globals.css";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
 /** Browser title/description supplied through Next.js rather than each page's rendered content. */
 export const metadata: Metadata = {

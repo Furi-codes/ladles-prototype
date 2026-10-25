@@ -1,7 +1,12 @@
-/** Shared data shapes used by the database helpers and React screens. Types do not validate API data at runtime. */
+/**
+ * Defines the shared volunteer, event, attendance and legacy data shapes.
+ * These types describe data used by the app; they neither create database columns nor validate
+ * responses at runtime.
+ */
+
 /** The lifecycle states a volunteer booking can have. Cancellation currently deletes the booking. */
 export type BookingStatus = 'Confirmed' | 'Present' | 'Completed' | 'No show';
-/** Corporate membership is separate, so an existing volunteer keeps their profile role. */
+/** Business access is stored separately; corporate-only profiles also use volunteer_enabled=false. */
 export type UserRole = 'admin' | 'volunteer';
 /** Event cancellation is kept on the event rather than removing its history. */
 export type EventStatus = 'Scheduled' | 'Cancelled';

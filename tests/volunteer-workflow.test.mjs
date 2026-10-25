@@ -1,3 +1,9 @@
+/**
+ * Checks volunteer shift timing, verified contribution and attendance-related helpers.
+ * Dependencies are mocked or source/helpers are checked locally. These tests do not replace
+ * testing the deployed UI and external services.
+ */
+
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 /** Unit tests for countdown, timezone and certificate rules, with fixed dates rather than live accounts. */
@@ -10,8 +16,8 @@ async function loadUtility(name) {
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
   return import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 }
-const dates = await loadUtility('date-utils');
-const attendance = await loadUtility('attendance-utils');
+const dates = await loadUtility('dates/calendar');
+const attendance = await loadUtility('dates/attendance');
 
 test('shift countdown uses days above 24 hours and hours/minutes at or below 24 hours', () => {
   assert.equal(attendance.formatShiftCountdown(1049 * 60 + 16), '44 days');

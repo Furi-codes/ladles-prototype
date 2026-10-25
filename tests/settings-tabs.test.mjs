@@ -1,3 +1,10 @@
+/**
+ * Checks that only the selected settings panel is rendered and navigation warns about dirty
+ * forms.
+ * Dependencies are mocked or source/helpers are checked locally. These tests do not replace
+ * testing the deployed UI and external services.
+ */
+
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -27,18 +34,18 @@ function fixture(search = '') {
   const mocks = {
     react,
     'next/navigation': { useSearchParams: () => new URLSearchParams(search) },
-    '@/lib/actions/corporate': corporate,
-    '@/lib/actions/audit': audit,
-    './AdminProvider': { useAdminData: () => ({ adminProfile: { full_name: 'Test admin', email: 'admin@example.invalid' } }) },
-    './FeatureShared': {
+    '@/features/admin/services/settings': corporate,
+    '@/features/admin/services/audit': audit,
+    '@/features/admin/shell/AdminProvider': { useAdminData: () => ({ adminProfile: { full_name: 'Test admin', email: 'admin@example.invalid' } }) },
+    '@/components/ui/FeatureShared': {
       useFeatureData: loader => ({ data: loader === corporate.loadSettings ? { settings, admins: [] } : [], loading: false, error: '', reload: async () => {} }),
       Field: () => null,
       FeatureState: () => null,
     },
-    './AdminAccessManager': { default: () => null },
+    '@/features/admin/settings/AdminAccessManager': { default: () => null },
   };
   const compiledModule = { exports: {} };
-  const source = ts.transpileModule(readFileSync(new URL('../app/admin/components/SettingsManager.tsx', import.meta.url), 'utf8'), {
+  const source = ts.transpileModule(readFileSync(new URL('../features/admin/settings/SettingsManager.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   vm.runInNewContext(source, {

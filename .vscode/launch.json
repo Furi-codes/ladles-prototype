@@ -1,7 +1,7 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    // Optional VS Code browser-debug profile. It opens the URL below; it does not start Next.js.
+    // This profile currently targets port 8080. The running server must use that port,
+    // or this URL must be changed to match the server's port (npm run dev normally uses 3000).
     "version": "0.2.0",
     "configurations": [
         {

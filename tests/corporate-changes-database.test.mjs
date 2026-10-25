@@ -1,3 +1,9 @@
+/**
+ * Checks booking changes, cancellations, retries and their effect on the held session.
+ * These checks use an isolated local database, so test writes cannot alter the hosted app. They
+ * do not prove a live deployment or email delivery.
+ */
+
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {test} from 'node:test';

@@ -1,9 +1,14 @@
 "use client";
+/**
+ * Opens the volunteer event management at its Next.js route.
+ * The route delegates to feature components, keeping URL structure separate from the larger
+ * screen implementation.
+ */
 
-import PageHeader from "../components/PageHeader";
-import EventsManager from "../components/EventsManager";
-import { useAdminData } from "../components/AdminProvider";
-import { FeatureState } from '../components/FeatureShared';
+import PageHeader from "@/features/admin/shell/PageHeader";
+import EventsManager from "@/features/admin/events/EventsManager";
+import { useAdminData } from "@/features/admin/shell/AdminProvider";
+import { FeatureState } from '@/components/ui/FeatureShared';
 
 export default function EventsPage() {
   const { events, eventSlots, attendanceCheckpoints, isLoading, loadError, fetchData } = useAdminData();

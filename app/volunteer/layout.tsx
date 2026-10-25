@@ -1,6 +1,11 @@
-/** Volunteer routes share their account/data state and navigation shell through this wrapper. */
-import { VolunteerProvider } from "./components/VolunteerProvider";
-import VolunteerShell from "./components/VolunteerShell";
+/**
+ * Wraps volunteer routes in their shared provider and workspace shell.
+ * Bookings, profile and notifications are shared across child pages through this persistent
+ * layout.
+ */
+
+import { VolunteerProvider } from "@/features/volunteer/shell/VolunteerProvider";
+import VolunteerShell from "@/features/volunteer/shell/VolunteerShell";
 
 /** Gives the shell and all child pages access to the same VolunteerProvider context. */
 export default function VolunteerLayout({ children }: { children: React.ReactNode }) {

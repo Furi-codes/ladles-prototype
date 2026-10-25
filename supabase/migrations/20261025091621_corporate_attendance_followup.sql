@@ -1,15 +1,21 @@
+-- Adds the outstanding-attendance queue and scheduled admin reminders.
+-- A reminder never records attendance automatically; a unique booking/end-time key prevents
+-- duplicate notices.
+
 -- Attendance is a manual admin action. This queue/reminder never completes a booking.
 alter table public.corporate_account_notifications add column attendance_event_end timestamptz;
 create unique index corporate_attendance_notice_once on public.corporate_account_notifications(target_id,attendance_event_end)
   where audience='admin' and attendance_event_end is not null;
 create index corporate_attendance_queue_idx on public.corporate_reservations(event_id,id) where status='Confirmed';
 
+-- Identify ended, confirmed sessions that still have no recorded group attendance.
 create function corporate_private.attendance_due(b public.corporate_reservations,e public.corporate_events)
 returns boolean language sql stable set search_path='' as $$
   select b.status='Confirmed' and e.cancelled_at is null and e.ends_at<=now()
     and not exists(select 1 from public.corporate_group_attendance a where a.booking_id=b.id)
 $$;
 
+-- Apply caller visibility and booking/attention filters before returning a booking page.
 create or replace function corporate_private.search_bookings(p_query text,p_status text,p_from date,p_to date,p_offset integer,p_limit integer)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); result jsonb;
@@ -33,6 +39,8 @@ begin
   return result;
 end $$;
 
+-- Insert one admin attendance reminder per booking/session end; recording remains a manual
+-- admin action.
 create function corporate_private.enqueue_attendance_notices() returns integer
 language plpgsql security definer set search_path='' as $$
 declare inserted integer;
@@ -51,6 +59,8 @@ begin
   return inserted;
 end $$;
 
+-- Return combined admin account/booking notices and the unread total for the current
+-- administrator.
 create or replace function corporate_private.admin_notices(p_kind text,p_unread boolean,p_offset integer,p_limit integer)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); result jsonb;

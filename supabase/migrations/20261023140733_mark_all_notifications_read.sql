@@ -1,3 +1,7 @@
+-- Adds a bulk read operation for the signed-in corporate/admin notification audience.
+-- Read markers are inserted in one operation, preserving the notifications themselves as
+-- history.
+
 begin;
 
 -- Read receipts belong to one person. Do not update/delete the shared notices,
@@ -18,6 +22,8 @@ end $$;
 
 -- The exposed wrapper keeps the same checked-private-function pattern as the
 -- existing single-notification action. Anonymous callers have no execute grant.
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.corporate_read_all_notices() returns integer
 language sql security invoker set search_path='' as $$select corporate_private.read_all_notices()$$;
 revoke all on function corporate_private.read_all_notices(),public.corporate_read_all_notices() from public,anon,authenticated;

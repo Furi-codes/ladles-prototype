@@ -1,4 +1,9 @@
-/** WMS publish endpoint: validates the contract, calls the event upsert RPC and records activity. */
+/**
+ * Creates or updates a volunteer event published from WMS.
+ * Shared parsers validate the payload and the database operation preserves the external
+ * event/timeslot identities.
+ */
+
 import {
   getIntegrationDatabase,
   integrationErrorStatus,

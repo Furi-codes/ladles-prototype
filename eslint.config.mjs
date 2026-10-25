@@ -1,4 +1,8 @@
-/** Lint rules used by npm run lint: Next.js web-vitals/TypeScript checks, excluding build output. */
+/**
+ * Configures the lint checks run by npm run lint.
+ * Next.js and TypeScript rules are reused, while generated build folders are excluded.
+ */
+
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";

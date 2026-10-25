@@ -1,3 +1,9 @@
+/**
+ * Checks that volunteer and business identities remain separate.
+ * These checks use an isolated local database, so test writes cannot alter the hosted app. They
+ * do not prove a live deployment or email delivery.
+ */
+
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';

@@ -1,4 +1,9 @@
-import CorporateShell from './components/CorporateShell';
+/**
+ * Wraps corporate routes in the shared business workspace.
+ * Account checks and the header remain mounted while feature content changes.
+ */
+
+import CorporateShell from '@/features/corporate/shell/CorporateShell';
 
 /** Next.js keeps this layout mounted while corporate pages change. */
 export default function CorporateLayout({ children }: { children: React.ReactNode }) {

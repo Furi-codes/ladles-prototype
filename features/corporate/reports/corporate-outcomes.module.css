@@ -1,0 +1,14 @@
+/**
+ * Styles the corporate report summaries and printed output.
+ * CSS module classes stay scoped to this UI; changes here affect presentation rather than
+ * booking or permission rules.
+ */
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.metrics p{font-size:12px;color:var(--portal-muted)}.metrics strong{font-size:26px;color:var(--portal-ink)}.printArea{display:none}
+/* Admin QR printing normally hides page content. A report explicitly keeps only
+   its own ancestor chain displayed so that the printable table is not hidden. */
+/**
+ * Printed output has its own layout rules so on-screen controls do not dictate the report
+ * layout.
+ */
+@media print{:global(body:has([data-corporate-report])) *{visibility:hidden!important}:global(body:has([data-corporate-report])) :has(.printArea){display:block!important;overflow:visible!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important}.printArea,.printArea *{visibility:visible!important;color:black!important;background:white!important}.printArea{display:block;position:absolute;left:0;top:0;width:100%;padding:12px;box-sizing:border-box}.printArea>div{overflow:visible}.printArea table{min-width:0;width:100%;font-size:10px;border-collapse:collapse}.printArea th,.printArea td{white-space:normal;overflow-wrap:anywhere;border:1px solid #999;padding:6px}.printArea tr{break-inside:avoid}.printArea thead{display:table-header-group}}

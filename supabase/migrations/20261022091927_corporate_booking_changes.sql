@@ -1,3 +1,7 @@
+-- Adds booking amendments, cancellations and event-change handling.
+-- The original booking is kept until review, with version checks and a consistent locking order
+-- around updates.
+
 -- Corporate booking changes. Requires both earlier migrations; never run from a browser.
 begin;
 alter table public.corporate_rollout_settings add column changes_schema_version integer not null default 1 check(changes_schema_version=1),
@@ -50,6 +54,7 @@ create function corporate_private.lock_workflow() returns void language sql set 
 $$;
 revoke all on function corporate_private.lock_workflow() from public,anon,authenticated;
 
+-- Return the saved workflow settings and supported schema versions.
 create or replace function corporate_private.booking_settings() returns jsonb language plpgsql security definer set search_path='' as $$
 begin
   perform corporate_private.require_user();
@@ -57,6 +62,7 @@ begin
     'booking_contact_email',booking_contact_email,'booking_contact_phone',booking_contact_phone,
     'changes_schema_version',changes_schema_version,'changes_enabled',changes_enabled) from public.corporate_rollout_settings where id=1);
 end $$;
+-- Let admin enable or disable new corporate change requests.
 create function corporate_private.configure_changes(p_enabled boolean) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); v_before jsonb; v_after jsonb;
 begin
@@ -71,10 +77,12 @@ begin
   return corporate_private.booking_settings();
 end $$;
 
+-- Build the event response, including the current reservation/availability values.
 create or replace function corporate_private.event_json(e public.corporate_events) returns jsonb language sql stable set search_path='' as $$
   select(to_jsonb(e)-'creation_key'-'creation_payload')||jsonb_build_object('remaining',e.capacity-e.reserved_places,
     'state',case when e.cancelled_at is not null then 'Cancelled' when e.starts_at<=now() then 'Started' when not e.is_published then 'Closed' when e.capacity-e.reserved_places<e.min_group_size then 'Full' else 'Available' end)
 $$;
+-- Build the booking response with related event and workflow state.
 create or replace function corporate_private.booking_json(b public.corporate_reservations) returns jsonb language sql stable set search_path='' as $$
   select(to_jsonb(b)-'request_payload'-'request_key')||jsonb_build_object('event',(select corporate_private.event_json(e) from public.corporate_events e where e.id=b.event_id),
     'is_overdue',b.status in ('Pending payment','Pending additional payment') and b.payment_due_at<=now(),
@@ -92,6 +100,7 @@ begin
 end $$;
 create trigger corporate_cancelled_event_guard before update on public.corporate_events for each row execute function corporate_private.cancelled_event_guard();
 
+-- Check the reservation against event capacity under a database lock.
 create or replace function corporate_private.reservation_capacity() returns trigger language plpgsql security definer set search_path='' as $$
 declare old_hold integer:=0; new_hold integer:=0;
 begin
@@ -138,6 +147,7 @@ begin
   return new;
 end $$;
 create trigger corporate_close_booking_changes after update on public.corporate_reservations for each row execute function corporate_private.close_booking_changes();
+-- Preserve the payment amount details used by the change/receipt workflow.
 create function corporate_private.payment_amount_snapshot() returns trigger language plpgsql set search_path='' as $$
 begin
   select additional_payment_amount into new.additional_amount_snapshot from public.corporate_reservations where id=new.booking_id;
@@ -145,6 +155,8 @@ begin
 end $$;
 create trigger corporate_payment_amount_snapshot before insert on public.corporate_payment_records for each row execute function corporate_private.payment_amount_snapshot();
 
+-- Store a proposed amendment/cancellation while keeping the current booking unchanged until
+-- review.
 create function corporate_private.request_change(p_booking_id uuid,p_version integer,p_kind text,p_target_id uuid,p_target_version integer,p_size integer,p_reason text,p_request_key uuid) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations; e public.corporate_events; target public.corporate_events; c public.corporate_booking_changes; payload jsonb; credit integer:=0;
 begin
@@ -178,6 +190,7 @@ begin
   return corporate_private.booking_json(b);
 end $$;
 
+-- Apply or decline a proposal after checking the current booking, target session and version.
 create function corporate_private.review_change(p_booking_id uuid,p_version integer,p_change_id uuid,p_approve boolean,p_note text,p_amount numeric,p_deadline timestamptz) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations; e public.corporate_events; target public.corporate_events; c public.corporate_booking_changes; v_before jsonb; v_due timestamptz; credit integer:=0;
 begin
@@ -218,6 +231,7 @@ begin
   return corporate_private.booking_json(b);
 end $$;
 
+-- Cancel the event and handle its affected bookings with a recorded explanation.
 create function corporate_private.cancel_event(p_event_id uuid,p_version integer,p_reason text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); e public.corporate_events; b public.corporate_reservations; c public.corporate_booking_changes; v_before jsonb; v_booking_before jsonb;
 begin
@@ -245,6 +259,8 @@ begin
   return corporate_private.event_json(e);
 end $$;
 
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.corporate_configure_changes(p_enabled boolean) returns jsonb language sql security invoker set search_path='' as $$select corporate_private.configure_changes(p_enabled)$$;
 create function public.corporate_request_change(p_booking_id uuid,p_version integer,p_kind text,p_target_id uuid,p_target_version integer,p_size integer,p_reason text,p_request_key uuid) returns jsonb language sql security invoker set search_path='' as $$select corporate_private.request_change(p_booking_id,p_version,p_kind,p_target_id,p_target_version,p_size,p_reason,p_request_key)$$;
 create function public.corporate_review_change(p_booking_id uuid,p_version integer,p_change_id uuid,p_approve boolean,p_note text,p_amount numeric default null,p_deadline timestamptz default null) returns jsonb language sql security invoker set search_path='' as $$select corporate_private.review_change(p_booking_id,p_version,p_change_id,p_approve,p_note,p_amount,p_deadline)$$;
@@ -253,6 +269,7 @@ create function public.corporate_cancel_event(p_event_id uuid,p_version integer,
 revoke all on function corporate_private.configure_changes(boolean),corporate_private.cancelled_event_guard(),corporate_private.close_booking_changes(),corporate_private.payment_amount_snapshot(),corporate_private.request_change(uuid,integer,text,uuid,integer,integer,text,uuid),corporate_private.review_change(uuid,integer,uuid,boolean,text,numeric,timestamptz),corporate_private.cancel_event(uuid,integer,text),public.corporate_configure_changes(boolean),public.corporate_request_change(uuid,integer,text,uuid,integer,integer,text,uuid),public.corporate_review_change(uuid,integer,uuid,boolean,text,numeric,timestamptz),public.corporate_cancel_event(uuid,integer,text) from public,anon,authenticated;
 grant execute on function corporate_private.configure_changes(boolean),corporate_private.request_change(uuid,integer,text,uuid,integer,integer,text,uuid),corporate_private.review_change(uuid,integer,uuid,boolean,text,numeric,timestamptz),corporate_private.cancel_event(uuid,integer,text),public.corporate_configure_changes(boolean),public.corporate_request_change(uuid,integer,text,uuid,integer,integer,text,uuid),public.corporate_review_change(uuid,integer,uuid,boolean,text,numeric,timestamptz),public.corporate_cancel_event(uuid,integer,text) to authenticated;
 
+-- Check admin access and contact input before changing booking availability.
 create or replace function corporate_private.configure_bookings(p_enabled boolean,p_email text,p_phone text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); v_before jsonb; result jsonb; v_email text:=btrim(coalesce(p_email,'')); v_phone text:=regexp_replace(btrim(coalesce(p_phone,'')),'[[:space:]]+',' ','g');
 begin
@@ -271,6 +288,8 @@ begin
   return corporate_private.booking_settings();
 end $$;
 
+-- Save an event using the expected version or creation key, and notify affected bookings where
+-- required.
 create or replace function corporate_private.save_event(p_event_id uuid,p_version integer,p_details jsonb,p_creation_key uuid,p_reason text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); v jsonb:=corporate_private.clean_event(p_details); e public.corporate_events; v_before jsonb; b public.corporate_reservations;
 begin
@@ -319,6 +338,8 @@ begin
   return corporate_private.event_json(e);
 end $$;
 
+-- Create a booking request after checking the current event and request key; requesting does
+-- not itself accept the booking.
 create or replace function corporate_private.request_booking(p_event_id uuid,p_event_version integer,p_group_size integer,p_notes text,p_request_key uuid) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); a public.corporate_accounts; e public.corporate_events; b public.corporate_reservations;
   payload jsonb:=jsonb_build_object('event_id',p_event_id,'event_version',p_event_version,'group_size',p_group_size,'notes',btrim(coalesce(p_notes,'')));
@@ -353,6 +374,7 @@ begin
   return to_jsonb(b);
 end $$;
 
+-- Accept or update the payment deadline using the current booking version and decision note.
 create or replace function corporate_private.booking_deadline(p_booking_id uuid,p_version integer,p_deadline timestamptz,p_note text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); e public.corporate_events; b public.corporate_reservations; event_id uuid; v_before jsonb;
 begin
@@ -379,6 +401,7 @@ begin
   return to_jsonb(b);
 end $$;
 
+-- Close the booking/request with an explanation and release any reservation it held.
 create or replace function corporate_private.reject_booking(p_booking_id uuid,p_version integer,p_reason text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations; event_id uuid; v_before jsonb;
 begin
@@ -395,6 +418,8 @@ begin
   return to_jsonb(b);
 end $$;
 
+-- Record an external receipt and confirm the eligible booking; no payment is processed by this
+-- function.
 create or replace function corporate_private.record_payment(p_booking_id uuid,p_version integer,p_request_key uuid,p_reference text,p_received_on date,p_note text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations; payment public.corporate_payment_records; event_id uuid; v_before jsonb;
 begin
@@ -421,6 +446,7 @@ begin
   return to_jsonb(b);
 end $$;
 
+-- Keep booking history and audience-specific in-app updates with the workflow action.
 create or replace function corporate_private.write_workflow_action(b public.corporate_reservations,p_actor uuid,p_action text,p_before jsonb,p_reason text,p_audiences text)
 returns void language plpgsql security definer set search_path='' as $$
 declare v_actor text:=coalesce((select full_name from public.profiles where id=p_actor),'Account owner'); v_audience text; v_after jsonb:=to_jsonb(b);
@@ -438,6 +464,7 @@ begin
   end loop;
 end $$;
 
+-- Return a scoped booking review, including its stored workflow details.
 create or replace function corporate_private.booking_detail(p_booking_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); b public.corporate_reservations;
 begin
@@ -448,6 +475,7 @@ begin
     'history',coalesce((select jsonb_agg(to_jsonb(h) order by h.created_at desc,h.id desc) from(select * from public.corporate_workflow_history where booking_id=b.id order by created_at desc,id desc limit 50) h),'[]'::jsonb));
 end $$;
 
+-- Apply caller visibility and booking/attention filters before returning a booking page.
 create or replace function corporate_private.search_bookings(p_query text,p_status text,p_from date,p_to date,p_offset integer,p_limit integer) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=corporate_private.require_user(); result jsonb;
 begin

@@ -1,0 +1,12 @@
+/**
+ * Styles the personal reminder switches.
+ * CSS module classes stay scoped to this UI; changes here affect presentation rather than
+ * booking or permission rules.
+ */
+
+.body{display:grid;gap:14px;padding-top:20px}
+.body>p{margin:0}
+/**
+ * Apply these layout changes when (max-width:600px) matches the screen.
+ */
+@media(max-width:600px){.body{padding-left:16px;padding-right:16px}.body label{gap:12px}}

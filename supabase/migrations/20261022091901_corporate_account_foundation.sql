@@ -1,3 +1,7 @@
+-- Adds corporate accounts, account review, notices and the searchable volunteer directory.
+-- These are additive changes to an existing VMS database. Ownership checks and restricted
+-- functions protect company records.
+
 -- Corporate account/contact foundation. Version matches the hosted migration history.
 -- Existing volunteer events, slots, bookings, CSR tables, WMS RPCs and profile roles are retained.
 -- Both rollout controls start OFF so applying this before the new app does not block old bookings.
@@ -113,6 +117,7 @@ begin
   return v_user;
 end $$;
 
+-- Validate and select the editable company/contact fields before storing them.
 create function corporate_private.clean_details(p_details jsonb) returns jsonb language plpgsql set search_path = '' as $$
 declare v jsonb;
 begin
@@ -136,6 +141,7 @@ begin
   return v;
 end $$;
 
+-- Keep the account decision history and its in-app notice with the account change.
 create function corporate_private.record_action(p_account public.corporate_accounts, p_actor uuid, p_action text, p_before jsonb, p_reason text, p_audience text)
 returns void language plpgsql security definer set search_path = '' as $$
 declare v_name text;
@@ -170,6 +176,7 @@ begin
   return a;
 end $$;
 
+-- Check the current identity and registration rules before creating a business account.
 create function corporate_private.register_account(p_details jsonb) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user(); a public.corporate_accounts;
 begin
@@ -208,6 +215,7 @@ begin
 end $$;
 create trigger bookings_require_volunteer_contact before insert on public.bookings for each row execute function corporate_private.check_volunteer_booking_contact();
 
+-- Check account ownership before updating company/contact details and recording the change.
 create function corporate_private.update_account(p_account_id uuid,p_details jsonb) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user(); v jsonb := corporate_private.clean_details(p_details); a public.corporate_accounts; v_before jsonb;
 begin
@@ -220,6 +228,7 @@ begin
   return to_jsonb(a);
 end $$;
 
+-- Apply an admin account decision and record its reason, actor and notification.
 create function corporate_private.review_account(p_account_id uuid,p_decision text,p_reason text) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user(); a public.corporate_accounts; v_before jsonb; v_status text;
 begin
@@ -240,6 +249,7 @@ begin
   return to_jsonb(a);
 end $$;
 
+-- Return account details and history only to the permitted owner or administrator.
 create function corporate_private.account_detail(p_account_id uuid) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user(); a public.corporate_accounts;
 begin
@@ -250,6 +260,7 @@ begin
       (select * from public.corporate_account_history where account_id=a.id order by created_at desc,id desc limit 50) h),'[]'::jsonb));
 end $$;
 
+-- Return a bounded admin account-search page with its total count.
 create function corporate_private.search_accounts(p_query text,p_status text,p_offset integer,p_limit integer) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user(); result jsonb;
 begin
@@ -263,6 +274,7 @@ begin
   return result;
 end $$;
 
+-- Load notices for the allowed account audience with per-user read state.
 create function corporate_private.account_notices(p_offset integer,p_limit integer) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user(); result jsonb;
 begin
@@ -276,6 +288,7 @@ begin
   return result;
 end $$;
 
+-- Store a read marker for the current user without deleting the notice.
 create function corporate_private.read_notice(p_notification_id uuid) returns boolean language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user();
 begin
@@ -287,6 +300,7 @@ begin
   return true;
 end $$;
 
+-- Let admin save registration availability and the volunteer contact requirement.
 create function corporate_private.set_rollout_settings(p_registration_enabled boolean,p_volunteer_phone_required boolean) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user(); result jsonb;
 begin
@@ -296,6 +310,7 @@ begin
   return result;
 end $$;
 
+-- Search volunteer profiles for administrators, including people without bookings.
 create function corporate_private.volunteer_directory(p_query text,p_phone_filter text,p_offset integer,p_limit integer) returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_user uuid := corporate_private.require_user(); result jsonb;
 begin
@@ -312,6 +327,8 @@ begin
 end $$;
 
 -- Thin public invoker wrappers are the Data API surface. Do not expose the private schema in PostgREST.
+-- Public invoker wrappers expose the RPC names used by the app. The private
+-- implementation performs the operation-specific identity and permission checks.
 create function public.corporate_register_account(p_details jsonb) returns jsonb language sql security invoker set search_path = '' as $$select corporate_private.register_account(p_details)$$;
 create function public.corporate_update_account(p_account_id uuid,p_details jsonb) returns jsonb language sql security invoker set search_path = '' as $$select corporate_private.update_account(p_account_id,p_details)$$;
 create function public.corporate_review_account(p_account_id uuid,p_decision text,p_reason text) returns jsonb language sql security invoker set search_path = '' as $$select corporate_private.review_account(p_account_id,p_decision,p_reason)$$;

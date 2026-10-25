@@ -1,10 +1,15 @@
 "use client";
+/**
+ * Opens the volunteer impact view at its Next.js route.
+ * The route delegates to feature components, keeping URL structure separate from the larger
+ * screen implementation.
+ */
 
-import CommunityParticipation from "../components/CommunityParticipation";
-import ProgressionPanel from "../components/ProgressionPanel";
-import VolunteerHistory from '../components/VolunteerHistory';
-import { useVolunteerData } from "../components/VolunteerProvider";
-import styles from "../volunteer.module.css";
+import CommunityParticipation from "@/features/volunteer/impact/CommunityParticipation";
+import ProgressionPanel from "@/features/volunteer/impact/ProgressionPanel";
+import VolunteerHistory from '@/features/volunteer/bookings/VolunteerHistory';
+import { useVolunteerData } from "@/features/volunteer/shell/VolunteerProvider";
+import styles from "@/styles/volunteer.module.css";
 
 export default function VolunteerImpactPage() {
   const { user, profile, events, bookings, attendanceRecords, isLoading, loadError } = useVolunteerData();

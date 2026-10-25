@@ -1,8 +1,14 @@
+/**
+ * Checks volunteer inbox ordering, labels and read-state calculations.
+ * Dependencies are mocked or source/helpers are checked locally. These tests do not replace
+ * testing the deployed UI and external services.
+ */
+
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-const source = readFileSync(new URL('../lib/notification-utils.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../features/volunteer/utils/notifications.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { inboxItems, unreadNotifications, notificationLabel, notificationDate } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const items = [

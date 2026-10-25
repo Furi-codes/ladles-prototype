@@ -1,3 +1,7 @@
+-- Separates business registration and access from volunteer membership.
+-- Database triggers guard the stored account relationship instead of trusting a
+-- browser-selected portal.
+
 -- Strict account types (version matches the hosted migration): business signup creates a business-only identity, never an upgrade
 -- of an existing volunteer/admin login. Existing volunteer/WMS bookings are not rewritten.
 begin;
@@ -12,6 +16,7 @@ begin
   end if;
 end $$;
 
+-- Create the pending business account and its initial history for the supplied owner.
 create or replace function corporate_private.create_account(p_owner uuid,p_details jsonb) returns public.corporate_accounts
 language plpgsql security definer set search_path='' as $$
 declare v jsonb := corporate_private.clean_details(p_details); a public.corporate_accounts; p public.profiles;
@@ -39,6 +44,8 @@ begin
   return a;
 end $$;
 
+-- Read business registration details from signup metadata; this trigger handles the corporate
+-- account path.
 create or replace function corporate_private.on_signup() returns trigger language plpgsql security definer set search_path='' as $$
 declare v_phone text := nullif(regexp_replace(btrim(coalesce(new.raw_user_meta_data->>'phone','')), '[[:space:]]+', ' ', 'g'),''); a public.corporate_accounts;
 begin
@@ -51,6 +58,7 @@ begin
   return new;
 end $$;
 
+-- Check the current identity and registration rules before creating a business account.
 create or replace function corporate_private.register_account(p_details jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_user uuid := corporate_private.require_user(); a public.corporate_accounts;
 begin
@@ -64,6 +72,7 @@ begin
   return to_jsonb(a);
 end $$;
 
+-- Check that the account owner meets the separate-business membership rules.
 create function corporate_private.check_business_owner() returns trigger language plpgsql security definer set search_path='' as $$
 declare p public.profiles;
 begin
@@ -78,6 +87,7 @@ end $$;
 create trigger corporate_accounts_separate_owner before insert or update of owner_user_id on public.corporate_accounts
   for each row execute function corporate_private.check_business_owner();
 
+-- Keep business-only profile membership separate from volunteer access.
 create function corporate_private.keep_business_profile_separate() returns trigger language plpgsql security definer set search_path='' as $$
 begin
   if (new.volunteer_enabled is distinct from false or new.role is distinct from 'volunteer')

@@ -1,3 +1,10 @@
+/**
+ * Checks the corporate schema/service contract and protection of the existing volunteer/WMS code
+ * paths.
+ * Dependencies are mocked or source/helpers are checked locally. These tests do not replace
+ * testing the deployed UI and external services.
+ */
+
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {fixture,asUser,rpc,ids,details,openRegistration,register} from './helpers/corporate-database.mjs';

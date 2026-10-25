@@ -1,3 +1,7 @@
+-- Changes corporate sessions to exclusive reservations for one company.
+-- Database locks and triggers serialize acceptance, close competing requests and keep overdue
+-- reservations until admin acts.
+
 -- Each corporate event is one exclusive session. Volunteer/WMS tables are untouched.
 begin;
 
@@ -13,6 +17,7 @@ end $$;
 create unique index corporate_one_reserved_session on public.corporate_reservations(event_id)
   where status in ('Pending payment','Pending additional payment','Confirmed','Completed');
 
+-- Build the event response, including the current reservation/availability values.
 create or replace function corporate_private.event_json(e public.corporate_events) returns jsonb language sql stable set search_path='' as $$
   select(to_jsonb(e)-'creation_key'-'creation_payload')||jsonb_build_object(
     'remaining',case when e.reserved_places>0 then 0 else e.max_group_size end,
@@ -20,6 +25,7 @@ create or replace function corporate_private.event_json(e public.corporate_event
       when e.reserved_places>0 then 'Reserved' when not e.is_published then 'Closed' else 'Available' end)
 $$;
 
+-- Return the saved workflow settings and supported schema versions.
 create or replace function corporate_private.booking_settings() returns jsonb language plpgsql security definer set search_path='' as $$
 begin
   perform corporate_private.require_user();
@@ -32,6 +38,7 @@ end $$;
 -- Keep the old transport fields for compatibility, but there is now only one editable size limit.
 -- The existing cleaner still checks timestamps, lengths, booleans and integer group sizes.
 alter function corporate_private.clean_event(jsonb) rename to clean_event_before_exclusive;
+-- Validate event fields before a create or edit operation.
 create function corporate_private.clean_event(p_details jsonb) returns jsonb language plpgsql set search_path='' as $$
 begin
   if p_details->>'min_group_size' is distinct from '1' or p_details->>'capacity' is distinct from p_details->>'max_group_size' then
@@ -54,6 +61,7 @@ begin
 end $$;
 create trigger corporate_exclusive_guard before insert or update on public.corporate_reservations for each row execute function corporate_private.exclusive_reservation_guard();
 
+-- Check exclusivity when a booking change targets a session.
 create function corporate_private.exclusive_change_guard() returns trigger language plpgsql security definer set search_path='' as $$
 begin
   perform corporate_private.lock_workflow();
@@ -119,6 +127,7 @@ begin
 end $$;
 create trigger corporate_resolve_exclusive_requests after insert or update on public.corporate_reservations for each row execute function corporate_private.resolve_exclusive_requests();
 
+-- Keep the account decision history and its in-app notice with the account change.
 create or replace function corporate_private.record_action(p_account public.corporate_accounts,p_actor uuid,p_action text,p_before jsonb,p_reason text,p_audience text)
 returns void language plpgsql security definer set search_path='' as $$
 declare v_name text; v_next text;

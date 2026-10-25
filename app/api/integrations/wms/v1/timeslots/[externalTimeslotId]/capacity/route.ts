@@ -1,4 +1,9 @@
-/** WMS capacity update endpoint. It reads back the saved slot value before returning success. */
+/**
+ * Accepts a WMS timeslot-capacity update and returns the saved availability.
+ * The server authenticates WMS and checks the persisted result rather than returning the request
+ * value as proof of saving.
+ */
+
 import {
   getIntegrationDatabase,
   integrationErrorStatus,
@@ -9,7 +14,7 @@ import {
   requireJsonContent,
   requireWmsAuthentication,
 } from "@/lib/server/wms-integration";
-import { fetchAllPages } from "@/lib/data-pagination";
+import { fetchAllPages } from "@/lib/supabase/pagination";
 
 export const runtime = "nodejs";
 

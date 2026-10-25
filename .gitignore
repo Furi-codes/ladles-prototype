@@ -1,3 +1,7 @@
+# Keeps local dependencies, build output, credentials and machine state out of Git.
+# Generated files can be recreated; local environment values must not become part of the
+# repository.
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies

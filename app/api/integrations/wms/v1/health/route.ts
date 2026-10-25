@@ -1,4 +1,8 @@
-/** Authenticated integration health response; it does not query the database. */
+/**
+ * Provides the WMS integration health/configuration check.
+ * The shared WMS authentication check protects this endpoint too.
+ */
+
 import { requireWmsAuthentication } from "@/lib/server/wms-integration";
 
 export const runtime = "nodejs";
