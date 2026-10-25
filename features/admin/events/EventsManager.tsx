@@ -471,25 +471,25 @@ export default function EventsManager({
       </div>
       <div className={ui.filters}><label>Search events or locations<input className={styles.input} type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Find an event…" /></label><label>Programme<select className={styles.select} value={programme} onChange={e => setProgramme(e.target.value)}><option value="">All programmes</option>{['Dignity Kitchen','Warehouse HQ','Feed The Soil','Campaign / Special Event','Other'].map(c => <option key={c}>{c}</option>)}</select></label>{(search || programme) && <button className={styles.secondaryButton} onClick={() => { setSearch(''); setProgramme(''); }}>Clear filters</button>}</div>
       {!isLoading && <p className={ui.count}>{displayedEvents.length} of {scopeEvents.length} events in this view</p>}
-      {isLoading ? <div className={styles.empty}>Loading events...</div> : <div className={ui.tableViewport} tabIndex={0} role="region" aria-label="Events table">
-        <table className={styles.table}>
-          <thead><tr>{["Event", "Category", "Date", "Location", "Bookable ranges", "Total capacity", "Status", "Actions"].map((column) => <th key={column}>{column}</th>)}</tr></thead>
-          <tbody>
+      {isLoading ? <div className={styles.empty}>Loading events...</div> : <div data-mobile-table className={ui.tableViewport} tabIndex={0} role="region" aria-label="Events table">
+        <table role="table" className={styles.table}>
+          <thead role="rowgroup"><tr role="row">{["Event", "Category", "Date", "Location", "Bookable ranges", "Total capacity", "Status", "Actions"].map((column) => <th role="columnheader" scope="col" key={column}>{column}</th>)}</tr></thead>
+          <tbody role="rowgroup">
             {displayedEvents.map((item) => {
               const slots = slotsForEvent(item.id);
               const isCancelled = item.status === "Cancelled";
               const isPast = hasEventFinished(item, slots);
               const isWmsManaged = Boolean(item.external_event_id);
               const statusLabel = isCancelled ? "Cancelled" : isPast ? "Completed" : "Scheduled";
-              return <tr key={item.id}>
-                <td>{item.title}<span className={ui.subtle}>{isWmsManaged ? 'Managed by WMS' : 'Managed in Volunteer Portal'}</span></td>
-                <td><span className={styles.status}>{item.category ?? "Other"}</span></td>
-                <td>{item.date}{item.date === today && !isPast && <span className={`${styles.status} ${styles.statusPresent}`} style={{ marginLeft: 7 }}>Today</span>}</td>
-                <td>{item.location}{item.location_url && <><br /><a className={styles.mapLink} href={item.location_url} target="_blank" rel="noreferrer">View map</a></>}</td>
-                <td>{slots.length > 0 ? slots.map(formatSlot).join(", ") : <span className={styles.helperWarning}>Legacy schedule: {item.time_slots}</span>}</td>
-                <td>{slots.length > 0 ? slots.reduce((total, slot) => total + slot.capacity, 0) : item.total_slots}</td>
-                <td><span className={`${styles.status} ${isCancelled ? styles.statusCancelled : statusLabel === "Completed" ? styles.statusCompleted : styles.statusConfirmed}`}>{statusLabel}</span></td>
-                <td><div className={styles.tableActions}>
+              return <tr role="row" key={item.id}>
+                <td role="cell" data-label="Event">{item.title}<span className={ui.subtle}>{isWmsManaged ? 'Managed by WMS' : 'Managed in Volunteer Portal'}</span></td>
+                <td role="cell" data-label="Category"><span className={styles.status}>{item.category ?? "Other"}</span></td>
+                <td role="cell" data-label="Date">{item.date}{item.date === today && !isPast && <span className={`${styles.status} ${styles.statusPresent}`} style={{ marginLeft: 7 }}>Today</span>}</td>
+                <td role="cell" data-label="Location">{item.location}{item.location_url && <><br /><a className={styles.mapLink} href={item.location_url} target="_blank" rel="noreferrer">View map</a></>}</td>
+                <td role="cell" data-label="Bookable ranges">{slots.length > 0 ? slots.map(formatSlot).join(", ") : <span className={styles.helperWarning}>Legacy schedule: {item.time_slots}</span>}</td>
+                <td role="cell" data-label="Total capacity">{slots.length > 0 ? slots.reduce((total, slot) => total + slot.capacity, 0) : item.total_slots}</td>
+                <td role="cell" data-label="Status"><span className={`${styles.status} ${isCancelled ? styles.statusCancelled : statusLabel === "Completed" ? styles.statusCompleted : styles.statusConfirmed}`}>{statusLabel}</span></td>
+                <td role="cell" data-label="Actions"><div className={styles.tableActions}>
                   {isWmsManaged
                     ? <span className={styles.helper}>Managed by WMS</span>
                     : <>
@@ -501,7 +501,7 @@ export default function EventsManager({
                 </div></td>
               </tr>;
             })}
-            {displayedEvents.length === 0 && <tr><td colSpan={8}><div className={styles.empty}>{search || programme ? 'No events match these filters.' : showCancelled ? "No cancelled events yet." : showPast ? "No past events yet." : "No upcoming events."}</div></td></tr>}
+            {displayedEvents.length === 0 && <tr role="row"><td role="cell" colSpan={8}><div className={styles.empty}>{search || programme ? 'No events match these filters.' : showCancelled ? "No cancelled events yet." : showPast ? "No past events yet." : "No upcoming events."}</div></td></tr>}
           </tbody>
         </table>
       </div>}

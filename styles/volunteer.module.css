@@ -372,3 +372,18 @@
   .modalActions { flex-wrap: wrap; }
   .shell button:disabled { opacity: .5; cursor: not-allowed; }
 }
+
+@media screen and (max-width:760px) {
+  .shell .card,.shell .dashboardGrid,.shell .settingsGrid,.shell .rightColumn { min-width:0;max-width:100%; }
+  .shell .backdrop { padding:12px;box-sizing:border-box;overflow-y:auto; }
+  .shell .modal { box-sizing:border-box;max-width:100%;max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain; }
+  .shell .modalHeader>div { min-width:0;overflow-wrap:anywhere; }
+  .shell .closeButton { min-width:44px;min-height:44px;flex-shrink:0; }
+}
+@media screen and (max-width:600px) {
+  .shell .input,.shell .select,.shell .textarea { font-size:16px;min-width:0; }
+  .shell .profileAccountControls { align-items:flex-start;gap:16px; }
+  .shell .profileAccountButtons { width:100%; }
+  .shell .profileAccountButtons>button { flex:1 1 140px;min-height:44px; }
+  .shell .consentSummary { grid-template-columns:minmax(0,1fr);gap:8px; }
+}

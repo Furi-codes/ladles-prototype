@@ -17,7 +17,7 @@
 .filters .checkboxFilter { display:flex; flex:0 1 auto; align-items:center; gap:8px; min-height:42px; font-size:12px; cursor:pointer; }
 .filters .checkboxFilter input { flex:0 0 16px; width:16px; height:16px; margin:0; accent-color:var(--portal-accent); }
 .count { margin:0; padding:12px 20px; color:var(--portal-muted); font-size:12px; }
-.tableViewport { max-width:100%; overflow:auto; scrollbar-color:var(--portal-muted) var(--portal-bg); }
+.tableViewport { min-width:0;max-width:100%; overflow:auto; scrollbar-color:var(--portal-muted) var(--portal-bg); }
 .tableViewport table { min-width:720px; }
 .tableViewport tbody tr:hover { background:var(--portal-bg); }
 .tableViewport td { vertical-align:top; }
@@ -54,3 +54,15 @@
  */
 @media (max-width:760px) { .fieldset { grid-template-columns:1fr; padding:14px; } }
 @media (max-width:760px) { .filters { padding:14px 16px; } .profile { grid-template-columns:1fr; } .sectionNav { gap:4px; } .sectionNav a { padding:9px; } }
+@media screen and (max-width:600px) {
+  .filters { align-items:stretch;gap:14px; }
+  .filters label { flex:1 1 100%; }
+  .filters>button { flex:1 1 120px;min-height:44px; }
+  .filters .checkboxFilter { flex-basis:100%; }
+  .sectionNav { flex-wrap:nowrap;overflow-x:auto;max-width:100%; }
+  .sectionNav a,.sectionNav button { flex:0 0 auto;min-height:44px; }
+  .preference { align-items:flex-start;padding:14px; }
+  .preference input { flex:0 0 18px;margin-top:2px; }
+  .activityDetails { max-width:100%; }
+  .activityDetails dl>div { grid-template-columns:minmax(0,1fr);gap:4px; }
+}

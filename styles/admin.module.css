@@ -14,7 +14,7 @@
 @keyframes adminSpin { to { transform: rotate(360deg); } }
 @keyframes overlayEnter { from { opacity:0; } to { opacity:1; } }
 .main { min-width: 0; margin-left: 248px; }
-.content { max-width: 1440px; margin: 0 auto; padding: 32px 40px 48px; }
+.content { min-width:0;box-sizing:border-box;max-width: 1440px; margin: 0 auto; padding: 32px 40px 48px; }
 .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 50; width: 248px; display: flex; flex-direction: column; background: #fff; border-right: 1px solid #e5e7eb; }
 .brand { display: flex; align-items: center; gap: 10px; min-height: 78px; padding: 16px 22px; border-bottom: 1px solid #eef0f2; }
 .brandName { color: #17202a; font-size: 16px; font-weight: 800; letter-spacing: -.3px; }
@@ -50,7 +50,7 @@
 .secondaryButton:hover { background: #f6f7f9; }
 .dangerButton { border: 1px solid #f2c7ca; background: #fff7f7; color: #c62630; }
 .dangerButton:hover { background: #ffebec; }
-.card { background: #fff; border: 1px solid #e2e6ea; border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.03); }
+.card { min-width:0;max-width:100%;background: #fff; border: 1px solid #e2e6ea; border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.03); }
 .cardHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px; border-bottom: 1px solid #edf0f2; }
 .cardTitle { margin: 0; color: #24303b; font-size: 16px; font-weight: 800; }
 .dashboardCardTitle { font-size: 18px; font-weight: 850; letter-spacing: -.25px; }
@@ -58,7 +58,7 @@
 .filterGroup { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid #e2e6ea; border-radius: 7px; background: #f6f7f9; }
 .filterButton { padding: 8px 11px; border: 0; border-radius: 5px; background: transparent; color: #727d89; font-size: 12px; font-weight: 750; cursor: pointer; }
 .filterButtonActive { background: #fff; color: #d92732; box-shadow: 0 1px 2px rgba(16,24,40,.08); }
-.tableWrap { overflow-x: auto; }
+.tableWrap { min-width:0;max-width:100%;overflow-x: auto; }
 .table { width: 100%; min-width: 720px; border-collapse: collapse; }
 .table th { padding: 14px 24px; background: #fafbfc; color: #818b97; font-size: 11px; font-weight: 800; letter-spacing: .7px; text-align: left; text-transform: uppercase; white-space: nowrap; }
 .table td { padding: 18px 24px; border-top: 1px solid #f0f2f4; color: #4e5a67; font-size: 14px; }
@@ -98,8 +98,8 @@
 .activityName { color: #1f2a35; font-size: 14px; font-weight: 750; }
 .activityMeta { margin-top: 5px; color: #7c8793; font-size: 12px; }
 .activityCount { color: #596572; font-size: 12px; font-weight: 750; text-align: right; white-space: nowrap; }
-.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.field { display: flex; flex-direction: column; gap: 6px; }
+.formGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px;min-width:0; }
+.field { display: flex; flex-direction: column; gap: 6px;min-width:0; }
 .fieldFull { grid-column: 1 / -1; }
 .fieldLabel { color: #5d6874; font-size: 12px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; }
 .optionalLabel { color: #87919c; font-weight: 650; letter-spacing: 0; text-transform: none; }
@@ -396,4 +396,52 @@ dialog.dialog::backdrop { background:rgba(23,32,42,.35); }
   .shell[data-experience=admin] .topbar :global(.themeToggle)>span { display:none; }
   .shell[data-experience=admin] .topbar .signOut { width:40px;min-width:40px;padding:0;gap:0;font-size:0; }
   .shell[data-experience=admin] .topbar .signOut svg { width:17px;height:17px; }
+}
+
+/* Phone layouts keep the same controls and records, with stacked labelled table rows. */
+@media screen and (max-width:760px) {
+  .shell[data-experience=admin] .main,.shell[data-experience=admin] .content { min-width:0;max-width:100%; }
+  .shell[data-experience=admin] .sidebar { height:100dvh;box-sizing:border-box; }
+  .shell[data-experience=admin] .nav { overscroll-behavior:contain; }
+  .shell[data-experience=admin] .navButton { box-sizing:border-box;max-width:100%;overflow-wrap:anywhere; }
+  .shell[data-experience=admin] .brand { min-height:88px;padding-right:58px; }
+  .shell .pageHeading,.shell .cardHeader,.shell .rosterIntro { min-width:0; }
+  .shell .pageHeading>div,.shell .cardHeader>div,.shell .rosterIntro>div { min-width:0;max-width:100%; }
+  .shell .pageTitle,.shell .cardTitle,.shell .cardHint,.shell .activityName,.shell .activityMeta { overflow-wrap:anywhere; }
+  .shell .filterGroup { display:flex;max-width:100%;min-width:0;overflow-x:auto; }
+  .shell .filterButton { flex:0 0 auto;white-space:nowrap;min-height:44px; }
+  .shell .rosterControls { min-width:0;max-width:100%; }
+  .shell .formActions { flex-wrap:wrap; }
+  .shell .dialogBackdrop { box-sizing:border-box;padding:12px;overflow-y:auto; }
+  .shell .dialog { box-sizing:border-box;max-width:100%;max-height:calc(100dvh - 24px);overflow-y:auto;overflow-wrap:anywhere; }
+  .shell .drawer { min-height:0;max-height:calc(100dvh - 24px);padding:20px; }
+  .shell .drawer .formGrid { overscroll-behavior:contain; }
+  .shell .drawerHeader { gap:12px; }
+  .shell .closeButton,.shell .sidebarClose { flex:0 0 44px;width:44px;min-height:44px; }
+  .shell .rangeBuilder { min-width:0;grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .shell .rangeTag { max-width:100%;overflow-wrap:anywhere; }
+  .shell .tagRemove { min-width:30px;min-height:30px; }
+  .shell .qrGrid { grid-template-columns:minmax(0,1fr); }
+  .shell .primaryButton,.shell .secondaryButton,.shell .dangerButton { min-height:44px;max-width:100%;white-space:normal; }
+  .shell[data-experience=admin] :where(input:not([type=checkbox]):not([type=radio]),select,textarea) { min-width:0;max-width:100%;font-size:16px; }
+}
+@media screen and (max-width:640px) {
+  .shell[data-experience=admin] [data-mobile-table] { min-width:0;overflow:visible; }
+  .shell[data-experience=admin] [data-mobile-table] table { display:block;width:100%;min-width:0; }
+  .shell[data-experience=admin] [data-mobile-table] thead { position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap; }
+  .shell[data-experience=admin] [data-mobile-table] tbody { display:grid;min-width:0; }
+  .shell[data-experience=admin] [data-mobile-table] tr { display:grid;min-width:0;padding:14px 18px;border-bottom:1px solid var(--portal-line); }
+  .shell[data-experience=admin] [data-mobile-table] tr:last-child { border-bottom:0; }
+  .shell[data-experience=admin] [data-mobile-table] td { display:block;min-width:0;max-width:100%;border:0;padding:7px 0;overflow-wrap:anywhere; }
+  .shell[data-experience=admin] [data-mobile-table] td[data-label]::before { content:attr(data-label);display:block;margin-bottom:5px;font-size:10px;font-weight:650;letter-spacing:.2px;color:var(--portal-muted); }
+  .shell[data-experience=admin] [data-mobile-table] td[data-label=Actions] .tableActions { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+  .shell[data-experience=admin] [data-mobile-table] td[data-label=Actions] .tableActions>* { min-width:0;width:100%;margin:0; }
+}
+@media screen and (max-width:400px) {
+  .shell[data-experience=admin] .content { padding-right:12px;padding-left:12px; }
+  .shell[data-experience=admin] .stat { padding:16px; }
+  .shell[data-experience=admin] .statTop { gap:8px;align-items:flex-start; }
+  .shell[data-experience=admin] .statIcon { display:none; }
+  .shell .formActions { flex-direction:column-reverse;align-items:stretch; }
+  .shell .formActions>* { width:100%; }
 }

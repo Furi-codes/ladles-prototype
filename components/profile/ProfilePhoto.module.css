@@ -25,3 +25,4 @@
  * Apply these layout changes when (max-width: 600px) matches the screen.
  */
 @media (max-width: 600px) { .editor { padding: 20px 16px; } .previewRow { gap: 14px; flex-wrap: wrap; } }
+@media (max-width:600px) { .actions { flex-wrap:wrap; }.actions button { flex:1 1 120px;min-height:44px; }.acknowledgement input { flex-shrink:0; } }

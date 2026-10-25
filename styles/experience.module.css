@@ -54,3 +54,4 @@
   .certificate { border-radius:16px;background:linear-gradient(135deg,var(--portal-bg),var(--portal-surface));border-style:dashed;padding:34px; }
 }
 @media screen and (max-width:600px) { .stats { gap:9px; }.stat { padding:18px 14px;gap:7px; }.stat>strong { font-size:27px; }.stat>span,.stat>small { font-size:9px; }.stat::before { display:none; } }
+@media screen and (max-width:480px) { .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.stat:first-child { grid-column:1 / -1; } }
