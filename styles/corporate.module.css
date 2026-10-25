@@ -82,7 +82,8 @@
 .shell .main :where(h1,h2,h3,dt,dd,li,button){overflow-wrap:anywhere}
 .shell .main :where(input,select,textarea){min-width:0;max-width:100%;box-sizing:border-box}
 .responsiveTable{min-width:0}
-.shell [role=dialog]{max-height:calc(100dvh - 32px);max-width:100%;box-sizing:border-box;overscroll-behavior:contain;scroll-padding:16px}
+/* Full-screen modal sizing must not squeeze the contact dropdown to its button's width. */
+.shell [role=dialog][aria-modal=true]{max-height:calc(100dvh - 32px);max-width:100%;box-sizing:border-box;overscroll-behavior:contain;scroll-padding:16px}
 .focusTarget{scroll-margin-top:110px}.focusTarget:focus-visible{outline:2px solid var(--portal-line);outline-offset:3px}
 .pageHeading{margin-bottom:4px}
 .filterHint{flex-basis:100%;margin:0;color:var(--portal-muted);font-size:12px;line-height:1.5}
