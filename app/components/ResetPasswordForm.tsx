@@ -1,9 +1,11 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import { passwordError, passwordRequirements } from '@/lib/password-policy';
 import ThemeToggle from './ThemeToggle';
 import styles from './LoginForm.module.css';
 
@@ -29,7 +31,7 @@ export default function ResetPasswordForm() {
         if (!data.user) throw new Error('This password reset link is invalid or has expired. Request a new link below.');
         if (active) { setStatus('ready'); setMessage(''); }
       } catch (failure) {
-        if (active) { setStatus('unavailable'); setMessage(failure instanceof Error ? failure.message : 'The reset link could not be checked. Retry or request a new link.'); }
+        if (active) { setStatus('unavailable'); setMessage(userFacingError(failure instanceof Error ? failure.message : 'The reset link could not be checked. Retry or request a new link.', "The reset link could not be checked. Retry or request a new link.")); }
       }
     })();
     return () => { active = false; };
@@ -37,7 +39,8 @@ export default function ResetPasswordForm() {
   async function handleUpdatePassword(event: React.FormEvent) {
     event.preventDefault();
     if (pending.current || saved.current || status !== 'ready') return;
-    if (newPassword.length < 8 || newPassword.length > 128) { setMessage('Use a password between 8 and 128 characters.'); return; }
+    const invalidPassword = passwordError(newPassword);
+    if (invalidPassword) { setMessage(invalidPassword); return; }
     if (newPassword !== confirmation) { setMessage('The passwords do not match.'); return; }
     pending.current = true; setIsLoading(true); setMessage('');
     try {
@@ -47,17 +50,17 @@ export default function ResetPasswordForm() {
       // Lock immediately, so even a second click before rerender cannot resubmit a saved password.
       saved.current = true; setStatus('saved'); setNewPassword(''); setConfirmation('');
       setMessage('Your password has been updated. You can now continue to your account.');
-    } catch (failure) { setMessage(failure instanceof Error ? failure.message : 'Password update could not be confirmed. Please retry.'); }
+    } catch (failure) { setMessage(userFacingError(failure instanceof Error ? failure.message : 'Password update could not be confirmed. Please retry.', "Password update could not be confirmed. Please retry.")); }
     finally { pending.current = false; setIsLoading(false); }
   }
   return <main className={styles.page}><header className={styles.header}><ThemeToggle /></header>
     <div className={styles.layout}><section className={styles.formSide} aria-labelledby="reset-title">
-      <div className={styles.brand}><Image src="/Ladles-logo.png" alt="Ladles of Love" width={68} height={68} /><span><strong>LADLES OF LOVE</strong><small>ACCOUNT RECOVERY</small></span></div>
+      <div className={styles.brand}><span className={styles.brandMark}><Image className={styles.brandImage} src="/Ladles-logo.png" alt="Ladles of Love" width={72} height={72} /></span><span><strong>LADLES OF LOVE</strong><small>ACCOUNT RECOVERY</small></span></div>
       <div className={styles.card}><h2 id="reset-title">Set a new password</h2>
         {status === 'checking' && <p role="status">Verifying secure link…</p>}
         {message && <p className={status === 'saved' ? styles.notice : styles.error} role={status === 'saved' ? 'status' : 'alert'}>{message}</p>}
         {status === 'ready' && <form onSubmit={handleUpdatePassword} aria-busy={isLoading}><fieldset className={styles.fields} disabled={isLoading}><legend className={styles.srOnly}>New password</legend>
-          <p className={styles.intro}>Use 8–128 characters and confirm your new password.</p>
+          <p className={styles.intro}>{passwordRequirements}</p>
           <div className={styles.field}><label htmlFor="reset-password">New password</label><div className={styles.password}>
             <input id="reset-password" type={showPassword ? 'text' : 'password'} required minLength={8} maxLength={128} autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} />
             <button type="button" aria-pressed={showPassword} aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button>

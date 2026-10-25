@@ -24,7 +24,7 @@ export default function DashboardAnalytics() {
         <div className={visual.insights}>
           <p><strong>{participationSummary(scoped, filter).uniqueVolunteers} unique volunteers</strong> with recorded attendance across the period.</p>
           <p><strong>{total('individualHours').toFixed(1)} individual hours</strong> verified from attendance records.</p>
-          <p>Volunteer attendance only. Corporate reports are separate under Corporate bookings.</p>
+          <p>Volunteer attendance only. Company results are available under Corporate analytics.</p>
           <Link href="/admin/reports" className={styles.primaryButton}>Explore analytics & reports</Link>
           <button className={styles.secondaryButton} onClick={reload}>Refresh impact data</button>
         </div>

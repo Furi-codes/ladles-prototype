@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useCallback, useRef, useState } from 'react';
 import { corporateChangesEnabled } from '@/lib/feature-flags';
@@ -60,7 +61,7 @@ export function CorporateChangeRequestForm({ booking, kind, dirtyChanged, commit
       if (intent.current?.payload !== payload) intent.current = { payload, key: crypto.randomUUID() };
       pending.current = true; setBusy(true); dirtyChanged(true);
       try { const saved = await requestCorporateChange(booking, kind, target, kind === 'Amendment' ? Number(size) : null, reason, intent.current.key); dirtyChanged(false); await committed(saved); }
-      catch (failure) { setError(failure instanceof Error ? failure.message : 'Request could not be submitted. Refresh to check before changing your request.'); }
+      catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Request could not be submitted. Refresh to check before changing your request.', "Request could not be submitted. Refresh to check before changing your request.")); }
       finally { pending.current = false; setBusy(false); }
     }}><fieldset className={styles.formGrid} disabled={busy} style={{ border: 0, padding: 0, minWidth: 0 }}><legend>Proposal details</legend>{kind === 'Amendment' && <><p className={styles.fieldFull}>{target ? `Selected: ${target.title} · ${corporateDateLabel(target.starts_at)} · ${target.location}` : 'Select an event above, including the current event if only the group size is changing.'}</p><label className={styles.field}><span className={styles.fieldLabel}>Proposed group size</span><input className={styles.input} type="number" step={1} min={target?.min_group_size || 1} max={target ? Math.min(target.max_group_size, available(target)) : undefined} required value={size} onChange={event => setSize(event.target.value)} /></label></>}
       <label className={`${styles.field} ${styles.fieldFull}`}><span className={styles.fieldLabel}>Reason for {kind.toLowerCase()}</span><textarea className={styles.input} required maxLength={800} value={reason} onChange={event => setReason(event.target.value)} /></label>{error && <p className={`${styles.error} ${styles.fieldFull}`} role="alert">{error}</p>}<div className={ui.formFooter}><button type="submit" className={styles.primaryButton}>{busy ? 'Submitting…' : 'Send request for review'}</button></div>
@@ -79,7 +80,7 @@ export function CorporateChangeReviewForm({ booking, approve, dirtyChanged, comm
     if (!window.confirm(approve ? proposal.kind === 'Amendment' ? 'Approve the proposal? Capacity and deadlines will be checked again. Any failed transfer keeps the original booking.' : 'Approve cancellation and release the exclusive session? Receipts/history remain; refunds happen externally.' : 'Decline this proposal and retain the original booking?')) return;
     pending.current = true; setBusy(true); dirtyChanged(true);
     try { const saved = await reviewCorporateChange(booking, proposal.id, approve, note, paymentControls && extra ? Number(amount) : null, needsDeadline ? corporateTimestamp(deadline) : null); dirtyChanged(false); await committed(saved); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : 'Decision could not be saved. Refresh and review the latest details.'); }
+    catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Decision could not be saved. Refresh and review the latest details.', "Decision could not be saved. Refresh and review the latest details.")); }
     finally { pending.current = false; setBusy(false); }
   }}><fieldset className={styles.formGrid} disabled={busy} style={{ border: 0, padding: 0, minWidth: 0 }}><legend>{approve ? 'Approve' : 'Decline'} {proposal.kind.toLowerCase()}</legend>
     {paymentControls && booking.status === 'Confirmed' && <label className={`${management.preference} ${styles.fieldFull}`}><input type="checkbox" checked={extra} onChange={event => setExtra(event.target.checked)} />Additional external payment agreed for this change</label>}

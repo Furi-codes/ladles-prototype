@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useRef, useState } from 'react';
 import { isValidPhone } from '@/lib/contact-details';
@@ -12,8 +13,8 @@ export default function ContactOptions({ email, phone, label = 'Contact options'
   if (!cleanEmail && !cleanPhone) return <span>No contact details provided.</span>;
   const copy = async (value: string, kind: string) => {
     if (pending.current) return; pending.current = true; setMessage('');
-    try { await navigator.clipboard.writeText(value); setMessage(kind + ' copied.'); }
-    catch { setMessage('Copy is unavailable. Select and copy the displayed ' + kind.toLowerCase() + ' manually.'); }
+    try { await navigator.clipboard.writeText(value); setMessage(userFacingError(kind + ' copied.', " copied.")); }
+    catch { setMessage(userFacingError('Copy is unavailable. Select and copy the displayed ' + kind.toLowerCase() + ' manually.', " manually.")); }
     finally { pending.current = false; }
   };
   const content = <>

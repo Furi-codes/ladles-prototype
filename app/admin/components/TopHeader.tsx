@@ -8,8 +8,9 @@ import AdminNotificationBell from './AdminNotificationBell';
 
 const pageLabels: Record<string, string> = {
   "/admin/corporate-bookings": "Corporate bookings",
+  "/admin/corporate-reports": "Corporate analytics",
   "/admin/directory": "Volunteer directory", "/admin/corporate-accounts": "Corporate accounts",
-  "/admin": "Dashboard", "/admin/events": "Events", "/admin/volunteers": "Volunteer rosters",
+  "/admin": "Dashboard", "/admin/events": "Volunteer events", "/admin/volunteers": "Volunteer rosters",
   "/admin/notifications": "Notifications", "/admin/reports": "Volunteer analytics", "/admin/settings": "Settings",
 };
 

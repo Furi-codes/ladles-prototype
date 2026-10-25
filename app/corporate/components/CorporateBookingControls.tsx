@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
@@ -21,7 +22,7 @@ export default function CorporateBookingControls({ initial, saved, dirtyChanged 
       event.preventDefault(); if (pending.current || !window.confirm('Apply this booking availability change? Existing bookings and payment records remain unchanged.')) return;
       pending.current=true;setBusy(true);setError('');setMessage('');
       try { const result = await setCorporateBookingAvailability(enabled); dirtyChanged(false);setMessage('Booking availability saved.');saved(result); }
-      catch (failure) { setError(failure instanceof Error ? failure.message : 'Booking availability could not be saved.'); }
+      catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Booking availability could not be saved.', "Booking availability could not be saved.")); }
       finally { pending.current=false;setBusy(false); }
     }}><fieldset disabled={busy} style={{border:0,padding:0}}><legend className={styles.fieldLabel}>Request availability</legend>
       <label className={management.preference}><input type="checkbox" checked={enabled} onChange={event => {setEnabled(event.target.checked);dirtyChanged(event.target.checked !== initial.booking_enabled);}} />Open new corporate requests and admin acceptance</label>

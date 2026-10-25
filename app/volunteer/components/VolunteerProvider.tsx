@@ -4,12 +4,12 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { userFacingError } from '@/lib/user-facing-error';
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { fetchUserRole, fetchVolunteerConsent, requestVolunteerEmailChange, saveVolunteerAvatar, saveVolunteerConsent, updateVolunteerProfile } from "@/lib/actions/profile";
 import { bookEventSlot, cancelUserBooking, ensureUserProfile, fetchBookingsForVolunteer, fetchEventsForVolunteer, fetchEventSlotsForVolunteer, fetchVolunteerAttendanceRecords, fetchVolunteerNotifications, markVolunteerNotificationRead, markVolunteerNotificationsRead } from "@/lib/actions/volunteer";
 import type { AttendanceRecord, Booking, Event, EventSlot, Notification, Profile, VolunteerConsent } from "@/lib/types";
 import { useProfilePhotoUrl } from "./useProfilePhotoUrl";
-import { fetchVolunteerReminderPreference, saveVolunteerReminderPreference } from "@/lib/actions/volunteer";
 
 /** Short-lived UI feedback; these messages are separate from stored inbox notifications. */
 type Toast = { id: number; type: "success" | "error" | "info"; message: string };
@@ -28,10 +28,6 @@ type VolunteerContextValue = {
   notificationError: string | null;
   refreshNotifications: () => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
-  remindersEnabled: boolean | null;
-  reminderPreferenceError: string | null;
-  loadReminderPreference: () => Promise<void>;
-  saveReminderPreference: (enabled: boolean) => Promise<string | null>;
   isLoading: boolean;
   isCheckingAccess: boolean;
   loadError: string | null;
@@ -66,8 +62,6 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
   const [notificationError, setNotificationError] = useState<string | null>(null);
   // Request numbers prevent a slower, older inbox response from replacing newer results.
   const notificationRequest = useRef(0);
-  const [remindersEnabled, setRemindersEnabled] = useState<boolean | null>(null);
-  const [reminderPreferenceError, setReminderPreferenceError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -186,35 +180,6 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     } finally { if (request === notificationRequest.current) setNotificationsLoading(false); }
   }, [user]);
 
-  /** Reads the personal reminder switch; no stored preference means reminders start enabled. */
-  const loadReminderPreference = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { data, error } = await fetchVolunteerReminderPreference(user.id);
-      if (error) throw error;
-      setRemindersEnabled(data?.reminders_enabled ?? true);
-      setReminderPreferenceError(null);
-    } catch { setReminderPreferenceError("Your notification preference could not be loaded."); }
-  }, [user]);
-
-  useEffect(() => {
-    if (!isCheckingAccess && user) queueMicrotask(() => void loadReminderPreference());
-  }, [isCheckingAccess, loadReminderPreference, user]);
-
-  /** Saves the switch and confirms the returned boolean before updating the UI; returns an error or null. */
-  const saveReminderPreference = useCallback(async (enabled: boolean) => {
-    if (!user) return "Please sign in to change notification preferences.";
-    try {
-      const { data, error } = await saveVolunteerReminderPreference(enabled);
-      if (error || typeof data !== "boolean") throw error ?? new Error("Preference not confirmed.");
-      setRemindersEnabled(data);
-      setReminderPreferenceError(null);
-      await refreshNotifications();
-      showToast("success", data ? "Shift reminder notifications are on." : "Shift reminder notifications are off. Cancellation notices remain enabled.");
-      return null;
-    } catch { return "Your preference could not be saved. Please try again."; }
-  }, [refreshNotifications, showToast, user]);
-
   useEffect(() => {
     if (isCheckingAccess || !user) return;
     // Realtime refreshes changes promptly; the visible-tab timer/focus refresh is an additional fallback.
@@ -224,7 +189,8 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     const refreshWhenVisible = () => { if (document.visibilityState === "visible") void refreshNotifications(); };
     const interval = window.setInterval(refreshWhenVisible, 60000);
     window.addEventListener("focus", refreshWhenVisible);
-    return () => { void channel.unsubscribe(); window.clearInterval(interval); window.removeEventListener("focus", refreshWhenVisible); };
+    window.addEventListener("volunteer-reminder-preferences-changed", refreshWhenVisible);
+    return () => { void channel.unsubscribe(); window.clearInterval(interval); window.removeEventListener("focus", refreshWhenVisible); window.removeEventListener("volunteer-reminder-preferences-changed", refreshWhenVisible); };
   }, [isCheckingAccess, refreshNotifications, user]);
 
   useEffect(() => {
@@ -253,7 +219,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     const { error } = await bookEventSlot(slot.id);
     if (error) {
       console.error("Failed to create booking:", error);
-      return error.message || "This booking could not be created. Please try again.";
+      return userFacingError(error, "This booking could not be created. Please try again.");
     }
     // Reload shared data after the request so the booking list reflects the database response.
     await refreshData();
@@ -302,7 +268,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     const { data: updatedProfile, error } = await updateVolunteerProfile(user.id, data);
     if (error || !updatedProfile) {
       console.error("Failed to save volunteer profile:", error);
-      return error?.message || "Your profile could not be saved. Please try again.";
+      return userFacingError(error, "Your profile could not be saved. Please try again.") || "Your profile could not be saved. Please try again.";
     }
     setProfile(updatedProfile as Profile);
     showToast("success", "Your profile has been updated.");
@@ -334,7 +300,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     const { error } = await requestVolunteerEmailChange(email);
     if (error) {
       console.error("Failed to request email change:", error);
-      return error.message || "Your email change could not be requested. Please try again.";
+      return userFacingError(error, "Your email change could not be requested. Please try again.");
     }
     showToast("info", "Check both email inboxes to confirm your new email address.");
     return null;
@@ -352,7 +318,7 @@ export function VolunteerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [showToast]);
 
-  return <VolunteerContext.Provider value={{ user, profile, avatarUrl, consent, events, eventSlots, bookings, attendanceRecords, notifications, notificationsLoading, notificationError, refreshNotifications, markAllNotificationsRead, remindersEnabled, reminderPreferenceError, loadReminderPreference, saveReminderPreference, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, saveAvatar, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
+  return <VolunteerContext.Provider value={{ user, profile, avatarUrl, consent, events, eventSlots, bookings, attendanceRecords, notifications, notificationsLoading, notificationError, refreshNotifications, markAllNotificationsRead, isLoading, isCheckingAccess, loadError, refreshData, createUserBooking, cancelBooking, dismissNotification, saveProfile, saveAvatar, requestEmailChange, acceptConsent, showToast, toasts }}>{children}</VolunteerContext.Provider>;
 }
 
 /** Accesses the shared provider; using this hook outside its wrapper is a programming error. */

@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 /** Shared loader hook and small form/loading wrappers for admin feature screens. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from '../admin.module.css';
@@ -12,7 +13,7 @@ export function useFeatureData<T>(loader: () => Promise<T>) {
   const reload = useCallback(async () => {
     const version = ++request.current;
     setLoading(true); setError('');
-    try { const result = await loader(); if (version === request.current) setData(result); } catch (e) { if (version === request.current) { setError(e instanceof Error ? e.message : 'Unable to load data.'); setData(null); } }
+    try { const result = await loader(); if (version === request.current) setData(result); } catch (e) { if (version === request.current) { setError(userFacingError(e instanceof Error ? e.message : 'Unable to load data.', "Unable to load data.")); setData(null); } }
     finally { if (version === request.current) setLoading(false); }
   }, [loader]);
   const invalidate = useCallback(() => { ++request.current; }, []);
@@ -23,7 +24,7 @@ export function useFeatureData<T>(loader: () => Promise<T>) {
 /** Shows loading first, then an error with Retry; returns nothing for a successful loaded state. */
 export function FeatureState({ error, loading, retry }: { error: string; loading: boolean; retry: () => void }) {
   if (loading) return <p className={styles.helper} role="status">Loading...</p>;
-  if (error) return <div className={styles.error} role="alert">{error} <button className={styles.secondaryButton} onClick={retry}>Retry</button></div>;
+  if (error) return <div className={styles.error} role="alert">{userFacingError(error, 'This section could not be loaded. Please retry.')} <button className={styles.secondaryButton} onClick={retry}>Retry</button></div>;
   return null;
 }
 /** Wraps a form control in its visible label with the shared admin field styles. */

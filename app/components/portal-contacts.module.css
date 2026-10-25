@@ -1,9 +1,18 @@
-.footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--portal-line);font-size:13px;color:var(--portal-muted)}
-.footer>details{max-width:700px}.footer summary{list-style:none;cursor:pointer}.footer summary::-webkit-details-marker{display:none}
-.panel{display:grid;gap:16px;margin-top:12px;padding:20px;border:1px solid var(--portal-line);border-radius:10px;background:var(--portal-surface);color:var(--portal-ink)}
-.panel h2{margin:0;font-size:15px}.contact{min-width:0;padding-top:14px;border-top:1px solid var(--portal-line)}
+.trigger{display:inline-flex;flex-shrink:0;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 12px;border:1px solid var(--portal-line);border-radius:8px;background:var(--portal-surface);color:var(--portal-muted);font:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer}
+.trigger:hover{background:var(--portal-bg);color:var(--portal-ink)}
+.overlay{position:fixed;inset:0;z-index:150;display:grid;align-items:center;justify-items:center;box-sizing:border-box;padding:24px;background:#10182080;overscroll-behavior:contain;color:var(--portal-ink)}
+.dialog{width:min(100%,520px);max-height:calc(100dvh - 48px);min-width:0;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--portal-line);border-radius:14px;background:var(--portal-surface);box-shadow:0 20px 70px #0003;font-family:var(--portal-font);font-size:13px;line-height:1.5}
+.dialogHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 24px;border-bottom:1px solid var(--portal-line)}
+.dialogHeader h2{margin:0;color:var(--portal-ink);font-size:18px;font-weight:700;line-height:1.35;letter-spacing:-.3px}
+.dialogHeader p{margin:6px 0 0;color:var(--portal-muted);font-size:12px}
+.close{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;padding:0;border:1px solid var(--portal-line);border-radius:8px;background:var(--portal-surface);color:var(--portal-muted);cursor:pointer}
+.close:hover{background:var(--portal-bg);color:var(--portal-ink)}
+.dialogBody{display:grid;gap:20px;padding:22px 24px}
+.contact{min-width:0;padding-top:20px;border-top:1px solid var(--portal-line)}
+.contact:first-child{padding-top:0;border-top:0}
 .contact h3{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 6px;font-size:13px}.contact h3 span{font-size:11px;font-weight:500;color:var(--portal-muted)}
-.contact p{margin:6px 0 10px;overflow-wrap:anywhere;font-size:13px}.panel button,.panel a{min-height:40px;max-width:100%;white-space:normal}
+.contact p{margin:6px 0 10px;overflow-wrap:anywhere;font-size:13px}.dialog button,.dialog a{min-height:40px;max-width:100%;white-space:normal}
+.dialog a{text-decoration:none}.dialog a:hover{background:var(--portal-bg)}
 .feedback{display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:12px}.feedback p{margin:0}
 .editor,.fields{display:grid;gap:18px;min-width:0}.fields{margin:0;padding:0;border:0}
 .contactEditor{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto auto;align-items:end;gap:14px;padding:16px;border:1px solid var(--portal-line);border-radius:9px}
@@ -12,4 +21,6 @@
 .srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .editor .fields>.srOnly{width:1px;max-width:1px;float:none;margin:-1px}
 @media(max-width:1100px){.contactEditor{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.contactEditor{grid-template-columns:minmax(0,1fr);padding:14px}.panel{padding:16px}.panel button,.panel a,.footer summary{min-height:44px}.saveActions{align-items:stretch;flex-direction:column}.saveActions button{width:100%}.contactEditor input{font-size:16px}.footer{margin-top:24px}}
+@media(max-width:1100px){.trigger{width:44px;min-height:44px;padding:0}.trigger>span{display:none}}
+@media(max-width:600px){.contactEditor{grid-template-columns:minmax(0,1fr);padding:14px}.overlay{padding:16px}.dialog{max-height:calc(100dvh - 32px)}.dialogHeader,.dialogBody{padding:18px}.dialog button,.dialog a{min-height:44px}.saveActions{align-items:stretch;flex-direction:column}.saveActions button{width:100%}.contactEditor input{font-size:16px}}
+@media print{.trigger,.overlay{display:none!important}}

@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useCallback, useRef, useState } from 'react';
 import { getPortalContacts, savePortalContacts } from '@/lib/actions/portal-contacts';
@@ -53,7 +54,7 @@ export function PortalContactForm({ initial, saved, reload, busyChanged }: { ini
     event.preventDefault(); if (pending.current) return;
     pending.current=true; setBusy(true); busyChanged(true); setError('');
     try { const result=await savePortalContacts(initial.portal,initial.version,contacts); saved(result); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : 'Contacts could not be saved. Please retry.'); }
+    catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Contacts could not be saved. Please retry.', "Contacts could not be saved. Please retry.")); }
     finally { pending.current=false;setBusy(false);busyChanged(false); }
   }}>
     <fieldset disabled={busy} className={css.fields}><legend className={css.srOnly}>Contact methods</legend>

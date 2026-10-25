@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useEffect, useRef, useState } from 'react';
 import { prepareAvatar } from '@/lib/avatar';
@@ -30,7 +31,7 @@ export default function CorporatePhotoEditor({ onActivityChange }: { onActivityC
       const blob = await prepareAvatar(file);
       if (request === generation.current) { setDraft({ blob, url: URL.createObjectURL(blob) }); setAccepted(false); }
     } catch (failure) {
-      if (request === generation.current) setError(failure instanceof Error ? failure.message : 'This image could not be opened. Please choose another.');
+      if (request === generation.current) setError(userFacingError(failure instanceof Error ? failure.message : 'This image could not be opened. Please choose another.', "This image could not be opened. Please choose another."));
     } finally { if (request === generation.current) { locked.current = false; setPreparing(false); } }
   }
   async function save(remove = false) {
@@ -41,8 +42,8 @@ export default function CorporatePhotoEditor({ onActivityChange }: { onActivityC
     try {
       const failure = await photo.save(remove ? null : draft!.blob);
       if (request !== generation.current) return;
-      if (failure) setError(failure);
-      else { setDraft(null); setAccepted(false); setMessage(remove ? 'Company image removed.' : 'Company image updated.'); }
+      if (failure) setError(userFacingError(failure, "This action could not be completed. Please refresh and try again."));
+      else { setDraft(null); setAccepted(false); setMessage(userFacingError(remove ? 'Company image removed.' : 'Company image updated.', "This action could not be completed. Please refresh and try again.")); }
     } catch { if (request === generation.current) setError('Your image could not be saved. Please retry.'); }
     finally { if (request === generation.current) locked.current = false; }
   }

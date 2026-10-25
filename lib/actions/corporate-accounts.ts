@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabase';
 import { corporateRolloutEnabled } from '@/lib/feature-flags';
 import { isValidPhone, normalisePhone } from '@/lib/contact-details';
-import type { CorporateAccount, CorporateAccountDetail, CorporateAccountInput, CorporateAccountListItem, CorporateAccountNotice, CorporateAccountStatus, CorporateRolloutSettings, PagedRows, VolunteerDirectoryItem } from '@/lib/corporate-account-types';
+import type { CorporateAccount, CorporateAccountDetail, CorporateAccountInput, CorporateAccountListItem, CorporateAccountStatus, CorporateRolloutSettings, PagedRows, VolunteerDirectoryItem } from '@/lib/corporate-account-types';
 
 function requireRollout() {
   if (!corporateRolloutEnabled) throw new Error('Corporate account rollout is not enabled on this deployment.');
@@ -79,10 +79,6 @@ export async function searchCorporateAccounts(query = '', status: CorporateAccou
 export async function reviewCorporateAccount(accountId: string, decision: 'approve' | 'reject' | 'reconsider', reason: string) {
   if (!reason.trim()) throw new Error('Record a reason for this decision.');
   return call<CorporateAccount>('corporate_review_account', { p_account_id: accountId, p_decision: decision, p_reason: reason.trim() });
-}
-
-export async function loadCorporateAccountNotices(page = 1) {
-  return call<PagedRows<CorporateAccountNotice>>('corporate_account_notices', { p_offset: Math.max(0, page - 1) * 10, p_limit: 10 });
 }
 
 export async function readCorporateAccountNotice(id: string) {

@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useRef, useState } from 'react';
 import { corporateOutcomesEnabled } from '@/lib/feature-flags';
@@ -10,8 +11,8 @@ import { corporateDateLabel } from '@/lib/corporate-booking-utils';
 import styles from '@/app/admin/admin.module.css';
 import ui from '../corporate.module.css';
 
-export default function CorporateAttendance({ booking, admin, dirtyChanged, committed }: { booking: CorporateBookingRow; admin: boolean; dirtyChanged: (value: boolean) => void; committed: (booking: CorporateBookingRow) => Promise<void> }) {
-  const [open, setOpen] = useState(false), [dirty, setDirty] = useState(false);
+export default function CorporateAttendance({ booking, admin, dirtyChanged, committed, initialOpen = false }: { booking: CorporateBookingRow; admin: boolean; dirtyChanged: (value: boolean) => void; committed: (booking: CorporateBookingRow) => Promise<void>; initialOpen?: boolean }) {
+  const [open, setOpen] = useState(() => initialOpen && corporateOutcomesEnabled && admin && !booking.attendance && canRecordCorporateAttendance(booking)), [dirty, setDirty] = useState(false);
   const now = useWorkflowClock(), record = booking.attendance;
   const reportDirty = (value: boolean) => { setDirty(value); dirtyChanged(value); };
   return <section><h2>Group attendance & completion</h2>{record ? <div className={ui.notice}><p><strong>{record.attendance_count}</strong> actual attendees · <strong>{record.event_hours == null ? 'Event hours not recorded' : record.event_hours + ' event hours'}</strong></p><p>{record.note}</p><p>Recorded by {record.recorded_by_name} · {corporateDateLabel(record.updated_at)}</p></div> : <p>No group attendance has been recorded. Booked group size is not proof of attendance.</p>}
@@ -38,11 +39,11 @@ export function CorporateAttendanceForm({ booking, dirtyChanged, committed }: { 
       pending.current = true; setBusy(true); dirtyChanged(true);
       const saved = await recordCorporateAttendance(booking,count,hours,note,intent.current.key);
       dirtyChanged(false); await committed(saved);
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Attendance could not be saved. Refresh and check before changing your totals.'); }
+    } catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Attendance could not be saved. Refresh and check before changing your totals.', "Attendance could not be saved. Refresh and check before changing your totals.")); }
     finally { pending.current = false; setBusy(false); }
   }}><fieldset className={styles.formGrid} disabled={busy} style={{ border:0,padding:0,minWidth:0 }}><legend>{booking.attendance ? 'Correct attendance and event hours' : 'Attendance and event hours'}</legend>
     <label className={styles.field}><span className={styles.fieldLabel}>Actual attendees (zero allowed)</span><input className={styles.input} type="number" required min={0} max={booking.group_size} step={1} value={count} onChange={event => setCount(event.target.value)} /></label>
-    <label className={styles.field}><span className={styles.fieldLabel}>Event hours (whole hours, optional)</span><input className={styles.input} type="number" min={0} max={24} step={1} value={hours} onChange={event => setHours(event.target.value)} placeholder="Leave blank if not recorded" /></label>
+    <label className={styles.field}><span className={styles.fieldLabel}>Event hours</span><input className={styles.input} type="number" min={0} max={24} step={1} value={hours} onChange={event => setHours(event.target.value)} placeholder="Leave blank if not recorded" /></label>
     <label className={`${styles.field} ${styles.fieldFull}`}><span className={styles.fieldLabel}>{booking.attendance ? 'Correction reason' : 'Attendance notes'}</span><textarea className={styles.input} required maxLength={800} value={note} onChange={event => setNote(event.target.value)} /></label>
     {error && <p className={`${styles.error} ${styles.fieldFull}`} role="alert">{error}</p>}<div className={ui.formFooter}><button type="submit" className={styles.primaryButton}>{busy ? 'Saving…' : 'Save attendance & complete'}</button></div>
   </fieldset></form>;

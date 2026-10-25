@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 import { useEffect, useId, useState } from 'react';
 import styles from '../admin.module.css';
 
@@ -17,7 +18,7 @@ export default function SearchSelector({ label, value, selectedLabel, loadOption
     const timer = setTimeout(async () => {
       setLoading(true); setError('');
       try { const result = await loadOptions(query); if (active) setOptions(result); }
-      catch (e) { if (active) { setOptions([]); setError(e instanceof Error ? e.message : 'Search failed.'); } }
+      catch (e) { if (active) { setOptions([]); setError(userFacingError(e instanceof Error ? e.message : 'Search failed.', "Search failed.")); } }
       finally { if (active) setLoading(false); }
     }, 250);
     return () => { active = false; clearTimeout(timer); };

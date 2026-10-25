@@ -15,14 +15,14 @@ A volunteer-management web application for Ladles of Love. Volunteers can book s
 
 ### Volunteer portal
 
-- Account registration, sign-in and password recovery
+- Account registration, sign-in, password recovery and password changes
 - Event browsing, shift bookings and cancellation
 - QR attendance scanning and manual attendance-code entry
 - Profile management, volunteering history and recorded hours
 - Participation certificates for eligible verified attendance
-- In-app notifications and personal shift-reminder preferences
+- In-app notifications and separate personal 24-hour / 2-hour shift-reminder preferences
 
-Volunteer cellphone numbers are optional at registration and in the profile. When provided, their format is validated; clearing a number stores `NULL`. The separate administrator-controlled booking requirement can be enabled later if needed.
+Volunteer cellphone numbers are optional at registration and in the profile. When provided, their format is validated; clearing a number stores `NULL`.
 
 ### Admin portal
 
@@ -31,7 +31,7 @@ Volunteer cellphone numbers are optional at registration and in the profile. Whe
 - Volunteer rosters and attendance information
 - Corporate company and group-booking management
 - Filtered analytics, event performance, attendance heatmaps and CSV exports
-- Administrator access, notification preferences and recent admin/WMS activity
+- Administrator access, portal contacts, account settings and recent admin/WMS activity
 
 ### WMS integration
 
@@ -47,13 +47,13 @@ The additive corporate migrations are in `supabase/migrations/`. They extend the
 
 Administrator setup:
 
-1. **Corporate accounts → Access settings:** manage registration and cellphone enforcement. Enable database phone enforcement after deploying the updated signup/profile forms; missing numbers block new bookings, not attendance/cancellation.
-2. **Corporate bookings → Booking settings:** enter the actual booking-team email and phone, then open requests. Both are required; no contact details or activity prices are invented.
+1. **Corporate accounts → Access settings:** open or close new business registration. Existing accounts and bookings remain available when registration is closed.
+2. **Admin Settings → Portal contacts:** configure the actual support contacts separately for volunteers and companies. Corporate requests require a primary email and phone. Then open requests under **Corporate bookings → Booking settings**. No contacts or activity prices are invented. Both portals show a header contact button with Copy and optional email/call actions.
 3. **Corporate events:** save drafts or publish actual sessions with a date/time, location and one maximum group size. The calendar labels available, reserved, unpublished, cancelled and past sessions. No preset activity menu is required.
 4. Approve verified business accounts, review booking requests and set payment deadlines. Requests reserve nothing; acceptance atomically reserves the entire session for one company and rejects competing requests with notifications. Overdue bookings retain the reservation until an admin acts.
 5. Record verified external payments to confirm bookings. Payment/refund discussions stay outside the portal; no money is processed.
-6. Review changes/cancellations and, after the event ends, record actual attendance and optional whole event hours (12 people attending a two-hour event records 2 hours, not 24). Unknown hours remain blank; zero is explicit. Corrections retain earlier totals and receipts. Completed-booking reports, CSV and printing use the same event-duration values and load the full filtered scope, not only the visible page.
-7. Use the admin notification bell for account and booking updates, unread counts and links to the affected records. Contact controls reveal email/phone details before offering Copy or optional email/calling-app actions. Corporate reporting is separate from volunteer analytics.
+6. Use **Corporate bookings → Attendance** for confirmed sessions that have ended and still need attendance. **Record attendance** opens the form directly; resolve any outstanding change/cancellation request first. The admin bell also receives an in-app follow-up from a five-minute database job, with one reminder per booking/session end. Resolved reminders leave the outstanding inbox without deleting their stored history. Attendance is never recorded automatically. Record actual attendees and optional whole event hours (12 people attending a two-hour event records 2 hours, not 24). Unknown hours remain blank; zero is explicit. Corrections retain earlier totals and receipts. Completed-booking reports, CSV and printing use the same event-duration values and load the full filtered scope, not only the visible page.
+7. Use the admin notification bell for account and booking updates, unread counts and links to the affected records. Contact controls reveal email/phone details before offering Copy or optional email/calling-app actions. Corporate analytics has its own admin sidebar page, separate from volunteer analytics.
 
 Configure Supabase Auth email confirmation, SMTP delivery and permitted verification/recovery redirect URLs for each deployment. Built-in Supabase email delivery is limited; public registration needs a suitable email provider. Do not add SMTP credentials or service-role keys to browser code. Google sign-in uses the configured Supabase provider. Volunteer and business accounts are separate: someone using both needs different email addresses. One sign-in screen routes each account to its own portal; a volunteer login cannot be converted into a business account.
 
@@ -61,7 +61,11 @@ Corporate events/reservations are separate from volunteer events, WMS timeslots 
 
 SMTP supplies Auth verification and password-recovery email delivery only. Booking, approval, payment, change and cancellation updates remain in-app; configuring SMTP does not add operational booking emails. Before release, verify the real booking-team contact details, SMTP sender, allowed redirect URLs and inbox delivery. Expired verification links offer a resend action; expired recovery links offer a new password-reset request.
 
-`design-preview/` remains a separate, fictional mockup; it is not used by the real app. Automated tests cover isolated PostgreSQL workflows/permissions, components and WMS regressions. Real inbox delivery, browser/mobile/print checks and live WMS acceptance still need human verification before production sign-off.
+Personal notification preferences live in **Volunteer Profile** and **Business profile**, with independent 24-hour and 2-hour reminder switches. Both, either or neither can be enabled. Existing volunteer opt-outs remain off. Corporate session reminders apply to confirmed future bookings for approved companies. Turning a reminder off marks existing messages of that type read without deleting history; booking decisions, payment updates and cancellations remain enabled. There is no admin-wide reminder switch. Late bookings receive only the next applicable enabled threshold, not a missed 24-hour reminder shortly before the session.
+
+Automated tests cover isolated PostgreSQL workflows/permissions, application components and WMS regressions. Email delivery and deployed integrations also require checks against the configured services.
+
+New passwords require 8–128 characters, an uppercase letter, a lowercase letter, a number and a symbol. These requirements apply to registration and password changes/resets; existing passwords remain usable for sign-in. Password changes are available in Admin Settings → My account, Volunteer My profile and Corporate Business profile, and require the current password. The password policy is also declared in `supabase/config.toml`; a Vercel deployment does not apply Supabase configuration.
 
 ## Local setup
 
@@ -123,7 +127,6 @@ lib/
 tests/              Logic, component, mocked route and isolated PostgreSQL tests
 supabase/migrations/ Additive corporate rollout SQL (not automatically applied)
 public/             Static assets
-design-preview/     Standalone HTML/JavaScript design prototypes
 ```
 
 ## Tests and code checks
@@ -138,12 +141,6 @@ Run only the WMS route tests:
 
 ```bash
 node --test tests/wms-integration.test.mjs
-```
-
-Run the corporate preview tests:
-
-```bash
-node --test tests/corporate-preview.test.mjs
 ```
 
 Check code style and TypeScript:
@@ -166,12 +163,11 @@ npm run start
 
 For Vercel, configure the required environment variables for the intended deployment environment. The deployment must point to the correct Supabase project, with appropriate authentication redirect URLs, database permissions and policies. Redeploy after changing build-time public environment variables.
 
-Automatic in-app reminders depend on the database reminder function and scheduled job. The application currently uses 24-hour and 2-hour reminders checked every five minutes when enabled. Email, SMS and mobile push delivery are not implemented by those reminder settings.
+Automatic in-app reminders depend on database functions and scheduled jobs. Volunteer shifts and corporate sessions are checked every five minutes using each account's personal 24-hour and 2-hour preferences. Admin attendance follow-ups run separately and are unaffected by these choices. Email, SMS and mobile push delivery are not implemented by those reminder settings.
 
 ## Security and data handling
 
 - Keep credentials and real volunteer details out of recordings, screenshots and source control.
 - Authorisation must be enforced through database permissions/policies and server-side checks, not only navigation or hidden buttons.
 - Use isolated test data for development and integration tests where possible.
-- Treat prototype role-switching controls as demonstration tools only; they must not become production access controls.
 - Coordinate schema changes, production deployment and integration sign-off with the responsible Ladles and WMS teams.

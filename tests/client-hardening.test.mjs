@@ -20,6 +20,8 @@ function fixture(auth = {}, extra = {}) {
   const hooks = {
     useState(initial) { const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial; return [state[i], value => { state[i] = typeof value === 'function' ? value(state[i]) : value; }]; },
     useRef(initial) { const i = cursor++; if (!(i in state)) state[i] = { current: initial }; return state[i]; },
+    useId() { const i = cursor++; if (!(i in state)) state[i] = 'fixture-id-' + i; return state[i]; },
+    useMemo(calculate, deps) { const i = cursor++; if (!state[i] || deps.some((value, n) => value !== state[i].deps[n])) state[i] = { deps, value: calculate() }; return state[i].value; },
     useCallback(callback, deps) { const i = cursor++; if (!state[i] || deps.some((value, n) => value !== state[i].deps[n])) state[i] = { deps, callback }; return state[i].callback; },
     useEffect(effect, deps) { const i = cursor++; if (!state[i] || deps.some((value, n) => value !== state[i].deps[n])) { state[i]?.cleanup?.(); state[i] = { deps }; effects.push(() => { state[i].cleanup = effect(); }); } },
   };
@@ -61,6 +63,191 @@ function browser(t, search = '', hash = '') {
 }
 function input(tree, id, value) { nodes(tree).find(node => node.props.id === id).props.onChange({ target: { value } }); }
 const submit = tree => nodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+
+test('admin navigation groups volunteer and corporate destinations, keeps Settings last and closes the mobile menu on selection', t => {
+  browser(t); window.location.pathname = '/admin/corporate-reports';
+  for (const enabled of [true, false]) {
+    const f = fixture({}, { '@/lib/feature-flags': { corporateRolloutEnabled: enabled, corporateBookingsEnabled: enabled, corporateOutcomesEnabled: enabled } });
+    let closed = 0;
+    const sidebar = f.load('app/admin/components/Sidebar.tsx').default;
+    const tree = f.render(sidebar, { isOpen: true, onClose: () => { closed++; } });
+    assert.equal(tree.props.role, 'dialog');
+    const groups = nodes(tree).filter(n => n.props.role === 'group');
+    assert.deepEqual(groups.map(n => n.props['aria-labelledby']), enabled ? ['volunteer-navigation-title', 'corporate-navigation-title'] : ['volunteer-navigation-title']);
+    const volunteerLinks = nodes(groups[0]).filter(n => n.props.href);
+    assert.deepEqual(volunteerLinks.map(n => n.props.href), ['/admin', '/admin/events', '/admin/volunteers', ...(enabled ? ['/admin/directory'] : []), '/admin/reports']);
+    assert.equal(nodes(tree).filter(n => n.props.href).at(-1).props.href, '/admin/settings');
+    assert.doesNotMatch(textContent(tree), /Admin workspace|Insights & organisation/);
+    if (enabled) {
+      const links = nodes(groups[1]).filter(n => n.props.href);
+      assert.deepEqual(links.map(n => n.props.href), ['/admin/corporate-bookings', '/admin/corporate-accounts', '/admin/corporate-reports']);
+      assert.equal(links[2].props['aria-current'], 'page'); links[2].props.onClick(); assert.equal(closed, 1);
+    }
+  }
+});
+
+test('roster picker searches without changing the roster and supports keyboard selection, dismissal and result scrolling', async t => {
+  const previous=globalThis.document,events=new EventTarget(),scrolled=[];
+  globalThis.document={addEventListener:events.addEventListener.bind(events),removeEventListener:events.removeEventListener.bind(events),getElementById:id=>({scrollIntoView:options=>scrolled.push([id,options])})};
+  t.after(()=>{globalThis.document=previous;});
+  const selected=[],f=fixture(),picker=f.load('app/admin/components/RosterEventPicker.tsx').default;
+  const props={events:[{id:1,title:'Kitchen event',date:'2020-10-01',location:'Kitchen'},{id:2,title:'Warehouse event',date:'2020-10-02',location:'Warehouse'},{id:3,title:'A third event',date:'2020-10-03',location:'Warehouse'}],value:'1',onChange:id=>selected.push(id)};
+  let tree=f.render(picker,props),combo=nodes(tree).find(n=>n.props.role==='combobox');
+  assert.equal(combo.props.value,'Kitchen event');assert.equal(combo.props['aria-expanded'],false);
+  combo.props.onFocus();tree=f.render(picker,props);await f.effects();
+  assert.equal(nodes(tree).filter(n=>n.props.role==='option').length,3);assert.equal(scrolled.at(-1)[1].block,'nearest');
+  combo=nodes(tree).find(n=>n.props.role==='combobox');combo.props.onChange({target:{value:'Warehouse'}});tree=f.render(picker,props);
+  assert.equal(nodes(tree).filter(n=>n.props.role==='option').length,2);assert.deepEqual(selected,[]);
+  let prevented=0;const key=key=>({key,preventDefault(){prevented++;},stopPropagation(){}});
+  nodes(tree).find(n=>n.props.role==='combobox').props.onKeyDown(key('ArrowDown'));tree=f.render(picker,props);
+  const active=nodes(tree).find(n=>n.props.role==='combobox').props['aria-activedescendant'];
+  assert.equal(nodes(tree).find(n=>n.props.id===active).props.children[0].props.children[0].props.children,'A third event');
+  nodes(tree).find(n=>n.props.role==='combobox').props.onKeyDown(key('Enter'));props.value=selected.at(-1);tree=f.render(picker,props);
+  assert.deepEqual(selected,['3']);assert.equal(nodes(tree).find(n=>n.props.role==='combobox').props['aria-expanded'],false);assert.equal(prevented,2);
+  nodes(tree).find(n=>n.props.role==='combobox').props.onFocus();tree=f.render(picker,props);
+  nodes(tree).find(n=>n.props.role==='combobox').props.onChange({target:{value:'No such event'}});tree=f.render(picker,props);
+  assert.match(textContent(tree),/No matching events/);assert.equal(nodes(tree).find(n=>n.props.role==='combobox').props['aria-activedescendant'],undefined);
+  nodes(tree).find(n=>n.props.role==='combobox').props.onKeyDown(key('Enter'));assert.deepEqual(selected,['3']);
+  nodes(tree).find(n=>n.props.role==='combobox').props.onKeyDown(key('Escape'));tree=f.render(picker,props);
+  assert.equal(nodes(tree).find(n=>n.props.role==='combobox').props.value,'A third event');
+  nodes(tree).find(n=>n.props.role==='combobox').props.onFocus();tree=f.render(picker,props);await f.effects();events.dispatchEvent(new Event('pointerdown'));tree=f.render(picker,props);
+  assert.equal(nodes(tree).find(n=>n.props.role==='combobox').props['aria-expanded'],false);f.unmount();
+});
+
+test('roster programme and inclusive date filters keep the selected roster accurate and clear old volunteer filters', () => {
+  const f=fixture(),component=f.load('app/admin/components/VolunteerAttendance.tsx').default;
+  const events=[{id:1,title:'October warehouse',date:'2020-10-02',location:'Warehouse',category:'Warehouse HQ',status:'Scheduled'},{id:2,title:'October kitchen',date:'2020-10-16',location:'Kitchen',category:'Dignity Kitchen',status:'Scheduled'},{id:3,title:'November kitchen',date:'2020-11-01',location:'Kitchen',category:'Dignity Kitchen',status:'Scheduled'},{id:4,title:'Future event',date:'2099-10-01',location:'Warehouse',status:'Scheduled'},{id:5,title:'Cancelled event',date:'2020-10-20',location:'Warehouse',status:'Cancelled'}];
+  const props={events,eventSlots:[],attendanceRecords:[],bookings:[{id:1,event_id:1,status:'Confirmed',volunteer_name:'Alice',selected_slot:'09:00-10:00'},{id:2,event_id:2,status:'Completed',volunteer_name:'Bob',selected_slot:'09:00-10:00'}]};
+  let tree=f.render(component,props);
+  nodes(tree).find(n=>n.props.role==='tab'&&textContent(n).startsWith('Past events')).props.onClick();tree=f.render(component,props);
+  const getPicker=tree=>nodes(tree).find(n=>n.type?.name==='RosterEventPicker');
+  assert.deepEqual(getPicker(tree).props.events.map(e=>e.id),[3,2,1]);
+  nodes(tree).find(n=>n.type==='input'&&n.props.placeholder==='Name or email…').props.onChange({target:{value:'Nobody'}});tree=f.render(component,props);
+  getPicker(tree).props.onChange('2');tree=f.render(component,props);assert.match(textContent(tree),/Bob/);assert.doesNotMatch(textContent(tree),/Alice/);
+  nodes(tree).find(n=>n.type==='select'&&n.props.children[0].props.children==='All programmes').props.onChange({target:{value:'Dignity Kitchen'}});tree=f.render(component,props);
+  assert.deepEqual(getPicker(tree).props.events.map(e=>e.id),[3,2]);
+  nodes(tree).filter(n=>n.type==='input'&&n.props.type==='date')[0].props.onChange({target:{value:'2020-10-16'}});tree=f.render(component,props);
+  nodes(tree).filter(n=>n.type==='input'&&n.props.type==='date')[1].props.onChange({target:{value:'2020-10-16'}});tree=f.render(component,props);
+  assert.deepEqual(getPicker(tree).props.events.map(e=>e.id),[2]);assert.equal(getPicker(tree).props.value,'2');assert.match(textContent(tree),/Bob/);
+  nodes(tree).filter(n=>n.type==='input'&&n.props.type==='date')[0].props.onChange({target:{value:'2020-10-20'}});tree=f.render(component,props);
+  assert.match(textContent(tree),/From date must be on or before To date/);assert.equal(getPicker(tree).props.events.length,0);assert.doesNotMatch(textContent(tree),/Bob/);
+  nodes(tree).find(n=>n.props.children==='Clear event filters').props.onClick();tree=f.render(component,props);assert.equal(getPicker(tree).props.events.length,3);
+  nodes(tree).find(n=>n.props.role==='tab'&&textContent(n).startsWith('Cancelled events')).props.onClick();tree=f.render(component,props);assert.deepEqual(getPicker(tree).props.events.map(e=>e.id),[5]);
+});
+
+test('business registration controls do not expose or change volunteer requirements', async t => {
+  browser(t); const confirmations=[];window.confirm=message=>{confirmations.push(message);return true;};
+  for(const phoneRequired of [false,true]) {
+    const writes=[],dirty=[];let refreshes=0;
+    const f=fixture({}, {'@/lib/actions/corporate-accounts':{setCorporateRolloutSettings:async(...values)=>writes.push(values)}});
+    const form=f.load('app/admin/components/BusinessRegistrationForm.tsx').default;
+    const props={initial:{registration_enabled:true,volunteer_phone_required:phoneRequired},saved:async()=>{refreshes++;},dirtyChanged:value=>dirty.push(value)};
+    let tree=f.render(form,props);
+    assert.equal(nodes(tree).filter(n=>n.type==='input').length,1);
+    assert.doesNotMatch(textContent(tree),/volunteer|Supabase|rollout|redirect URL/i);
+    nodes(tree).find(n=>n.type==='input').props.onChange({target:{checked:false}});
+    assert.equal(dirty.at(-1),true);tree=f.render(form,props);await submit(tree);
+    assert.deepEqual(writes,[[false,phoneRequired]]);assert.equal(dirty.at(-1),false);assert.equal(refreshes,1);
+    assert.match(textContent(f.render(form,props)),/Business registration settings saved/);
+  }
+  assert.ok(confirmations.every(message=>message.includes('Close registration')&&!/volunteer|phone/i.test(message)));
+});
+
+test('corporate analytics has its own report route and old report-tab links lead there', async t => {
+  browser(t, '?tab=reports');
+  const f = fixture({}, { '@/lib/feature-flags': { corporateBookingsEnabled: true, corporateOutcomesEnabled: true } });
+  const page = f.load('app/admin/corporate-reports/page.tsx').default;
+  const report = f.render(page);
+  assert.equal(report.type.name, 'CorporateOutcomeReports'); assert.equal(report.props.admin, true);
+  const bookings = f.load('app/admin/corporate-bookings/page.tsx').default;
+  const route = nodes(f.render(bookings)).find(n => n.type?.name === 'CorporateBookingRoute');
+  const shortcut = f.render(route.type, route.props);
+  f.render(shortcut.type, shortcut.props); await f.effects();
+  assert.deepEqual(f.routes, ['/admin/corporate-reports']);
+});
+
+test('sign-in, admin loaders, volunteer attendance and corporate forms hide technical backend failures', async t => {
+  browser(t, '?checkpoint=test-checkpoint'); window.confirm = () => true;
+  const technical = 'permission denied for table corporate_bookings; SELECT * FROM public.profiles';
+  const auth = fixture({ getSession: async () => ({ data: { session: null }, error: null }), signInWithPassword: async () => ({ data: { user: null }, error: new Error(technical) }) });
+  const login = auth.load('app/components/LoginForm.tsx').default;
+  let tree = auth.render(login); await auth.effects();
+  input(tree, 'auth-email', 'person@example.invalid'); tree = auth.render(login); input(tree, 'auth-password', 'test-password'); tree = auth.render(login);
+  await submit(tree); tree = auth.render(login);
+  assert.doesNotMatch(textContent(tree), /permission denied|SELECT|public\.profiles/);
+  assert.match(textContent(tree), /could not be completed|request failed/);
+
+  const admin = fixture(), loader = async () => { throw new Error(technical); };
+  const useData = admin.load('app/admin/components/FeatureShared.tsx').useFeatureData;
+  admin.render(useData, loader); await admin.effects(); const result = admin.render(useData, loader);
+  assert.equal(result.data, null); assert.match(result.error, /Unable to load data/); assert.doesNotMatch(result.error, /table|SELECT/);
+
+  const volunteer = fixture({}, {
+    '@/lib/actions/volunteer': { recordEventAttendance: async () => ({ data: null, error: { message: technical } }) },
+    '../components/VolunteerProvider': { useVolunteerData: () => ({ refreshData: async () => {} }) },
+  });
+  const attendance = volunteer.load('app/volunteer/attendance/page.tsx').default;
+  tree = volunteer.render(attendance); nodes(tree).find(n => n.type === 'button' && n.props.children === 'Confirm attendance').props.onClick(); await tick(); tree = volunteer.render(attendance);
+  assert.match(textContent(tree), /Attendance could not be confirmed/); assert.doesNotMatch(textContent(tree), /SELECT|corporate_bookings/);
+
+  const corporate = fixture({}, {
+    '@/app/components/useUnsavedChanges': { useUnsavedChanges() {} },
+    '@/lib/actions/portal-contacts': { setCorporateBookingAvailability: async () => { throw new Error(technical); } },
+  });
+  const controls = corporate.load('app/corporate/components/CorporateBookingControls.tsx').default;
+  const props = { initial: { booking_enabled: true }, saved() {}, dirtyChanged() {} };
+  tree = corporate.render(controls, props); await nodes(tree).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} }); tree = corporate.render(controls, props);
+  assert.match(textContent(tree), /Booking availability could not be saved/); assert.doesNotMatch(textContent(tree), /SELECT|permission denied/);
+});
+
+test('personal reminder controls save each timing independently, block duplicate writes and refresh the inbox', async t => {
+  browser(t);
+  for (const portal of ['volunteer', 'corporate']) {
+    let data = { portal, reminder_24h: true, reminder_2h: true }, reloads = 0, finish, fail = false;
+    const writes = [], events = [];
+    const eventName = portal === 'corporate' ? 'corporate-booking-notices-changed' : 'volunteer-reminder-preferences-changed';
+    const onChanged = () => events.push(eventName); window.addEventListener(eventName, onChanged);
+    const f = fixture({}, {
+      '@/app/admin/components/FeatureShared': { useFeatureData: () => ({ data, loading: false, error: '', reload: async () => { reloads++; } }) },
+      '@/lib/corporate-notifications': { corporateNoticesChanged: 'corporate-booking-notices-changed' },
+      '@/lib/actions/reminder-preferences': { getReminderPreferences() {}, saveReminderPreferences: async (...args) => {
+        writes.push(args); if (fail) throw Error('Connection lost. Please retry.');
+        await new Promise(resolve => { finish = resolve; }); data = { portal, reminder_24h: args[1], reminder_2h: args[2] }; return data;
+      } },
+    });
+    const component = f.load('app/components/PersonalReminderPreferences.tsx').default;
+    const render = () => f.render(component, { portal });
+    let tree = render(); await f.effects();
+    const switch24 = nodes(tree).find(n => n.props['aria-label'] === '24-hour reminders');
+    const first = switch24.props.onChange({ target: { checked: false } });
+    switch24.props.onChange({ target: { checked: false } });
+    assert.deepEqual(writes, [[portal, false, true]]);
+    assert.ok(nodes(render()).filter(n => n.type === 'input').every(n => n.props.disabled));
+    finish(); await first; await tick(); tree = render();
+    assert.deepEqual(nodes(tree).filter(n => n.type === 'input').map(n => n.props.checked), [false, true]);
+    assert.equal(reloads, 1); assert.equal(events.length, 1);
+    fail = true; await nodes(tree).find(n => n.props['aria-label'] === '2-hour reminders').props.onChange({ target: { checked: false } });
+    await tick(); tree = render(); assert.match(textContent(tree), /Connection lost/);
+    assert.deepEqual(nodes(tree).filter(n => n.type === 'input').map(n => n.props.checked), [false, true], 'A failed save does not pretend the preference changed');
+    assert.ok(nodes(tree).filter(n => n.type === 'input').every(n => !n.props.disabled));
+    f.unmount(); window.removeEventListener(eventName, onChanged);
+  }
+});
+
+test('reminder API never sends a user ID and rejects missing, mismatched or unconfirmed preference results', async () => {
+  const calls = []; let response = { data: { portal: 'corporate', reminder_24h: false, reminder_2h: true }, error: null };
+  const f = fixture({}, { '@/lib/supabase': { supabase: { rpc: async (...args) => { calls.push(args); return response; } } } });
+  const api = f.load('lib/actions/reminder-preferences.ts');
+  await api.saveReminderPreferences('corporate', false, true);
+  assert.deepEqual(calls[0], ['set_personal_reminder_preferences', { p_portal: 'corporate', p_24h: false, p_2h: true }]);
+  await api.getReminderPreferences('corporate');
+  assert.deepEqual(calls[1], ['get_personal_reminder_preferences', { p_portal: 'corporate' }]);
+  response = { data: null, error: null }; await assert.rejects(api.getReminderPreferences('corporate'), /confirmed/);
+  response = { data: { portal: 'volunteer', reminder_24h: false, reminder_2h: true }, error: null }; await assert.rejects(api.getReminderPreferences('corporate'), /confirmed/);
+  response.data.portal = 'corporate'; response.data.reminder_24h = true; await assert.rejects(api.saveReminderPreferences('corporate', false, true), /confirmed/);
+  const before = calls.length; await assert.rejects(api.saveReminderPreferences('invalid', false, true), /valid portal/); assert.equal(calls.length, before);
+  response = { data: null, error: { message: 'Internal database details' } }; await assert.rejects(api.getReminderPreferences('corporate'), /could not be loaded/);
+});
 
 test('corporate screens are available by default, with explicit emergency switches cascading to child stages', () => {
   const code=ts.transpileModule(readFileSync(resolve(root,'lib/feature-flags.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
@@ -169,10 +356,10 @@ test('new business registrations preserve verification, registration gates and c
   assert.doesNotMatch(textContent(registrationTree), /Already have a volunteer or business login|contact email below becomes your login email/);
   assert.match(textContent(registrationTree), /Already registered\? Sign in/);
   const form = nodes(registrationTree).find(node => node.type?.name === 'CorporateAccountForm');
-  await assert.rejects(form.props.submit(details, 'password-123'), /not open yet/); assert.equal(calls.length, 0);
-  await assert.rejects(form.props.submit(details, 'short'), /eight/); assert.equal(calls.length, 0);
-  open = true; await form.props.submit(details, 'password-123');
-  assert.deepEqual(calls, [{ email: details.contact_email, password: 'password-123', options: { emailRedirectTo: 'https://portal.example.invalid/corporate', data: { full_name: details.contact_name, phone: details.contact_phone, registration_kind: 'corporate', corporate_details: details } } }]);
+  await assert.rejects(form.props.submit(details, 'Example-123!'), /not open yet/); assert.equal(calls.length, 0);
+  await assert.rejects(form.props.submit(details, 'short'), /8–128/); assert.equal(calls.length, 0);
+  open = true; await form.props.submit(details, 'Example-123!');
+  assert.deepEqual(calls, [{ email: details.contact_email, password: 'Example-123!', options: { emailRedirectTo: 'https://portal.example.invalid/corporate', data: { full_name: details.contact_name, phone: details.contact_phone, registration_kind: 'corporate', corporate_details: details } } }]);
   assert.match(textContent(f.render(component, props)), /If this address can be registered/); assert.match(textContent(f.render(component, props)), /volunteer email cannot be reused/);
   assert.deepEqual(f.routes, []);
 });
@@ -212,7 +399,7 @@ test('a business signup opened while signed out is blocked if another tab signs 
   const component = f.load('app/components/BusinessRegistration.tsx').default, props = { onSignIn() {}, onDirtyChange() {}, onBusyChange() {} };
   f.render(component, props); await f.effects(); const tree = f.render(component, props);
   const form = nodes(tree).find(node => node.type?.name === 'CorporateAccountForm'); signedIn = true;
-  await assert.rejects(form.props.submit({}, 'password-123'), /Sign out before registering/); assert.equal(signups, 0);
+  await assert.rejects(form.props.submit({}, 'Example-123!'), /Sign out before registering/); assert.equal(signups, 0);
 });
 
 test('sign-out callbacks clear local registration state only after Auth succeeds', async t => {
@@ -250,14 +437,58 @@ test('reset-link check ignores a late response after unmount', async t => {
   assert.match(JSON.stringify(f.render(component)), /Verifying secure link/);
 });
 
+test('new password policy rejects missing character groups and length limits without trimming passwords', () => {
+  const {passwordError}=fixture().load('lib/password-policy.ts');
+  for(const value of ['short','lowercase123!','UPPERCASE123!','LettersOnly!','Letters1234','Letters1234 ','A1!'+ 'a'.repeat(126)]) assert.match(passwordError(value),/uppercase letter.*lowercase letter.*number.*symbol/);
+  for(const value of ['Example-123!','A1!'+ 'a'.repeat(125),' A good passphrase 7! ']) assert.equal(passwordError(value),'');
+});
+
+test('password changes verify the current password and account identity before writing', async () => {
+  const account={id:'person',email:'person@example.invalid'};
+  for(const outcome of ['saved','wrong-current','changed-before','changed-after','unconfirmed','network']) {
+    let reads=0;const writes=[],verified=[];
+    const f=fixture({
+      getUser:async()=>({data:{user:outcome==='changed-before'||(outcome==='changed-after'&&reads++>0)?{id:'other',email:'other@example.invalid'}:account},error:null}),
+      signInWithPassword:async value=>{verified.push(value);if(outcome==='network')throw new Error('Connection lost');return {data:{user:account,weakPassword:{reasons:['length']}},error:outcome==='wrong-current'?{code:'invalid_credentials',message:'Invalid login credentials'}:null};},
+      updateUser:async value=>{writes.push(value);return {data:{user:outcome==='unconfirmed'?null:account},error:null};},
+    });
+    const change=f.load('lib/actions/password.ts').changeAccountPassword;
+    await assert.rejects(change(account.email,'old','weak','weak'),/uppercase letter/);assert.equal(verified.length,0);
+    await assert.rejects(change(account.email,'old','Example-123!','different'),/do not match/);
+    const result=change(account.email,'old-test-password','Example-123!','Example-123!');
+    if(outcome==='saved')await result;else await assert.rejects(result,/incorrect|session changed|could not be confirmed|Connection lost/);
+    assert.equal(writes.length,['saved','unconfirmed'].includes(outcome)?1:0);
+    if(writes.length)assert.deepEqual(writes[0],{password:'Example-123!',current_password:'old-test-password'});
+  }
+});
+
+test('change password form blocks duplicate submissions, clears secrets on success and permits retry after failure', async t => {
+  browser(t);window.confirm=()=>true;
+  let finish,calls=0;
+  const f=fixture({}, {'@/lib/actions/password':{changeAccountPassword:()=>{calls++;return new Promise(resolve=>{finish=resolve;});}}});
+  const form=f.load('app/components/ChangePasswordForm.tsx').default,props={email:'person@example.invalid'};
+  let tree=f.render(form,props);nodes(tree).find(n=>n.type==='button'&&n.props.children==='Change password').props.onClick();tree=f.render(form,props);
+  const fields=nodes(tree).filter(n=>n.type==='input'&&n.props.type==='password');
+  ['old-test-password','Example-123!','Example-123!'].forEach((value,i)=>fields[i].props.onChange({target:{value}}));
+  tree=f.render(form,props);const saving=submit(tree);await submit(tree);assert.equal(calls,1);
+  finish();await saving;tree=f.render(form,props);assert.match(textContent(tree),/password has been updated/);assert.equal(nodes(tree).filter(n=>n.type==='input').length,0);
+  nodes(tree).find(n=>n.type==='button').props.onClick();tree=f.render(form,props);assert.ok(nodes(tree).filter(n=>n.type==='input'&&n.props.type==='password').every(n=>n.props.value===''));f.unmount();
+  let attempts=0;
+  const g=fixture({}, {'@/lib/actions/password':{changeAccountPassword:async()=>{if(++attempts===1)throw new Error('Connection lost');}}});
+  const component=g.load('app/components/ChangePasswordForm.tsx').default;
+  tree=g.render(component,props);nodes(tree).find(n=>n.type==='button').props.onClick();tree=g.render(component,props);
+  await submit(tree);tree=g.render(component,props);assert.match(textContent(tree),/Connection lost/);assert.equal(nodes(tree).find(n=>n.type==='fieldset').props.disabled,false);
+  await submit(tree);assert.equal(attempts,2);assert.match(textContent(g.render(component,props)),/password has been updated/);g.unmount();
+});
+
 test('password mismatch sends no write; repeated clicks send one write and saved passwords cannot resubmit', async t => {
   browser(t); let finish, calls = 0;
   const f = fixture({ getUser: async () => ({ data: { user: { id: 'user' } }, error: null }), updateUser: () => { calls++; return new Promise(resolve => { finish = resolve; }); } });
   const component = f.load('app/components/ResetPasswordForm.tsx').default;
   f.render(component); await f.effects(); let tree = f.render(component);
-  input(tree, 'reset-password', 'example-password'); input(tree, 'reset-confirmation', 'different');
+  input(tree, 'reset-password', 'Example-456!'); input(tree, 'reset-confirmation', 'different');
   await submit(f.render(component)); assert.equal(calls, 0);
-  tree = f.render(component); assert.match(JSON.stringify(tree), /do not match/); input(tree, 'reset-confirmation', 'example-password');
+  tree = f.render(component); assert.match(JSON.stringify(tree), /do not match/); input(tree, 'reset-confirmation', 'Example-456!');
   tree = f.render(component); const first = submit(tree); await submit(tree); assert.equal(calls, 1);
   finish({ data: { user: { id: 'user' } }, error: null }); await first; await submit(tree); assert.equal(calls, 1);
   tree = f.render(component); assert.match(JSON.stringify(tree), /password has been updated/); assert.equal(nodes(tree).some(node => node.type === 'input'), false);
@@ -268,7 +499,7 @@ test('failed password writes keep the form usable for retry', async t => {
   const f = fixture({ getUser: async () => ({ data: { user: { id: 'user' } }, error: null }), updateUser: async () => { calls++; if (calls === 1) throw new Error('Connection lost'); return { data: { user: { id: 'user' } }, error: null }; } });
   const component = f.load('app/components/ResetPasswordForm.tsx').default;
   f.render(component); await f.effects(); let tree = f.render(component);
-  input(tree, 'reset-password', 'example-password'); input(tree, 'reset-confirmation', 'example-password');
+  input(tree, 'reset-password', 'Example-456!'); input(tree, 'reset-confirmation', 'Example-456!');
   await submit(f.render(component)); tree = f.render(component);
   assert.match(JSON.stringify(tree), /Connection lost/); assert.equal(nodes(tree).find(node => node.type === 'fieldset').props.disabled, false);
   await submit(tree); assert.equal(calls, 2); assert.match(JSON.stringify(f.render(component)), /password has been updated/);
@@ -645,7 +876,7 @@ test('volunteer registration accepts an omitted cellphone but validates one when
   const component=f.load('app/components/LoginForm.tsx').default, props={initialMode:'volunteer'};
   let tree=f.render(component,props);
   assert.equal(nodes(tree).find(n=>n.props.id==='signup-phone').props.required,undefined);
-  for(const [id,value] of [['first-name','Test'],['last-name','Volunteer'],['birth-date','2000-01-01'],['auth-email','volunteer@example.invalid'],['auth-password','password123'],['signup-phone','not-a-number']]) input(tree,id,value);
+  for(const [id,value] of [['first-name','Test'],['last-name','Volunteer'],['birth-date','2000-01-01'],['auth-email','volunteer@example.invalid'],['auth-password','Example-123!'],['signup-phone','not-a-number']]) input(tree,id,value);
   tree=f.render(component,props);await submit(tree);assert.equal(calls.length,0);
   input(tree,'signup-phone','   ');tree=f.render(component,props);await submit(tree);
   assert.equal(calls.length,1);assert.equal(calls[0].options.data.phone,'');
@@ -731,7 +962,7 @@ test('corporate mobile lists retain labelled cells, table semantics and the exis
     const component=kind==='changes'?loaded.CorporateChangeRequestForm:kind==='reports'?loaded.OutcomeTable:loaded.default;
     const props=kind==='reports'?{rows:[booking]}:{admin:false,booking,kind:'Amendment',account:{company_name:'Company'},settings:{booking_enabled:true},dirtyChanged(){},committed(){}};
     let tree=f.render(component,props);await f.effects();tree=f.render(component,props);
-    if(kind==='events'){nodes(tree).find(n=>n.type==='button'&&n.props.children==='List').props.onClick();f.render(component,props);await f.effects();tree=f.render(component,props);}
+    if(kind==='events'||kind==='bookings'){nodes(tree).find(n=>n.type==='button'&&n.props.children==='List').props.onClick();f.render(component,props);await f.effects();tree=f.render(component,props);}
     const table=nodes(tree).find(n=>n.type==='table');assert.ok(table,kind);assert.equal(table.props.role,'table');assert.ok(table.props['aria-label']);
     const cells=nodes(table).filter(n=>n.type==='td');assert.equal(cells.length,kind==='changes'?3:6);assert.ok(cells.every(n=>n.props['data-label']&&n.props.role==='cell'));
     assert.ok(nodes(table).filter(n=>n.type==='th').every(n=>n.props.scope==='col'));
@@ -739,6 +970,31 @@ test('corporate mobile lists retain labelled cells, table semantics and the exis
     if(kind==='events'){nodes(tree).find(n=>n.type==='button'&&n.props.children==='Request booking').props.onClick();assert.ok(nodes(f.render(component,props)).some(n=>n.type?.name==='CorporateRequestForm'));}
     f.unmount();
   }
+});
+
+test('corporate booking references are short in tables and details but lookups and CSV keep the complete ID', async t => {
+  browser(t);window.setInterval=()=>1;window.clearInterval=()=>{};
+  const id='5f66475e-b7e1-48b1-bc0b-68b25ddf5973',calls=[];
+  const booking={id,version:1,status:'Confirmed',group_size:5,event:{title:'Test event',starts_at:'2099-11-15T07:00:00Z',ends_at:'2099-11-15T09:00:00Z',location:'Venue'},contact_snapshot:{company_name:'Test Inc.',contact_name:'Contact'}};
+  const f=fixture({}, {'@/lib/actions/corporate-bookings':{emptyWorkflowFilters:{query:'',status:'',from:'',to:''},searchCorporateBookings:async()=>({rows:[booking],total:1}),getCorporateBookingDetail:async value=>{calls.push(value);return {booking,payments:[],history:[]};}}});
+  const {corporateBookingReference}=f.load('lib/corporate-booking-utils.ts');assert.equal(corporateBookingReference(id),'Booking #5F66475E');
+  const component=f.load('app/corporate/components/CorporateBookingList.tsx').default,props={admin:false,settings:{booking_enabled:true}};
+  f.render(component,props);await f.effects();let tree=f.render(component,props);
+  assert.equal(nodes(tree).find(n=>n.props.children==='Calendar').props['aria-pressed'],true);
+  assert.ok(nodes(tree).some(n=>n.type?.name==='CorporateCalendar'));
+  nodes(tree).find(n=>n.props.children==='List').props.onClick();f.render(component,props);await f.effects();tree=f.render(component,props);
+  assert.equal(nodes(tree).find(n=>n.props.children==='List').props['aria-pressed'],true);
+  assert.match(textContent(tree),/Booking #5F66475E/);assert.doesNotMatch(textContent(tree),new RegExp(id));
+  await nodes(tree).find(n=>n.props.children==='Details').props.onClick();assert.deepEqual(calls,[id]);
+  tree=f.render(component,props);nodes(tree).find(n=>n.props.children==='Calendar').props.onClick();tree=f.render(component,props);
+  assert.ok(nodes(tree).some(n=>n.type?.name==='CorporateCalendar'));
+  assert.equal(nodes(tree).find(n=>n.type?.name==='CorporateBookingPanel').props.detail.booking.id,id);
+  const reports=fixture(),table=reports.load('app/corporate/components/CorporateOutcomeReports.tsx').OutcomeTable;
+  const reportText=textContent(reports.render(table,{rows:[booking]}));assert.match(reportText,/Booking #5F66475E/);assert.doesNotMatch(reportText,new RegExp(id));
+  const {corporateOutcomesCsv}=reports.load('lib/corporate-outcomes.ts');assert.match(corporateOutcomesCsv([booking]),new RegExp(id));
+  const panelFixture=fixture(),panel=panelFixture.load('app/corporate/components/CorporateBookingList.tsx').CorporateBookingPanel;
+  const panelText=textContent(panelFixture.render(panel,{detail:{booking,payments:[],history:[]},admin:false,settings:{booking_enabled:true},dirtyChanged(){},refresh(){},committed:async()=>{}}));
+  assert.match(panelText,/Booking #5F66475E/);assert.doesNotMatch(panelText,new RegExp(id));f.unmount();
 });
 
 test('corporate responsive rules protect small-screen forms, navigation and calendar without changing print layouts', () => {
@@ -949,34 +1205,6 @@ test('corporate unread count includes later pages, caps the badge honestly and r
   ]) { pages = invalid; await assert.rejects(count()); }
 });
 
-test('account notices explain retained approval messages, hide single-page controls, and open before marking read', async () => {
-  let total = 1, fail = false;
-  const calls = [], row = { id: 'notice-1', account_id: 'company-1', title: 'Corporate account: Approved', message: 'Approved by admin', is_read: true, created_at: '2026-10-22T12:00:00Z' };
-  const f = fixture({}, {
-    '@/app/admin/components/FeatureShared': { FeatureState: () => null, useFeatureData: () => ({ data: { rows: [row], total }, loading: false, error: '', reload: async () => calls.push('reload') }) },
-    '@/lib/actions/corporate-accounts': { loadCorporateAccountNotices: async () => {}, readCorporateAccountNotice: async id => calls.push(['read', id]) },
-  });
-  const notices = f.load('app/corporate/components/AccountNotices.tsx').default;
-  const props = { goToAccount: async id => { calls.push(['open', id]); if (fail) throw new Error('No access'); } };
-  let tree = f.render(notices, props);
-  assert.match(textContent(tree), /Read messages stay here for reference/);
-  assert.doesNotMatch(textContent(tree), /Previous|Next|Unread/);
-  await nodes(tree).find(node => node.type === 'button' && node.props.children === 'Go to account').props.onClick();
-  await tick(); // The click intentionally starts navigation without returning its promise.
-  assert.deepEqual(calls, [['open', 'company-1'], ['read', 'notice-1'], 'reload']);
-  total = 11; tree = f.render(notices, props);
-  assert.ok(nodes(tree).some(node => node.type === 'button' && node.props.children === 'Next'));
-  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Next').props.onClick();
-  tree = f.render(notices, props);
-  assert.equal(nodes(tree).find(node => node.type === 'button' && node.props.children === 'Previous').props.disabled, false);
-  assert.equal(nodes(tree).find(node => node.type === 'button' && node.props.children === 'Next').props.disabled, true);
-  calls.length = 0; fail = true;
-  await nodes(tree).find(node => node.type === 'button' && node.props.children === 'Go to account').props.onClick();
-  await tick();
-  assert.deepEqual(calls, [['open', 'company-1']]);
-  assert.match(textContent(f.render(notices, props)), /No access/);
-});
-
 test('business profile uses Update profile and retains its existing save and unsaved-change handling', () => {
   const source = readFileSync(resolve(root, 'app/corporate/page.tsx'), 'utf8');
   assert.match(source, /label="Update profile"/);
@@ -1079,6 +1307,43 @@ test('workflow clock catches up on focus and removes its timer/listener on unmou
   timestamp = 4000; window.dispatchEvent(new Event('focus')); assert.equal(f.render(clock), 3000);
 });
 
+test('attendance queue pins its filter, opens the exact booking and starts the attendance form directly', async t => {
+  browser(t);window.setInterval=()=>1;window.clearInterval=()=>{};
+  const booking={id:'booking-due',version:3,status:'Confirmed',group_size:5,event:{title:'Ended session',starts_at:'2020-11-15T07:00:00Z',ends_at:'2020-11-15T09:00:00Z'},contact_snapshot:{company_name:'Test Company'}};
+  const queries=[],opened=[];
+  const f=fixture({}, {'@/lib/actions/corporate-bookings':{emptyWorkflowFilters:{query:'',from:'',to:'',status:''},searchCorporateBookings:async filters=>{queries.push(filters);return {rows:[booking],total:1};},getCorporateBookingDetail:async id=>{opened.push(id);return {booking,payments:[],history:[]};}}});
+  const list=f.load('app/corporate/components/CorporateBookingList.tsx').default;
+  const props={admin:true,attendanceOnly:true,settings:{booking_enabled:true},dirtyChanged(){}};
+  f.render(list,props);await f.effects();let tree=f.render(list,props);
+  assert.match(textContent(tree),/Attendance to record/);assert.equal(queries.at(-1).status,'Attendance to record');
+  assert.equal(nodes(tree).some(n=>n.props.children==='Calendar'),false);
+  const filters=nodes(tree).find(n=>n.type?.name==='WorkflowFilters');assert.equal(filters.props.statuses,false);
+  filters.props.change({query:'Test',from:'',to:'',status:''});f.render(list,props);await f.effects();tree=f.render(list,props);
+  assert.equal(queries.at(-1).status,'Attendance to record');assert.equal(queries.at(-1).query,'Test');
+  await nodes(tree).find(n=>n.props.children==='Record attendance').props.onClick();tree=f.render(list,props);
+  assert.deepEqual(opened,['booking-due']);const selected=nodes(tree).find(n=>n.type?.name==='CorporateBookingPanel');assert.equal(selected.props.attendanceFocus,true);
+  const p=fixture({}, {'@/lib/feature-flags':{corporateOutcomesEnabled:true}}),panel=p.load('app/corporate/components/CorporateBookingList.tsx').CorporateBookingPanel;
+  const panelTree=p.render(panel,selected.props),attendance=nodes(panelTree).find(n=>n.type?.name==='CorporateAttendance');assert.equal(attendance.props.initialOpen,true);
+  const a=fixture({}, {'@/lib/feature-flags':{corporateOutcomesEnabled:true}}),component=a.load('app/corporate/components/CorporateAttendance.tsx').default;
+  const attendanceTree=a.render(component,attendance.props);assert.ok(nodes(attendanceTree).some(n=>n.type?.name==='CorporateAttendanceForm'));
+  const formFixture=fixture(),form=formFixture.load('app/corporate/components/CorporateAttendance.tsx').CorporateAttendanceForm;
+  const formText=textContent(formFixture.render(form,{booking,dirtyChanged(){},committed:async()=>{}}));
+  assert.match(formText,/Event hours/);assert.doesNotMatch(formText,/whole hours, optional/i);
+  assert.equal(nodes(tree).find(n=>n.props.children==='Refresh queue').props.disabled,false);f.unmount();
+});
+
+test('attendance reminders navigate through access checks to the attendance queue, not the generic booking tab', async t => {
+  browser(t);const calls=[];
+  const f=fixture({}, {'./feature-flags':{corporateRolloutEnabled:true},'./unsaved-navigation':{confirmUnsavedNavigation:()=>true},'./actions/corporate-bookings':{getCorporateBookingDetail:async id=>calls.push(['check',id])},'./actions/corporate-accounts':{readCorporateAccountNotice:async id=>calls.push(['read',id])}});
+  const {openAdminNotice}=f.load('lib/admin-notifications.ts');
+  await openAdminNotice({id:'notice',target_kind:'booking',target_id:'booking-1',attendance_due:true},path=>calls.push(['navigate',path]));
+  assert.deepEqual(calls,[['check','booking-1'],['read','notice'],['navigate','/admin/corporate-bookings?booking=booking-1&tab=attendance']]);
+  window.location.search='?booking=booking-1&tab=attendance';
+  const g=fixture({}, {'@/lib/feature-flags':{corporateBookingsEnabled:true,corporateOutcomesEnabled:true}});
+  const root=g.render(g.load('app/admin/corporate-bookings/page.tsx').default),route=root.props.children;
+  const workspace=g.render(route.type,route.props);assert.equal(workspace.props.initialTab,'attendance');assert.equal(workspace.props.bookingId,'booking-1');
+});
+
 test('corporate group attendance is an admin-only end-of-session action, not automatic confirmation', () => {
   const props = { booking: { status: 'Confirmed', group_size: 12, event: { starts_at: '2020-01-01T07:00:00Z', ends_at: '2020-01-01T09:00:00Z' } }, admin: true, dirtyChanged() {}, committed: async () => {} };
   const f = fixture({}, { '@/lib/feature-flags': { corporateOutcomesEnabled: true } });
@@ -1088,6 +1353,9 @@ test('corporate group attendance is an admin-only end-of-session action, not aut
   assert.equal(hasRecordAction(f.render(attendance, { ...props, admin: false })), false);
   assert.equal(hasRecordAction(f.render(attendance, { ...props, booking: { ...props.booking, event: { ...props.booking.event, ends_at: '2099-01-01T09:00:00Z' } } })), false);
   assert.equal(hasRecordAction(f.render(attendance, { ...props, booking: { ...props.booking, status: 'Pending payment' } })), false);
+  const disabled=fixture({}, {'@/lib/feature-flags':{corporateOutcomesEnabled:false}});
+  const disabledAttendance=disabled.load('app/corporate/components/CorporateAttendance.tsx').default;
+  assert.equal(nodes(disabled.render(disabledAttendance,{...props,initialOpen:true})).some(n=>n.type?.name==='CorporateAttendanceForm'),false);
 });
 
 test('calendar loads every page and refuses incomplete, duplicate, changing or excessive results', async () => {
@@ -1114,6 +1382,9 @@ test('business calendar shows multiple times, allows reserved-date inspection an
   const component = f.load('app/corporate/components/CorporateCalendar.tsx').default;
   const props = { mode: 'events', filters: { query: 'group', from: '', to: '', status: '' }, admin: false, now: Date.parse('2099-11-01T10:00:00Z'), requestsOpen: true, onEvent: event => selected.push(event.id) };
   f.render(component, props); await f.effects(); let tree = f.render(component, props);
+  assert.doesNotMatch(textContent(nodes(tree).find(n => n.props['aria-label'] === 'Session status legend')), /Unpublished/);
+  const adminLegend = nodes(f.render(component, { ...props, admin: true })).find(n => n.props['aria-label'] === 'Session status legend');
+  assert.match(textContent(adminLegend), /Unpublished/);
   assert.deepEqual(calls[0], [{ query: 'group', from: '2099-11-01', to: '2099-11-30', status: '' }, 1]);
   const reservedDate = nodes(tree).find(node => node.props['aria-label']?.includes('6 November'));
   assert.equal(reservedDate.props.disabled, false);
@@ -1174,20 +1445,18 @@ test('calendar selection opens existing request/edit flows and new events keep t
   }
 });
 
-test('corporate event duration is a whole number independent of headcount in validation, summaries and CSV', () => {
+test('corporate event duration is a whole number independent of headcount in validation, display and CSV', () => {
   const f = fixture(), outcomes = f.load('lib/corporate-outcomes.ts');
   assert.deepEqual(outcomes.cleanCorporateAttendance(12, '12', '2', 'Event completed.'), { attendance_count: 12, event_hours: 2, note: 'Event completed.' });
   for (const hours of ['1.5', '24.1', '-1', 'NaN', '25']) assert.throws(() => outcomes.cleanCorporateAttendance(12, '12', hours, 'Note'), /whole number/);
   const row = { id: 'booking', status: 'Completed', group_size: 12, contact_snapshot: { company_name: 'Company' }, event: { title: 'Group event', starts_at: '2020-11-15T09:00:00+02:00', ends_at: '2020-11-15T11:00:00+02:00' }, attendance: { attendance_count: 12, event_hours: 2, group_hours: 24 } };
-  assert.equal(outcomes.summariseCorporateOutcomes([row]).event_hours, 2);
   const csv = outcomes.corporateOutcomesCsv([row]);
   assert.match(csv, /Event hours/); assert.ok(csv.endsWith('"12","2"')); assert.doesNotMatch(csv, /"24"|2\.00/);
   const table = f.load('app/corporate/components/CorporateOutcomeReports.tsx').OutcomeTable;
   const tree = f.render(table, { rows: [row] });
   assert.equal(nodes(tree).filter(node => node.type === 'td').at(-1).props.children, 2);
   const legacy = { ...row, attendance: { attendance_count: 12, group_hours: 24 } };
-  assert.equal(outcomes.summariseCorporateOutcomes([legacy]).event_hours, 0);
-  assert.equal(outcomes.summariseCorporateOutcomes([legacy]).groups_without_hours, 1);
+  assert.ok(outcomes.corporateOutcomesCsv([legacy]).endsWith('\"12\",\"\"'));
 });
 
 test('workflow pagination hides a single page but allows returning from a page emptied by updates', () => {
@@ -1207,28 +1476,45 @@ test('workflow pagination hides a single page but allows returning from a page e
   assert.ok(nodes(tree).filter(node => node.type === 'button').every(node => node.props.disabled));
 });
 
-test('portal contact footer hides unconfigured details and exposes labelled primary and additional methods', async t => {
+test('header contact dialog keeps portal scopes separate, refreshes contacts and restores scrolling on close', async t => {
   browser(t); let data={portal:'corporate',version:1,contacts:[]}, reloads=0, error='';
+  const previousDocument=globalThis.document;
+  globalThis.document={body:{style:{overflow:'auto'}}};
+  t.after(()=>{globalThis.document=previousDocument;});
   const reload=async()=>{reloads++;};
-  const f=fixture({}, {'@/app/admin/components/FeatureShared':{useFeatureData:()=>({data,loading:false,error,reload})}});
-  const footer=f.load('app/components/PortalContactFooter.tsx').default;
-  assert.equal(f.render(footer,{portal:'corporate'}),null);
+  const f=fixture({}, {
+    '@/app/admin/components/FeatureShared':{useFeatureData:()=>({data,loading:false,error,reload})},
+    './useDialogFocus':{useDialogFocus(){}},
+    'react-dom':{createPortal:content=>content},
+  });
+  const button=f.load('app/components/PortalContactButton.tsx').default;
+  assert.equal(f.render(button,{portal:'corporate'}),null);
   data={...data,contacts:[
     {kind:'phone',label:'Payment enquiries',value:'+27 21 555 5678',is_primary:false},
     {kind:'email',label:'Corporate bookings',value:'bookings@example.invalid',is_primary:true},
     {kind:'phone',label:'Bookings',value:'+27 21 555 1234',is_primary:true},
   ]};
-  let tree=f.render(footer,{portal:'corporate'});await f.effects();
-  assert.equal(nodes(tree).find(n=>n.type==='summary').props.children,'Contact team');
-  assert.equal(nodes(tree).filter(n=>n.type==='details').length,1);
+  let tree=f.render(button,{portal:'corporate'});await f.effects();
+  assert.equal(nodes(tree).some(n=>n.props.role==='dialog'),false,'Details stay closed until requested');
+  const trigger=nodes(tree).find(n=>n.props['aria-haspopup']==='dialog');
+  assert.equal(trigger.props['aria-label'],'Contact team');
+  trigger.props.onClick();tree=f.render(button,{portal:'corporate'});await f.effects();
+  assert.equal(document.body.style.overflow,'hidden');
+  assert.equal(nodes(tree).find(n=>n.props.role==='dialog').props['aria-modal'],'true');
   assert.match(textContent(tree),/Payment enquiries/);
   const controls=nodes(tree).filter(n=>n.type?.name==='ContactOptions');assert.equal(controls.length,3);
   assert.ok(controls.every(n=>n.props.expanded));assert.equal(controls[0].props.email,'bookings@example.invalid');
-  assert.equal(f.render(footer,{portal:'volunteer'}),null,'Never display cached contacts from another portal');
-  window.dispatchEvent(new Event('focus'));await tick();assert.equal(reloads,1);
-  window.dispatchEvent(new Event('portal-contacts-changed'));await tick();assert.equal(reloads,2);
-  error='Offline';tree=f.render(footer,{portal:'corporate'});assert.match(textContent(tree),/temporarily unavailable/);
-  f.unmount();window.dispatchEvent(new Event('focus'));await tick();assert.equal(reloads,2);
+  assert.equal(reloads,1,'Opening refreshes centrally configured details');
+  window.dispatchEvent(new Event('focus'));await tick();assert.equal(reloads,2);
+  window.dispatchEvent(new Event('portal-contacts-changed'));await tick();assert.equal(reloads,3);
+  error='Offline';tree=f.render(button,{portal:'corporate'});assert.match(textContent(tree),/temporarily unavailable/);
+  assert.equal(nodes(tree).some(n=>n.type?.name==='ContactOptions'),false,'Do not show stale contacts after a failed refresh');
+  nodes(tree).find(n=>n.props['aria-label']==='Close contact details').props.onClick();
+  tree=f.render(button,{portal:'corporate'});await f.effects();
+  assert.equal(document.body.style.overflow,'auto');
+  assert.equal(nodes(tree).some(n=>n.props.role==='dialog'),false);
+  error='';assert.equal(f.render(button,{portal:'volunteer'}),null,'Never display cached contacts from another portal');
+  f.unmount();window.dispatchEvent(new Event('focus'));await tick();assert.equal(reloads,3);
 });
 
 test('portal contact validation and API use checked portal scopes, versions and editable fields only', async () => {
@@ -1283,11 +1569,13 @@ test('booking controls edit availability only and link to the central contact ta
   await nodes(tree).find(n=>n.type==='form').props.onSubmit({preventDefault(){}});assert.deepEqual(writes,[true]);
 });
 
-test('both portal shells use the central contact footer rather than duplicate booking contact cards', () => {
-  for(const [file,portal] of [['app/corporate/components/CorporateFrame.tsx','corporate'],['app/volunteer/components/VolunteerShell.tsx','volunteer']]) {
+test('both portal headers use one contact shortcut and remove the repeated footer', () => {
+  for(const [file,portal] of [['app/corporate/components/CorporateFrame.tsx','corporate'],['app/volunteer/components/VolunteerHeader.tsx','volunteer']]) {
     const source=readFileSync(resolve(root,file),'utf8');
-    assert.ok(source.includes('<PortalContactFooter portal="'+portal+'"'));
+    assert.ok(source.includes('<PortalContactButton portal="'+portal+'"'));
+    assert.doesNotMatch(source,/PortalContactFooter/);
   }
+  assert.doesNotMatch(readFileSync(resolve(root,'app/volunteer/components/VolunteerShell.tsx'),'utf8'),/PortalContactFooter/);
   const source=readFileSync(resolve(root,'app/corporate/components/CorporateBookingList.tsx'),'utf8');
   assert.doesNotMatch(source,/BookingContact/);
 });
@@ -1431,7 +1719,8 @@ test('admin cleanup removes only the legacy UI and duplicate notification tabs, 
   assert.equal(existsSync(resolve(root,'app/admin/components/LegacyCorporateHistory.tsx')),false);
   for(const path of ['app/admin/components/Sidebar.tsx','app/admin/components/TopHeader.tsx'])assert.doesNotMatch(readFileSync(resolve(root,path),'utf8'),/\/admin\/csr|Legacy CSR history/);
   const bookings=readFileSync(resolve(root,'app/admin/corporate-bookings/page.tsx'),'utf8');
-  assert.doesNotMatch(bookings,/BookingContact|CorporateBookingUpdates|Booking updates/); assert.match(bookings,/CorporateOutcomeReports admin/);
+  assert.doesNotMatch(bookings,/BookingContact|CorporateBookingUpdates|Booking updates|CorporateOutcomeReports admin/);
+  assert.match(readFileSync(resolve(root,'app/admin/corporate-reports/page.tsx'),'utf8'),/CorporateOutcomeReports admin/);
   const accounts=readFileSync(resolve(root,'app/admin/corporate-accounts/page.tsx'),'utf8');assert.doesNotMatch(accounts,/AccountNotices/);assert.match(accounts,/ContactOptions/);
   const reports=readFileSync(resolve(root,'app/admin/components/ReportsManager.tsx'),'utf8'); assert.match(reports,/loadVolunteerReportData/);assert.doesNotMatch(reports,/corporateOnly|corporateHours|Corporate impact/);
   const dashboard=readFileSync(resolve(root,'app/admin/components/DashboardAnalytics.tsx'),'utf8');assert.match(dashboard,/loadVolunteerReportData/);assert.doesNotMatch(dashboard,/corporateHours/);

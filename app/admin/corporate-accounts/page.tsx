@@ -1,10 +1,12 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { corporateRolloutEnabled } from '@/lib/feature-flags';
-import { getCorporateAccountDetail, getCorporateRolloutSettings, reviewCorporateAccount, searchCorporateAccounts, setCorporateRolloutSettings } from '@/lib/actions/corporate-accounts';
-import type { CorporateAccountDetail, CorporateAccountStatus, CorporateRolloutSettings } from '@/lib/corporate-account-types';
+import { getCorporateAccountDetail, getCorporateRolloutSettings, reviewCorporateAccount, searchCorporateAccounts } from '@/lib/actions/corporate-accounts';
+import type { CorporateAccountDetail, CorporateAccountStatus } from '@/lib/corporate-account-types';
+import BusinessRegistrationForm from '../components/BusinessRegistrationForm';
 import { useUnsavedChanges } from '@/app/components/useUnsavedChanges';
 import { FeatureState, useFeatureData } from '../components/FeatureShared';
 import AccountHistory from '@/app/corporate/components/AccountHistory';
@@ -40,7 +42,7 @@ function AccountAdministration({ accountId }: { accountId: string | null }) {
   useEffect(() => {
     if (!accountId) return;
     let active = true;
-    void getCorporateAccountDetail(accountId).then(result => { if (active) setDetail(result); }).catch(failure => { if (active) setError(failure instanceof Error ? failure.message : 'Account could not be opened.'); });
+    void getCorporateAccountDetail(accountId).then(result => { if (active) setDetail(result); }).catch(failure => { if (active) setError(userFacingError(failure instanceof Error ? failure.message : 'Account could not be opened.', "Account could not be opened.")); });
     return () => { active = false; };
   }, [accountId]);
   const confirmDiscard = useUnsavedChanges(Boolean(reason) || rolloutDirty);
@@ -62,11 +64,11 @@ function AccountAdministration({ accountId }: { accountId: string | null }) {
       setDetail(current => current ? { ...current, account: saved } : null);
       try { setDetail(await getCorporateAccountDetail(saved.id)); } catch { setMessage('Decision saved, but history could not be refreshed. Reopen the account to check its latest history.'); }
       void reload();
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Decision could not be saved.'); }
+    } catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Decision could not be saved.', "Decision could not be saved.")); }
     finally { setBusy(false); }
   }
   function switchTab(next: string) { if (!busy && confirmDiscard()) { setReason(''); setRolloutDirty(false); setTab(next); } }
-  const openFromButton = (id: string) => { void open(id).catch(failure => setError(failure instanceof Error ? failure.message : 'Account could not be opened.')); };
+  const openFromButton = (id: string) => { void open(id).catch(failure => setError(userFacingError(failure instanceof Error ? failure.message : 'Account could not be opened.', "Account could not be opened."))); };
   return <div className={[management.workspace,ui.workspace].join(' ')}>
     <div><h1 className={styles.pageTitle}>Corporate accounts</h1><p className={styles.pageDescription}>Review business registrations, manage approvals and view company contact details.</p></div>
     <nav className={ui.tabs} aria-label="Corporate administration">{[['accounts','Account approvals'],['rollout','Access settings']].map(([key, title]) => <button key={key} disabled={busy} aria-pressed={key === tab} onClick={() => switchTab(key)}>{title}</button>)}</nav>
@@ -92,19 +94,5 @@ function AccountAdministration({ accountId }: { accountId: string | null }) {
 
 function RolloutControls({ dirtyChanged }: { dirtyChanged: (dirty: boolean) => void }) {
   const { data, loading, error, reload } = useFeatureData(getCorporateRolloutSettings);
-  return <section className={`${styles.card} ${ui.body}`}><h2>Registration & volunteer details</h2><p>Choose whether businesses can register and whether volunteers must provide a cellphone number before making a new booking. Existing attendance and cancellations remain available. Corporate booking availability is managed separately under Corporate bookings. Enable phone enforcement after deploying the updated signup/profile forms.</p><FeatureState loading={loading} error={error} retry={() => void reload()} />{data && !loading && !error && <RolloutForm key={data.updated_at} initial={data} saved={reload} dirtyChanged={dirtyChanged} />}</section>;
-}
-function RolloutForm({ initial, saved, dirtyChanged }: { initial: CorporateRolloutSettings; saved: () => Promise<void>; dirtyChanged: (dirty: boolean) => void }) {
-  const [registration, setRegistration] = useState(initial.registration_enabled);
-  const [phone, setPhone] = useState(initial.volunteer_phone_required);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  return <form onSubmit={async event => {
-    event.preventDefault(); if (busy || !window.confirm('Apply these rollout controls? Phone enforcement will block NEW bookings without a saved phone; existing attendance and cancellation remain available.')) return;
-    setBusy(true); setError('');
-    try { await setCorporateRolloutSettings(registration, phone); dirtyChanged(false); setMessage('Rollout controls saved.'); await saved(); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : 'Rollout controls could not be saved.'); }
-    finally { setBusy(false); }
-  }}><fieldset disabled={busy} style={{ border: 0, padding: 0 }}><legend>Access controls</legend><label className={management.preference}><input type="checkbox" checked={registration} onChange={event => { setRegistration(event.target.checked); dirtyChanged(event.target.checked !== initial.registration_enabled || phone !== initial.volunteer_phone_required); }} />Open business account registration</label><label className={management.preference}><input type="checkbox" checked={phone} onChange={event => { setPhone(event.target.checked); dirtyChanged(registration !== initial.registration_enabled || event.target.checked !== initial.volunteer_phone_required); }} />Require a saved cellphone for new volunteer bookings</label><p className={ui.notice}>Before opening registration, verify that Supabase email confirmation, allowed redirect URLs, recovery links and email delivery work on this deployment. No operational payment emails are sent by this phase.</p>{error && <p className={styles.error} role="alert">{error}</p>}{message && <p role="status">{message}</p>}<div className={ui.formFooter}><button type="submit" className={styles.primaryButton}>Save rollout controls</button></div></fieldset></form>;
+  return <section className={`${styles.card} ${ui.body}`}><h2>Business registration</h2><p>Allow new companies to create an account. Closing registration does not affect existing business accounts or bookings.</p><FeatureState loading={loading} error={error} retry={() => void reload()} />{data && !loading && !error && <BusinessRegistrationForm key={data.updated_at} initial={data} saved={reload} dirtyChanged={dirtyChanged} />}</section>;
 }

@@ -1,6 +1,6 @@
-/** Browser-side loaders/writes for admin CSR, reports and settings. These are not Next.js Server Actions. */
+/** Browser-side loaders for reports and settings. These are not Next.js Server Actions. */
 import { supabase } from '@/lib/supabase';
-import type { CompanyInput, CorporateBooking, CorporateBookingInput, CorporateCompany, CorporateNote, OrganisationSettings, Profile, Event, EventSlot, Booking, AttendanceRecord, SlotAvailability } from '@/lib/types';
+import type { CorporateBooking, CorporateCompany, OrganisationSettings, Profile, Event, EventSlot, Booking, AttendanceRecord, SlotAvailability } from '@/lib/types';
 import type { ReportFilter } from '@/lib/reporting';
 
 /** Explicit pagination avoids silently truncating reports at the API row limit. */
@@ -20,39 +20,8 @@ export async function allRows<T>(table: string, order = 'id'): Promise<T[]> {
 /** Gives missing database objects a setup message; other failures keep their database message. */
 export function featureError(error: { message: string; code?: string }) {
   return ['42P01', 'PGRST205', 'PGRST202'].includes(error.code ?? '')
-    ? 'A required database object is unavailable. Ask your database administrator to check the schema and API cache. Do not rerun the applied CSR migration.'
+    ? 'This section is temporarily unavailable. Please try again later.'
     : error.message;
-}
-/** Loads the five related datasets the CSR manager needs; any failed loader rejects the whole load. */
-export async function loadCorporateData() {
-  const [companies, bookings, notes, events, slots] = await Promise.all([
-    allRows<CorporateCompany>('corporate_companies'), allRows<CorporateBooking>('corporate_bookings'),
-    allRows<CorporateNote>('corporate_notes'), allRows<Event>('events'), allRows<EventSlot>('event_slots'),
-  ]);
-  return { companies, bookings, notes, events, slots };
-}
-/** Inserts for a null ID or updates one existing company, returning the saved row or throwing. */
-export async function saveCompany(id: number | null, input: CompanyInput) {
-  const query = id === null ? supabase.from('corporate_companies').insert(input) : supabase.from('corporate_companies').update(input).eq('id', id);
-  const { data, error } = await query.select().single();
-  if (error) throw new Error(featureError(error));
-  return data as CorporateCompany;
-}
-/** Stores a trimmed company note. The caller/database are responsible for empty-text and access checks. */
-export async function addCorporateNote(companyId: number, body: string) {
-  const { error } = await supabase.from('corporate_notes').insert({ company_id: companyId, body: body.trim() });
-  if (error) throw new Error(featureError(error));
-}
-/** Sends group size, slot, status and recorded totals to the booking RPC, returning the saved booking. */
-export async function saveCorporateBooking(id: number | null, input: CorporateBookingInput) {
-  const { data, error } = await supabase.rpc('save_corporate_booking', {
-    p_id: id, p_company_id: input.company_id, p_event_slot_id: input.event_slot_id,
-    p_team_size: input.team_size, p_status: input.status, p_contact_name: input.contact_name,
-    p_contact_email: input.contact_email, p_notes: input.notes,
-    p_attendance_count: input.attendance_count, p_volunteer_hours: input.volunteer_hours,
-  }).single();
-  if (error) throw new Error(featureError(error));
-  return data as CorporateBooking;
 }
 /** Loads matching events first, then their slots/bookings/groups and the bookings' attendance. */
 export async function loadReportData(filter: ReportFilter, includeLegacyCorporate = true) {
@@ -125,20 +94,6 @@ export async function loadSettings() {
   if (settings.error) throw new Error(featureError(settings.error));
   if (admins.error) throw new Error(admins.error.message);
   return { settings: settings.data as OrganisationSettings, admins: admins.data as Profile[] };
-}
-/** Updates the listed legacy organisation defaults/preferences only; it cannot rename the organisation. */
-export async function saveSettings(input: Omit<OrganisationSettings, 'id' | 'updated_at' | 'organisation_name'>) {
-  // Explicitly pick allowed fields: extra runtime properties are ignored, not written.
-  const { default_location, contact_email, timezone, booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled } = input;
-  const { error } = await supabase.from('organisation_settings').update({ default_location, contact_email, timezone, booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled }).eq('id', 1).select().single();
-  if (error) throw new Error(featureError(error));
-}
-/** Saves only four notification flags; storing a flag does not implement future email/SMS delivery. */
-export async function saveNotificationSettings(input: Pick<OrganisationSettings, 'booking_confirmation_enabled' | 'booking_cancellation_enabled' | 'shift_reminder_enabled' | 'corporate_booking_confirmation_enabled'>) {
-  // Leave stored organisation defaults untouched, including unexpected runtime properties.
-  const { booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled } = input;
-  const { error } = await supabase.from('organisation_settings').update({ booking_confirmation_enabled, booking_cancellation_enabled, shift_reminder_enabled, corporate_booking_confirmation_enabled }).eq('id', 1).select().single();
-  if (error) throw new Error(featureError(error));
 }
 /** Updates the Auth user's display name in profiles, without accepting another user's ID from the form. */
 export async function saveAdminName(name: string) {

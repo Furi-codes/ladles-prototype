@@ -2,6 +2,7 @@
 
 /** Confirms a scanned/link checkpoint or typed event code and displays the database's attendance result. */
 import { useRef, useState } from "react";
+import { userFacingError } from '@/lib/user-facing-error';
 import { useRouter, useSearchParams } from "next/navigation";
 import { recordEventAttendance, recordEventAttendanceCode } from "@/lib/actions/volunteer";
 import { formatWorkedTime } from "@/lib/attendance-utils";
@@ -34,7 +35,7 @@ export default function AttendancePage() {
         ? await recordEventAttendanceCode(code)
         : await recordEventAttendance(checkpoint!);
       if (error || !data) {
-        setMessage({ text: error?.message ?? "Attendance could not be confirmed. Please try again.", success: false });
+        setMessage({ text: userFacingError(error, "Attendance could not be confirmed. Please try again.") || "Attendance could not be confirmed. Please try again.", success: false });
         return;
       }
       setMessage({ text: data.clocked_out_at ? `Clock-out recorded. Your recorded time is ${formatWorkedTime(data.worked_minutes)}.` : "Clock-in recorded successfully.", success: true });

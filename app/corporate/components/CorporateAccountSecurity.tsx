@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -22,7 +23,7 @@ export default function CorporateAccountSecurity({ email, verified }: { email: s
         const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/update-password' });
         if (recoveryError) throw recoveryError;
         setSent(true);
-      } catch (failure) { setError(failure instanceof Error ? failure.message : 'Recovery could not be requested. Please try again.'); }
+      } catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Recovery could not be requested. Please try again.', "Recovery could not be requested. Please try again.")); }
       finally { pending.current = false; setBusy(false); }
     }}>{busy ? 'Requesting reset…' : sent ? 'Reset requested' : 'Send password-reset email'}</button>
     {sent && <p role="status">Password reset requested for your sign-in email. Check your inbox and spam folder, then follow the link to choose a new password. Delivery depends on the service’s email configuration.</p>}

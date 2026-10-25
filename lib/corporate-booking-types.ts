@@ -46,7 +46,7 @@ export interface CorporateBookingSettings {
 export interface CorporateBookingNotice {
   id: string; account_id: string; booking_id: string; title: string; message: string; created_at: string; is_read: boolean;
 }
-export interface CorporateWorkflowFilters { query: string; from: string; to: string; status?: CorporateReservationStatus | 'Overdue' | 'Change requested' | 'Cancellation requested' | '' }
+export interface CorporateWorkflowFilters { query: string; from: string; to: string; status?: CorporateReservationStatus | 'Overdue' | 'Change requested' | 'Cancellation requested' | 'Attendance to record' | '' }
 export interface CorporateBookingChange {
   id: string; booking_id: string; account_id: string; kind: 'Amendment' | 'Cancellation';
   status: 'Requested' | 'Approved' | 'Declined' | 'Closed';

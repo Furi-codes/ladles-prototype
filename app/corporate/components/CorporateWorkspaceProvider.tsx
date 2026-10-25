@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -60,14 +61,14 @@ export function CorporateWorkspaceProvider({ children }: { children: React.React
         let settings: CorporateBookingSettings | null = null, settingsError = '';
         if (corporateBookingsEnabled && account.status === 'Approved' && auth.user.email_confirmed_at) {
           try { settings = await getCorporateBookingSettings(); }
-          catch (failure) { settingsError = failure instanceof Error ? failure.message : 'Booking settings could not be loaded.'; }
+          catch (failure) { settingsError = userFacingError(failure, 'Booking settings could not be loaded. Please retry.'); }
         }
         if (request === sequence.current) {
           setData({ userId: auth.user.id, signInEmail: auth.user.email || '', account, emailVerified: Boolean(auth.user.email_confirmed_at), settings, settingsError });
           checkedAt.current = Date.now();
         }
       } catch (failure) {
-        if (request === sequence.current) setError(failure instanceof Error ? failure.message : 'Corporate account could not be checked.');
+        if (request === sequence.current) setError(userFacingError(failure instanceof Error ? failure.message : 'Corporate account could not be checked.', "Corporate account could not be checked."));
       } finally {
         if (request === sequence.current) { setChecking(false); setRefreshing(false); }
       }

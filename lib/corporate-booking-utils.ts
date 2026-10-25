@@ -13,6 +13,10 @@ export function corporateLocalInput(value: string | number = Date.now()): string
 export function corporateDateLabel(value: string): string {
   return new Date(value).toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg', dateStyle: 'medium', timeStyle: 'short' });
 }
+/** Display only: keep the complete booking ID for lookups, updates and exports. */
+export function corporateBookingReference(id: string): string {
+  return `Booking #${id.slice(0, 8).toUpperCase()}`;
+}
 /** Overdue is a flag, not a status transition or capacity release. */
 export function corporateBookingOverdue(booking: { status: string; payment_due_at: string | null }, now = Date.now()): boolean {
   return ['Pending payment','Pending additional payment'].includes(booking.status) && booking.payment_due_at !== null && Date.parse(booking.payment_due_at) <= now;

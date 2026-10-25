@@ -1,4 +1,4 @@
-import type { CorporateBookingRow, CorporateOutcomeSummary } from './corporate-booking-types';
+import type { CorporateBookingRow } from './corporate-booking-types';
 import { corporateLocalInput } from './corporate-booking-utils';
 
 /** Blank hours stay unknown. Zero is an explicit recorded value, including a zero-attendance group. */
@@ -11,21 +11,6 @@ export function cleanCorporateAttendance(groupSize: number, count: string, hours
 }
 export function canRecordCorporateAttendance(booking: CorporateBookingRow, now = Date.now()) {
   return ['Confirmed','Completed'].includes(booking.status) && !booking.event.cancelled_at && booking.event.state !== 'Cancelled' && !booking.pending_change && Date.parse(booking.event.ends_at) <= now;
-}
-/** Used by the demo and tests. Live summary totals must be computed over the full server-filtered scope. */
-export function summariseCorporateOutcomes(rows: CorporateBookingRow[], now = Date.now()): CorporateOutcomeSummary {
-  const summary = { bookings: rows.length, accepted_places: 0, completed_groups: 0, attendance_instances: 0, event_hours: 0, groups_without_hours: 0, overdue_bookings: 0 };
-  for (const row of rows) {
-    if (row.event.cancelled_at || row.event.state === 'Cancelled' || ['Cancelled','Rejected'].includes(row.status)) continue;
-    if (['Pending payment','Pending additional payment','Confirmed','Completed'].includes(row.status)) summary.accepted_places += row.group_size;
-    if (row.status.startsWith('Pending') && row.payment_due_at && Date.parse(row.payment_due_at) <= now) summary.overdue_bookings++;
-    if (row.status !== 'Completed') continue;
-    summary.completed_groups++;
-    summary.attendance_instances += row.attendance?.attendance_count ?? 0;
-    if (row.attendance?.event_hours === null || row.attendance?.event_hours === undefined) summary.groups_without_hours++;
-    else summary.event_hours += row.attendance.event_hours;
-  }
-  return summary;
 }
 function csvCell(value: unknown) {
   const text = value === null || value === undefined ? '' : String(value);

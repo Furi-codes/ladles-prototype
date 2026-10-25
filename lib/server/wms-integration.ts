@@ -1,5 +1,6 @@
 /** Shared validation, authentication and logging for WMS routes. Never import this into browser components. */
 import "server-only";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { timingSafeEqual } from "node:crypto";
@@ -30,7 +31,7 @@ export type WmsEventPayload = {
 
 /** Keeps route failures in the same JSON error shape while preserving the chosen HTTP status. */
 export function jsonError(message: string, status: number) {
-  return Response.json({ error: message }, { status });
+  return Response.json({ error: userFacingError(message, 'The request could not be completed. Please try again.') }, { status });
 }
 
 /** Validates the private WMS bearer token before any database access occurs. */

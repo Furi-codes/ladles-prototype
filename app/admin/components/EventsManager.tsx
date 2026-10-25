@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useState } from "react";
 import {
@@ -192,7 +193,7 @@ export default function EventsManager({
       end_time: formatTime(end_time),
       capacity: slotCapacity,
     })));
-    setError(existingSlots.length === 0 ? "This historical event has no proper slot records. Add its real ranges before saving." : null);
+    setError(userFacingError(existingSlots.length === 0 ? "This historical event has no proper slot records. Add its real ranges before saving." : null, "This action could not be completed. Please refresh and try again."));
     setDrawerOpen(true);
   }
 
@@ -256,7 +257,7 @@ export default function EventsManager({
       setLocationResults(payload.results ?? []);
       if ((payload.results ?? []).length === 0) setLocationSearchError("No South African addresses matched that search. Try a street, suburb, or city.");
     } catch (searchError) {
-      setLocationSearchError(searchError instanceof Error ? searchError.message : "Location search is unavailable.");
+      setLocationSearchError(userFacingError(searchError instanceof Error ? searchError.message : "Location search is unavailable.", "Location search is unavailable."));
     } finally {
       setIsSearchingLocations(false);
     }
@@ -323,16 +324,16 @@ export default function EventsManager({
         });
         await fetchData();
         resetForm();
-        setNotice(metadataError
+        setNotice(userFacingError(metadataError
           ? "The event was saved and the list has been refreshed. Please reopen it and check its category, description and map link."
-          : wasEditing ? "Event changes saved. The event list is up to date." : "Event created. The event list is up to date.");
+          : wasEditing ? "Event changes saved. The event list is up to date." : "Event created. The event list is up to date.", "This action could not be completed. Please refresh and try again."));
       } catch (saveError) {
         const message = saveError instanceof Error
           ? saveError.message
           : typeof saveError === "object" && saveError && "message" in saveError && typeof saveError.message === "string"
             ? saveError.message
             : "The event could not be saved. Please try again.";
-        setError(message);
+        setError(userFacingError(message, "This action could not be completed. Please refresh and try again."));
       } finally {
         setIsSaving(false);
       }
@@ -381,7 +382,7 @@ export default function EventsManager({
     const { error: cancelError } = await cancelEvent(eventToCancel.id, cancellationMessage.trim());
     if (cancelError) {
       setEventToCancel(null);
-      setNotice(cancelError.message || "The event could not be cancelled. Please try again.");
+      setNotice(userFacingError(cancelError.message || "The event could not be cancelled. Please try again.", "The event could not be cancelled. Please try again."));
       return;
     }
     await logAdminAction({

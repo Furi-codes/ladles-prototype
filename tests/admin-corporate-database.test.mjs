@@ -44,6 +44,8 @@ test('draft/publish edits require a real change message only when open bookings 
   const { db } = await setup(t);
   let e = await save(db, null, { ...eventInput, is_published: false });
   assert.equal(e.state, 'Closed'); assert.equal(e.affected_bookings, 0);
+  assert.equal((await asUser(db, ids.owner, () => rpc(db, 'corporate_search_events', ['', null, null, 0, 10]))).rows.some(row => row.id === e.id), false, 'Corporate browsing hides draft sessions');
+  assert.equal((await admin(db, 'corporate_search_events', ['', null, null, 0, 10])).rows.some(row => row.id === e.id), true, 'Admins can still manage drafts');
   e = await save(db, e); assert.equal(e.state, 'Available');
   const b = await request(db, e);
   // This e still says zero affected bookings: SQL must not trust the stale browser count.
@@ -56,6 +58,8 @@ test('draft/publish edits require a real change message only when open bookings 
   const accepted = await admin(db, 'corporate_booking_deadline', [b.id, current.version, '2099-11-14T17:00:00+02:00', 'Payment discussed.']);
   e = await save(db, e, { ...eventInput, is_published: false }, 'Closed to new requests; your booking is unchanged.');
   assert.equal(e.state, 'Reserved'); assert.equal(e.remaining, 0);
+  assert.equal((await asUser(db, ids.owner, () => rpc(db, 'corporate_search_events', ['', null, null, 0, 10]))).rows.some(row => row.id === e.id), false, 'Unpublishing removes the session from corporate browsing');
+  assert.equal((await asUser(db, ids.owner, () => rpc(db, 'corporate_booking_detail', [accepted.id]))).booking.id, accepted.id, 'The company keeps access to its own existing booking');
   assert.equal((await admin(db, 'corporate_booking_detail', [accepted.id])).booking.status, 'Pending payment');
   await assert.rejects(admin(db, 'corporate_cancel_event', [e.id, e.version, '']), /record a reason/);
   const cancelled = await admin(db, 'corporate_cancel_event', [e.id, e.version, 'Venue closed. Contact us externally for a refund.']);

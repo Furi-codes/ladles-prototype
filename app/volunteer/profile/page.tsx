@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { userFacingError } from '@/lib/user-facing-error';
 import { useVolunteerData } from "../components/VolunteerProvider";
 import ProfilePhotoEditor from "../components/ProfilePhotoEditor";
 import NotificationPreferences from "../components/NotificationPreferences";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import ChangePasswordForm from '@/app/components/ChangePasswordForm';
 import { useVolunteerSignOut } from "../components/VolunteerAccountContext";
 import styles from "../volunteer.module.css";
 import { corporateRolloutEnabled } from "@/lib/feature-flags";
@@ -26,7 +28,7 @@ export default function VolunteerProfilePage() {
     setIsSavingProfile(true);
     setProfileError(null);
     const error = await saveProfile({ full_name: fullName.trim(), date_of_birth: dateOfBirth, ...(corporateRolloutEnabled ? { phone } : {}) });
-    if (error) setProfileError(error);
+    if (error) setProfileError(userFacingError(error, 'Your profile could not be saved. Please try again.'));
     setIsSavingProfile(false);
   }
 
@@ -35,7 +37,7 @@ export default function VolunteerProfilePage() {
     setIsSavingEmail(true);
     setEmailError(null);
     const error = await requestEmailChange(email.trim());
-    if (error) setEmailError(error);
+    if (error) setEmailError(userFacingError(error, 'Your email change could not be requested. Please try again.'));
     setIsSavingEmail(false);
   }
 
@@ -50,6 +52,7 @@ export default function VolunteerProfilePage() {
     <div className={styles.settingsGrid}>
       <ProfilePhotoEditor />
       <NotificationPreferences />
+      <ChangePasswordForm email={profile?.email || ''} />
       <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Personal details</h2><p className={styles.cardHint}>Keep these details accurate for bookings and attendance.</p></div></div><form className={styles.settingsBody} onSubmit={saveDetails}>
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-name">Full name</label><input id="profile-name" className={styles.input} required value={fullName} onChange={(event) => setFullName(event.target.value)} /></div>
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="profile-dob">Date of birth</label><input id="profile-dob" className={styles.input} required type="date" max={new Date().toISOString().slice(0, 10)} value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} /></div>

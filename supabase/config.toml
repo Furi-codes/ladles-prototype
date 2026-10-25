@@ -1,0 +1,6 @@
+# Only declared settings are pushed. Keep existing email, redirect and provider configuration.
+project_id = "ladles-prototype"
+
+[auth]
+minimum_password_length = 8
+password_requirements = "lower_upper_letters_digits_symbols"

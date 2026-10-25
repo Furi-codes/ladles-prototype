@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
-    // Local generated browser-review bundles and captures, not application source.
-    ".exports/**",
     "next-env.d.ts",
   ]),
 ]);

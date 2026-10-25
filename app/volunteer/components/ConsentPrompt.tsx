@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useState } from "react";
 import styles from "../volunteer.module.css";
@@ -21,7 +22,7 @@ export default function ConsentPrompt({ onAccept }: { onAccept: () => Promise<st
     setIsSaving(true);
     setError(null);
     const saveError = await onAccept();
-    if (saveError) setError(saveError);
+    if (saveError) setError(userFacingError(saveError, "This action could not be completed. Please refresh and try again."));
     setIsSaving(false);
   }
 

@@ -48,16 +48,6 @@ export async function fetchVolunteerNotifications(userId: string): Promise<{ dat
   }
 }
 
-/** Loads the user's optional in-app reminder preference; missing row means enabled. */
-export async function fetchVolunteerReminderPreference(userId: string) {
-  return supabase.from('volunteer_notification_preferences').select('reminders_enabled').eq('user_id', userId).maybeSingle()
-}
-
-/** Saves the signed-in user's preference through an RPC; the provider checks its returned boolean. */
-export async function saveVolunteerReminderPreference(enabled: boolean) {
-  return supabase.rpc('set_volunteer_reminder_preference', { p_enabled: enabled })
-}
-
 /** Marks one notice as read for the signed-in volunteer. */
 export async function markVolunteerNotificationRead(notificationId: number, userId: string) {
   return supabase

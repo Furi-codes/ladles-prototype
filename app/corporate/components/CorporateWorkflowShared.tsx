@@ -20,9 +20,9 @@ export function useWorkflowClock() {
   }, []);
   return now;
 }
-export function WorkflowFilters({ value, change, statuses = false, disabled = false }: { value: CorporateWorkflowFilters; change: (value: CorporateWorkflowFilters) => void; statuses?: boolean; disabled?: boolean }) {
+export function WorkflowFilters({ value, change, statuses = false, disabled = false, attendance = false }: { value: CorporateWorkflowFilters; change: (value: CorporateWorkflowFilters) => void; statuses?: boolean; disabled?: boolean; attendance?: boolean }) {
   const bookingStatuses = ['Requested', 'Pending payment', 'Confirmed', 'Completed', 'Rejected', 'Cancelled'];
-  const attentionFilters = ['Overdue', 'Pending additional payment', ...(corporateChangesEnabled ? ['Change requested', 'Cancellation requested'] : [])];
+  const attentionFilters = ['Overdue', 'Pending additional payment', ...(corporateChangesEnabled ? ['Change requested', 'Cancellation requested'] : []), ...(attendance ? ['Attendance to record'] : [])];
   // One grouped control keeps pagination and results on a single protected server filter.
   const selectFilter = (status: string) => change({ ...value, status: status as CorporateWorkflowFilters['status'] });
   return <div className={management.filters}><label>Search<input className={styles.input} type="search" maxLength={180} placeholder={statuses ? 'Company, booking ID or event' : 'Corporate event or location'} disabled={disabled} value={value.query} onChange={event => change({ ...value, query: event.target.value })} /></label>

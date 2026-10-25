@@ -10,6 +10,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const paginationUrl = moduleUrl(compile(readFileSync(new URL('../lib/data-pagination.ts', import.meta.url), 'utf8')));
+const safeErrorUrl = moduleUrl(compile(readFileSync(new URL('../lib/user-facing-error.ts', import.meta.url), 'utf8')));
 const timeOptions = await import(moduleUrl(compile(readFileSync(new URL('../lib/event-time-options.ts', import.meta.url), 'utf8'))));
 
 async function fixture({ stale = false, reservations = 0, found = true, corporate = [], bookings = [], profiles = [], pageLimit = 500, missingCount = false, auditFailure = '', rpcError = false } = {}) {
@@ -65,6 +66,7 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.invalid';
   process.env.SUPABASE_SECRET_KEY = 'test-only-key';
   const helper = compile(readFileSync(new URL('../lib/server/wms-integration.ts', import.meta.url), 'utf8'))
+    .replace(/['"]@\/lib\/user-facing-error['"]/, JSON.stringify(safeErrorUrl))
     .replace('import "server-only";', '')
     .replace(/import \{ createClient \} from "@supabase\/supabase-js";/, `const createClient = () => globalThis[${JSON.stringify(key)}];`);
   const helperUrl = moduleUrl(helper);
@@ -73,6 +75,13 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
   return { calls, helpers, route, cleanup: () => { delete globalThis[key]; } };
 }
 const request = (method, body, token = 'test-only-token') => new Request('https://example.invalid', { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+
+test('integration error responses keep HTTP status without exposing SQL, schema names or raw query failures', async t => {
+  const f = await fixture(); t.after(f.cleanup);
+  const response = f.helpers.jsonError('permission denied for table corporate_bookings; SELECT * FROM public.profiles', 500);
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: 'The request could not be completed. Please try again.' });
+});
 const slotContext = { params: Promise.resolve({ externalTimeslotId: 'slot' }) };
 const payload = { externalEventId: 'event', title: 'Quarter-hour test', eventDate: '2026-11-15', locationName: 'Test', status: 'Scheduled', category: 'warehouse', timeslots: [{ externalTimeslotId: 'slot', startTime: '09:15', endTime: '10:15', capacity: 5 }] };
 

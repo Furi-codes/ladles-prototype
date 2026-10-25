@@ -3,10 +3,10 @@ import styles from "../admin.module.css";
 
 const content: Record<string, { title: string; description: string }> = {
   Dashboard: { title: "Dashboard", description: "Monitor events, bookings, and volunteer attendance." },
-  Events: { title: "Events", description: "Create and manage upcoming volunteer events." },
+  Events: { title: "Volunteer events", description: "Create and manage upcoming volunteer events." },
   "Volunteer rosters": { title: "Volunteer rosters", description: "Manage event participants, attendance, and recorded hours." },
   "Corporate CSR": { title: "Corporate CSR", description: "Manage corporate volunteering partnerships and activity requests." },
-  "Analytics & Reports": { title: "Volunteer analytics & reports", description: "Volunteer participation, attendance and verified hours. Corporate reporting is separate under Corporate bookings → Corporate reports." },
+  "Analytics & Reports": { title: "Volunteer analytics & reports", description: "Volunteer participation, attendance and verified hours. Company results are available under Corporate analytics." },
   Settings: { title: "Settings", description: "Configure administration preferences and account settings." },
 };
 

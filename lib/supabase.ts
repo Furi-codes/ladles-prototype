@@ -19,17 +19,3 @@ export async function getCurrentUser() {
   const { data: { user } } = await supabase.auth.getUser()
   return user
 }
-
-/** Reads the profile whose ID matches the Auth user. Query errors are not returned separately here. */
-export async function getCurrentUserProfile() {
-  const user = await getCurrentUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  return profile
-}

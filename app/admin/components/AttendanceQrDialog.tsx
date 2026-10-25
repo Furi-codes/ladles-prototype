@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
@@ -46,7 +47,7 @@ export default function AttendanceQrDialog({ event, checkpoints, onClose, onRefr
     setNotice(null);
     try {
       const { data, error } = await rotateAttendanceEntryCode(checkpoint.id);
-      if (error || typeof data !== "string") { setNotice(error?.message ?? "The code could not be replaced."); return; }
+      if (error || typeof data !== "string") { setNotice(userFacingError(error?.message ?? "The code could not be replaced.", "The code could not be replaced.")); return; }
       setReplacements(previous => ({ ...previous, [checkpoint.id]: data }));
       setNotice("Code replaced. Reprint any sheets that show the old typed code.");
       try { await onRefresh(); } catch { setNotice("Code replaced. Refresh the events page before reopening this window."); }

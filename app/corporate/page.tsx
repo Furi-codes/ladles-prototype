@@ -9,6 +9,8 @@ import CorporateAccountForm from './components/CorporateAccountForm';
 import AccountHistory from './components/AccountHistory';
 import CorporateAccountSecurity from './components/CorporateAccountSecurity';
 import CorporatePhotoEditor from './components/CorporatePhotoEditor';
+import PersonalReminderPreferences from '@/app/components/PersonalReminderPreferences';
+import ChangePasswordForm from '@/app/components/ChangePasswordForm';
 import styles from '@/app/volunteer/volunteer.module.css';
 import ui from './corporate.module.css';
 
@@ -36,6 +38,8 @@ export default function CorporateAccountPage() {
       </section>
       <CorporatePhotoEditor onActivityChange={setImageEditing} />
       <CorporateAccountSecurity email={data?.signInEmail || ''} verified={Boolean(data?.emailVerified)} />
+      <ChangePasswordForm email={data?.signInEmail || ''} />
+      <PersonalReminderPreferences portal="corporate" />
       <section className={styles.card}><div className={styles.cardHeader}><div><h2 className={styles.cardTitle}>Company & main contact</h2><p className={styles.cardHint}>Company identity, booking contact and billing address.</p></div></div><div className={ui.cardBody}><p>The contact email is where the booking team can reach your main contact about bookings and external payments. It is not your sign-in email. Admin is notified of profile updates; your approval status stays the same.</p><CorporateAccountForm key={detail.account.updated_at} initial={detail.account} label="Update profile" onDirtyChange={setEditing} onBusyChange={setSaving} submit={async input => {
         const saved = await saveCorporateAccount(detail.account.id, input);
         applyAccount(saved);

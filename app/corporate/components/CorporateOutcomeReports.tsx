@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useCallback, useRef, useState } from 'react';
 import { corporateOutcomesEnabled } from '@/lib/feature-flags';
@@ -6,7 +7,7 @@ import { getCorporateOutcomeReport, loadAllCorporateOutcomeRows } from '@/lib/ac
 import { emptyWorkflowFilters } from '@/lib/actions/corporate-bookings';
 import { corporateOutcomesCsv } from '@/lib/corporate-outcomes';
 import type { CorporateBookingRow } from '@/lib/corporate-booking-types';
-import { corporateDateLabel } from '@/lib/corporate-booking-utils';
+import { corporateBookingReference, corporateDateLabel } from '@/lib/corporate-booking-utils';
 import { WorkflowFilters, WorkflowPagination } from './CorporateWorkflowShared';
 import { FeatureState } from '@/app/admin/components/FeatureShared';
 import { useCorporateFeatureData as useFeatureData } from './useCorporateFeatureData';
@@ -16,7 +17,7 @@ import ui from '../corporate.module.css';
 import reportStyles from './corporate-outcomes.module.css';
 
 export default function CorporateOutcomeReports({ admin = false }: { admin?: boolean }) {
-  if (!corporateOutcomesEnabled) return <p>Corporate reports are not available yet. Your booking details remain available under My bookings.</p>;
+  if (!corporateOutcomesEnabled) return <p>{admin ? 'Corporate analytics are not available. Manage bookings under Corporate bookings.' : 'Group reports are not available. Your booking details remain available under My bookings.'}</p>;
   return <OutcomeWorkspace admin={admin} />;
 }
 function OutcomeWorkspace({ admin }: { admin: boolean }) {
@@ -37,10 +38,10 @@ function OutcomeWorkspace({ admin }: { admin: boolean }) {
         const url = URL.createObjectURL(new Blob([corporateOutcomesCsv(rows)],{ type:'text/csv;charset=utf-8' }));
         const link = document.createElement('a'); link.href = url; link.download = 'corporate-group-report.csv'; document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url),1000);
       }
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'The complete report could not be prepared.'); }
+    } catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'The complete report could not be prepared.', "The complete report could not be prepared.")); }
     finally { pending.current = false; setBusy(false); }
   }
-  return <div className={[management.workspace,ui.workspace].join(' ')}><div className={`${styles.pageHeading} ${management.workspaceHeading}`}><div><h1 className={styles.pageTitle}>{admin ? 'Corporate reports' : 'Group reports'}</h1><p className={styles.pageDescription}>Completed bookings, actual attendees and whole event hours. {admin ? 'Manage payments and overdue bookings in Booking requests.' : 'Manage payments and overdue bookings in My bookings.'}</p></div><div className={ui.actions}><button className={styles.primaryButton} disabled={busy || loading || !data?.total || Boolean(loadError)} onClick={() => void output(false)}>{busy ? 'Preparing…' : 'Export CSV'}</button><button className={styles.secondaryButton} disabled={busy || loading || !data?.total || Boolean(loadError)} onClick={() => void output(true)}>Print filtered report</button></div></div>
+  return <div className={[management.workspace,ui.workspace].join(' ')}><div className={`${styles.pageHeading} ${management.workspaceHeading}`}><div><h1 className={styles.pageTitle}>{admin ? 'Corporate analytics & reports' : 'Group reports'}</h1><p className={styles.pageDescription}>Completed bookings, actual attendees and whole event hours. {admin ? 'Manage payments and overdue bookings under Corporate bookings.' : 'Manage payments and overdue bookings in My bookings.'}</p></div><div className={ui.actions}><button className={styles.primaryButton} disabled={busy || loading || !data?.total || Boolean(loadError)} onClick={() => void output(false)}>{busy ? 'Preparing…' : 'Export CSV'}</button><button className={styles.secondaryButton} disabled={busy || loading || !data?.total || Boolean(loadError)} onClick={() => void output(true)}>Print filtered report</button></div></div>
     <section className={styles.card}><WorkflowFilters value={filters} disabled={busy} change={value => { setFilters({ ...value, status: 'Completed' }); setPage(1); setPrintRows(null); }} /><FeatureState loading={loading} error={loadError} retry={() => void reload()} /></section>
     {error && <p className={styles.error} role="alert">{error}</p>}
     {!loading && !loadError && data && <><div className={reportStyles.metrics}>{[['Completed bookings',data.summary.completed_groups],['Actual attendees',data.summary.attendance_instances],['Event hours',data.summary.event_hours],['Bookings awaiting hours',data.summary.groups_without_hours]].map(([label,value]) => <section className={`${styles.card} ${ui.body}`} key={label}><p>{label}</p><strong>{value}</strong></section>)}</div>
@@ -51,5 +52,5 @@ function OutcomeWorkspace({ admin }: { admin: boolean }) {
   </div>;
 }
 export function OutcomeTable({ rows }: { rows: CorporateBookingRow[] }) {
-  return <div className={`${management.tableViewport} ${ui.responsiveTable}`}><table role="table" aria-label="Completed corporate bookings" className={styles.table}><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Company / booking</th><th role="columnheader" scope="col">Event / date (SA)</th><th role="columnheader" scope="col">Status</th><th role="columnheader" scope="col">Booked group</th><th role="columnheader" scope="col">Actual attendees</th><th role="columnheader" scope="col">Event hours</th></tr></thead><tbody role="rowgroup">{rows.map(row => { const eligible = row.status === 'Completed' && !row.event.cancelled_at && row.event.state !== 'Cancelled'; return <tr role="row" key={row.id}><td role="cell" data-label="Company / booking">{row.contact_snapshot.company_name}<small className={management.subtle}>{row.id}</small></td><td role="cell" data-label="Event / date (SA)">{row.event.title}<small className={management.subtle}>{corporateDateLabel(row.event.starts_at)}<br />{row.event.location}</small></td><td role="cell" data-label="Status">{row.status}</td><td role="cell" data-label="Booked group">{row.group_size}</td><td role="cell" data-label="Actual attendees">{eligible && row.attendance ? row.attendance.attendance_count : 'Not recorded'}</td><td role="cell" data-label="Event hours">{eligible && row.attendance?.event_hours !== null && row.attendance?.event_hours !== undefined ? row.attendance.event_hours : 'Not recorded'}</td></tr>; })}{!rows.length && <tr role="row"><td role="cell" colSpan={6}>No matching corporate bookings.</td></tr>}</tbody></table></div>;
+  return <div className={`${management.tableViewport} ${ui.responsiveTable}`}><table role="table" aria-label="Completed corporate bookings" className={styles.table}><thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Company / booking</th><th role="columnheader" scope="col">Event / date (SA)</th><th role="columnheader" scope="col">Status</th><th role="columnheader" scope="col">Booked group</th><th role="columnheader" scope="col">Actual attendees</th><th role="columnheader" scope="col">Event hours</th></tr></thead><tbody role="rowgroup">{rows.map(row => { const eligible = row.status === 'Completed' && !row.event.cancelled_at && row.event.state !== 'Cancelled'; return <tr role="row" key={row.id}><td role="cell" data-label="Company / booking">{row.contact_snapshot.company_name}<small className={management.subtle}>{corporateBookingReference(row.id)}</small></td><td role="cell" data-label="Event / date (SA)">{row.event.title}<small className={management.subtle}>{corporateDateLabel(row.event.starts_at)}<br />{row.event.location}</small></td><td role="cell" data-label="Status">{row.status}</td><td role="cell" data-label="Booked group">{row.group_size}</td><td role="cell" data-label="Actual attendees">{eligible && row.attendance ? row.attendance.attendance_count : 'Not recorded'}</td><td role="cell" data-label="Event hours">{eligible && row.attendance?.event_hours !== null && row.attendance?.event_hours !== undefined ? row.attendance.event_hours : 'Not recorded'}</td></tr>; })}{!rows.length && <tr role="row"><td role="cell" colSpan={6}>No matching corporate bookings.</td></tr>}</tbody></table></div>;
 }

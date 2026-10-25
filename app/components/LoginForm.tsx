@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 /** One entry screen for sign-in, separate volunteer/business registrations and recovery. */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -9,6 +10,7 @@ import { corporateRolloutEnabled } from '@/lib/feature-flags';
 import { isValidPhone, normalisePhone } from '@/lib/contact-details';
 import { accountLandingPath } from '@/lib/actions/account-routing';
 import { hasAuthLinkError } from '@/lib/auth-link';
+import { passwordError, passwordRequirements } from '@/lib/password-policy';
 import BusinessRegistration from './BusinessRegistration';
 import ThemeToggle from './ThemeToggle';
 import PortalLoadingScreen from './PortalLoadingScreen';
@@ -56,7 +58,7 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
       if (!active || currentMode.current !== 'signin') return;
       setEmail(session.user.email || ''); openDestination(destination);
     }
-    void checkExistingLogin().catch(failure => { if (active) setMessage(failure instanceof Error ? failure.message : 'Account access could not be checked. Please retry.'); });
+    void checkExistingLogin().catch(failure => { if (active) setMessage(userFacingError(failure instanceof Error ? failure.message : 'Account access could not be checked. Please retry.', "Account access could not be checked. Please retry.")); });
     return () => { active = false; };
   }, [router, initialMode, openDestination]);
 
@@ -66,7 +68,7 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
     try { await request(); }
     catch (failure) {
       if (failure && typeof failure==='object' && 'code' in failure && failure.code==='email_not_confirmed') setVerificationNeeded(true);
-      setMessage(`Error: ${failure instanceof Error ? failure.message : 'Account request failed. Please try again.'}`);
+      setMessage(userFacingError(`Error: ${failure instanceof Error ? failure.message : 'Account request failed. Please try again.'}`, "This action could not be completed. Please refresh and try again."));
     }
     finally { pending.current = false; setIsLoading(false); }
   }
@@ -90,7 +92,8 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
     event.preventDefault();
     const cleanFirst = firstName.trim(), cleanLast = lastName.trim();
     if (!cleanFirst || !cleanLast || !dateOfBirth || !email || !password) { setMessage('Please fill out your First Name, Last Name, Date of Birth, Email, and Password.'); return; }
-    if (password.length < 8 || password.length > 128) { setMessage('Please use a password between eight and 128 characters.'); return; }
+    const invalidPassword = passwordError(password);
+    if (invalidPassword) { setMessage(invalidPassword); return; }
     if (corporateRolloutEnabled && phone.trim() && !isValidPhone(phone)) { setMessage('Please enter a valid cellphone number or leave it blank.'); return; }
     await runAuthRequest(async () => {
       const { error } = await supabase.auth.signUp({ email: email.trim(), password, options: {
@@ -151,7 +154,7 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
   return <main className={styles.page}>
     <header className={styles.header}><ThemeToggle /></header>
     <div className={styles.layout}><section className={styles.formSide} aria-labelledby="auth-title">
-      <div className={styles.brand}><Image src="/Ladles-logo.png" alt="Ladles of Love" width={68} height={68} preload /><span><strong>LADLES OF LOVE</strong><small>{corporateRolloutEnabled ? 'COMMUNITY PORTAL' : 'VOLUNTEER PORTAL'}</small></span></div>
+      <div className={styles.brand}><span className={styles.brandMark}><Image className={styles.brandImage} src="/Ladles-logo.png" alt="Ladles of Love" width={72} height={72} preload /></span><span><strong>LADLES OF LOVE</strong><small>{corporateRolloutEnabled ? 'COMMUNITY PORTAL' : 'VOLUNTEER PORTAL'}</small></span></div>
       <div className={styles.card}>
         {!isForgotPassword && <div className={`${styles.tabs} ${corporateRolloutEnabled ? styles.tabsThree : ''}`} aria-label="Account access">
           <button type="button" disabled={busy} aria-pressed={mode === 'signin'} onClick={() => changeMode('signin')}>Sign in</button>
@@ -166,7 +169,7 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
             {isSignUp && <><div className={styles.nameRow}><div className={styles.field}><label htmlFor="first-name">First name</label><input id="first-name" autoComplete="given-name" required value={firstName} onChange={event => setFirstName(event.target.value)} /></div><div className={styles.field}><label htmlFor="last-name">Last name</label><input id="last-name" autoComplete="family-name" required value={lastName} onChange={event => setLastName(event.target.value)} /></div></div><div className={styles.field}><label htmlFor="birth-date">Date of birth</label><input id="birth-date" type="date" autoComplete="bday" required max={new Date().toISOString().slice(0,10)} value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} /></div></>}
             {isSignUp && corporateRolloutEnabled && <div className={styles.field}><label htmlFor="signup-phone">Cellphone number (optional)</label><input id="signup-phone" type="tel" autoComplete="tel" maxLength={25} value={phone} onChange={event => setPhone(event.target.value)} /></div>}
             <div className={styles.field}><label htmlFor="auth-email">Email address</label><input id="auth-email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={event => { setEmail(event.target.value);setVerificationRequested(false); }} placeholder="you@example.com" /></div>
-            {!isForgotPassword && <div className={styles.field}><div className={styles.labelRow}><label htmlFor="auth-password">Password</label>{!isSignUp && <button className={styles.textButton} type="button" onClick={() => changeMode('recovery')}>Forgot password?</button>}</div><div className={styles.password}><input id="auth-password" type={showPassword ? 'text' : 'password'} autoComplete={isSignUp ? 'new-password' : 'current-password'} required minLength={isSignUp ? 8 : undefined} maxLength={isSignUp ? 128 : undefined} value={password} onChange={event => setPassword(event.target.value)} placeholder={isSignUp ? 'Create a password' : 'Enter your password'} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div></div>}
+            {!isForgotPassword && <div className={styles.field}><div className={styles.labelRow}><label htmlFor="auth-password">Password</label>{!isSignUp && <button className={styles.textButton} type="button" onClick={() => changeMode('recovery')}>Forgot password?</button>}</div><div className={styles.password}><input id="auth-password" type={showPassword ? 'text' : 'password'} autoComplete={isSignUp ? 'new-password' : 'current-password'} required minLength={isSignUp ? 8 : undefined} maxLength={isSignUp ? 128 : undefined} value={password} onChange={event => setPassword(event.target.value)} placeholder={isSignUp ? 'Create a password' : 'Enter your password'} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div>{isSignUp && <p className={styles.intro}>{passwordRequirements}</p>}</div>}
             {message && <div className={/error|failed|please fill|couldn't|please enter|please use/i.test(message) ? styles.error : styles.notice} role="status">{message}</div>}
             <button type="submit" className={styles.submit}>{isLoading ? 'Please wait…' : isForgotPassword ? 'Send reset link' : isSignUp ? 'Create volunteer account' : 'Sign in'}<span aria-hidden="true">→</span></button>
           </fieldset></form>

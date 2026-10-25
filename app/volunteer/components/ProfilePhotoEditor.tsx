@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useEffect, useRef, useState } from "react";
 import { prepareAvatar } from "@/lib/avatar";
@@ -29,7 +30,7 @@ export default function ProfilePhotoEditor() {
       setDraft({ blob, url: URL.createObjectURL(blob) });
       setAccepted(false);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "This image could not be opened. Choose another photo.");
+      setError(userFacingError(error instanceof Error ? error.message : "This image could not be opened. Choose another photo.", "This image could not be opened. Choose another photo."));
     } finally {
       setBusy(false);
       locked.current = false;
@@ -43,7 +44,7 @@ export default function ProfilePhotoEditor() {
     setError(null);
     try {
       const error = await saveAvatar(remove ? null : draft!.blob);
-      if (error) setError(error);
+      if (error) setError(userFacingError(error, "This action could not be completed. Please refresh and try again."));
       else { setDraft(null); setAccepted(false); }
     } catch {
       setError("Your photo could not be saved. Please try again.");

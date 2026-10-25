@@ -1,7 +1,9 @@
 .page { --auth-bg:#f6f7fa; --auth-surface:#fff; --auth-ink:#182b3b; --auth-muted:#627386; --auth-line:#dfe5ed; --auth-soft:#fff0f2; --auth-accent:#cd1634; min-height:100dvh; background:var(--auth-bg); color:var(--auth-ink); font-family:var(--portal-font,"Segoe UI",Arial,sans-serif); border-top:4px solid var(--auth-accent); }
 .header { position:absolute; top:18px; right:24px; z-index:5; }
-.brand { display:flex; align-items:center; gap:12px; text-decoration:none; color:var(--auth-ink); }
+.brand { display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; text-decoration:none; color:var(--auth-ink); }
 .brand span { display:grid; gap:5px; }
+.brandMark { width:108px; height:108px; flex-shrink:0; box-sizing:border-box; padding:18px; border:1px solid var(--auth-line); border-radius:50%; background:#fff; overflow:hidden; box-shadow:0 4px 14px #182b3b08; }
+.brand .brandImage { display:block; width:100%; height:100%; object-fit:contain; }
 .brand strong { font-size:15px; font-weight:800; letter-spacing:-.3px; }
 .brand small { font-size:9px; font-weight:750; color:var(--auth-accent); letter-spacing:1.7px; }
 .layout { max-width:560px; min-height:calc(100dvh - 4px); margin:0 auto; padding:72px 28px 32px; display:grid; grid-template-columns:minmax(0,1fr); align-items:center; }
@@ -50,6 +52,6 @@
 :global(html[data-theme="dark"]) .page { --auth-bg:#101820; --auth-surface:#1a2834; --auth-ink:#edf3f8; --auth-muted:#adbdcc; --auth-line:#344656; --auth-soft:#39242d; --auth-accent:#ff8da0; }
 :global(html[data-theme="dark"]) .submit { background:#cd1634; border-color:#cd1634; }
 @keyframes arrive { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
-@media(max-width:760px) { .layout { padding:76px 20px 28px; } .formSide { max-width:440px; padding:0; } .formSide > .brand { margin-bottom:10px; } .brand strong { font-size:14px; } .brand small { font-size:9px; } .brand img { width:56px; height:56px; } .card { padding:18px 0; } .card h2 { font-size:25px; } .field input,.field textarea { font-size:16px; } }
+@media(max-width:760px) { .layout { padding:76px 20px 28px; } .formSide { max-width:440px; padding:0; } .formSide > .brand { margin-bottom:10px; } .brand strong { font-size:14px; } .brand small { font-size:9px; } .brandMark { width:96px; height:96px; padding:16px; } .card { padding:18px 0; } .card h2 { font-size:25px; } .field input,.field textarea { font-size:16px; } }
 @media(max-width:360px) { .nameRow { grid-template-columns:1fr; } .brand { gap:7px; } .layout { padding-left:16px; padding-right:16px; } }
 @media(prefers-reduced-motion:reduce) { .card { animation:none; } .submit,.google,.field input { transition:none; } .submit:hover { transform:none; } }

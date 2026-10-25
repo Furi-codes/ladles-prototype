@@ -130,9 +130,9 @@ export interface Volunteer extends Profile {
 /** Semantic alias used when a profile is handled in volunteer-facing code. */
 export type VolunteerProfile = Profile;
 
-/** States in the implemented admin-managed CSR bookings, not the mockup's payment workflow. */
+/** Historical CSR booking states retained for report and availability data. */
 export type CorporateStatus = 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
-/** Relationship labels for company records in the admin CSR screen. */
+/** Relationship labels stored on historical company records. */
 export type RelationshipStatus = 'Lead' | 'Contacted' | 'Interested' | 'Active Partner' | 'Inactive';
 /** Company/contact details and CSR information managed by administrators. */
 export interface CorporateCompany {
@@ -143,8 +143,6 @@ export interface CorporateCompany {
   csr_focus_areas: string | null; partnership_potential: 'Low' | 'Medium' | 'High';
   notes: string | null; created_at: string; updated_at: string;
 }
-/** Editable company fields; generated identifiers and timestamps are left to the database. */
-export type CompanyInput = Omit<CorporateCompany, 'id' | 'created_at' | 'updated_at'>;
 /** Group reservation. team_size reserves places; attendance_count and volunteer_hours are recorded totals. */
 export interface CorporateBooking {
   id: number; company_id: number; event_id: number; event_slot_id: number;
@@ -152,11 +150,7 @@ export interface CorporateBooking {
   status: CorporateStatus; notes: string | null; cancellation_reason?: string | null; attendance_count: number | null;
   volunteer_hours: number | null; created_at: string; updated_at: string;
 }
-/** Booking form fields; the linked slot supplies the event through the save RPC. */
-export type CorporateBookingInput = Omit<CorporateBooking, 'id' | 'event_id' | 'created_at' | 'updated_at'>;
-/** An admin note linked to a company, not a corporate/admin chat message. */
-export interface CorporateNote { id: number; company_id: number; body: string; created_by: string | null; created_at: string }
-/** Singleton settings row. Only shift_reminder_enabled currently controls in-app reminder generation. */
+/** Legacy organisation row; personal preferences now control reminder generation. */
 export interface OrganisationSettings {
   id: 1; organisation_name: string; default_location: string; contact_email: string;
   timezone: 'Africa/Johannesburg'; booking_confirmation_enabled: boolean;

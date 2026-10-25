@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ui from "./experience.module.css";
@@ -47,7 +48,7 @@ export default function EventModal({ event, eventSlots, bookings, profile, onClo
     setMessage(null);
     try {
       const error = await onBook(selectedSlot);
-      if (error) setMessage(error);
+      if (error) setMessage(userFacingError(error, "This action could not be completed. Please refresh and try again."));
       else closeRef.current();
     } catch {
       setMessage('We could not confirm your booking. Refresh your bookings before retrying.');

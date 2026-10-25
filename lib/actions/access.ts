@@ -5,7 +5,7 @@ import type { Profile, UserRole } from '@/lib/types';
 /** Explains a missing RPC separately from other database errors, which keep their original message. */
 export function accessError(error: { code?: string; message: string }) {
   return error.code === 'PGRST202' || error.code === '42883'
-    ? 'Administrator access management is not available yet. The DBA must review and apply the new admin access / fixed identity migration, then refresh the API schema cache. Do not rerun the CSR migration.'
+    ? 'Administrator access management is temporarily unavailable. Please try again later.'
     : error.message;
 }
 /** Sends a trimmed search term to the protected profile search RPC, or throws its error. */

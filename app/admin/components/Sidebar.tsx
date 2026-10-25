@@ -1,23 +1,23 @@
 "use client";
-import Image from "next/image";
+import PortalBrand from "@/app/components/PortalBrand";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "../admin.module.css";
 import Icon from "./Icon";
-import { corporateRolloutEnabled, corporateBookingsEnabled } from "@/lib/feature-flags";
+import { corporateRolloutEnabled, corporateBookingsEnabled, corporateOutcomesEnabled } from "@/lib/feature-flags";
 
 type NavLink = { label: string; href: string; icon: "dashboard" | "calendar" | "users" | "building" | "activity" | "settings" };
-const navLinks: NavLink[] = [
+const volunteerLinks: NavLink[] = [
   { label: "Dashboard", href: "/admin", icon: "dashboard" as const },
-  { label: "Events", href: "/admin/events", icon: "calendar" as const },
+  { label: "Volunteer events", href: "/admin/events", icon: "calendar" as const },
   { label: "Volunteer rosters", href: "/admin/volunteers", icon: "users" as const },
   ...(corporateRolloutEnabled ? [{ label: "Volunteer directory", href: "/admin/directory", icon: "users" as const }] : []),
+  { label: "Volunteer analytics", href: "/admin/reports", icon: "activity" as const },
 ];
-const extraLinks: NavLink[] = [
+const corporateLinks: NavLink[] = [
   ...(corporateBookingsEnabled ? [{ label: "Corporate bookings", href: "/admin/corporate-bookings", icon: "building" as const }] : []),
   ...(corporateRolloutEnabled ? [{ label: "Corporate accounts", href: "/admin/corporate-accounts", icon: "building" as const }] : []),
-  { label: "Volunteer analytics", href: "/admin/reports", icon: "activity" as const },
-  { label: "Settings", href: "/admin/settings", icon: "settings" as const },
+  ...(corporateOutcomesEnabled ? [{ label: "Corporate analytics", href: "/admin/corporate-reports", icon: "activity" as const }] : []),
 ];
 
 export default function Sidebar({ isOpen = false, onClose }: { isOpen?: boolean; onClose?: () => void }) {
@@ -28,8 +28,12 @@ export default function Sidebar({ isOpen = false, onClose }: { isOpen?: boolean;
   };
 
   return <aside id="admin-mobile-navigation" className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ""}`} role={isOpen ? "dialog" : undefined} aria-modal={isOpen ? true : undefined} aria-label="Administration navigation">
-    <div className={styles.brand}><Image className="brandLogoImage" src="/Ladles-logo.png" alt="Ladles of Love" width={40} height={48} style={{ objectFit: "contain" }} /><div><div className={styles.brandName}>LADLES OF LOVE</div><div className={styles.brandSub}>Administration</div></div><button type="button" className={styles.sidebarClose} aria-label="Close navigation" onClick={onClose}><Icon name="close" /></button></div>
-    <nav className={styles.nav} aria-label="Admin navigation"><div className={styles.navSection}>Admin workspace</div>{navLinks.map(renderLink)}<div className={styles.navSection} style={{ marginTop: 24 }}>Insights & organisation</div>{extraLinks.map(renderLink)}</nav>
+    <div className={styles.brand}><PortalBrand portal="Administration" /><button type="button" className={styles.sidebarClose} aria-label="Close navigation" onClick={onClose}><Icon name="close" /></button></div>
+    <nav className={styles.nav} aria-label="Admin navigation">
+      <div className={styles.navGroup} role="group" aria-labelledby="volunteer-navigation-title"><div id="volunteer-navigation-title" className={styles.navSection}>Volunteers</div>{volunteerLinks.map(renderLink)}</div>
+      {corporateLinks.length > 0 && <div className={styles.navGroup} role="group" aria-labelledby="corporate-navigation-title"><div id="corporate-navigation-title" className={styles.navSection}>Corporate</div>{corporateLinks.map(renderLink)}</div>}
+      <div className={styles.navUtility}>{renderLink({ label: 'Settings', href: '/admin/settings', icon: 'settings' })}</div>
+    </nav>
     <div className={styles.sidebarFooter}>Small actions.<br /><strong>Lasting community impact.</strong></div>
   </aside>;
 }

@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { corporateChangesEnabled } from '@/lib/feature-flags';
@@ -81,7 +82,7 @@ export function CorporateEventForm({ current, initialDate = '', committed, dirty
       pending.current = true; setBusy(true); dirtyChanged(true);
       await saveCorporateEvent(input, current ? reason : 'Corporate session created.', current ? null : intent.current.key, current);
       dirtyChanged(false); committed();
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Event could not be saved.'); }
+    } catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Event could not be saved.', "Event could not be saved.")); }
     finally { pending.current = false; setBusy(false); }
   }
   const mark = () => dirtyChanged(true);
@@ -115,7 +116,7 @@ export function CorporateRequestForm({ event, account, committed, dirtyChanged }
     if (intent.current?.payload !== payload) intent.current = { payload, key: crypto.randomUUID() };
     pending.current = true; setBusy(true); dirtyChanged(true);
     try { const saved = await requestCorporateBooking(event, count, notes, intent.current.key); dirtyChanged(false); committed(saved.id); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : 'Request could not be confirmed. You can retry with the same details without creating a duplicate.'); }
+    catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Request could not be confirmed. You can retry with the same details without creating a duplicate.', "Request could not be confirmed. You can retry with the same details without creating a duplicate.")); }
     finally { pending.current = false; setBusy(false); }
   }}><h3>{event.title}</h3><p>{corporateDateLabel(event.starts_at)} – {corporateDateLabel(event.ends_at)} · {event.location}</p><p>Exclusive session for one company · maximum {event.max_group_size} people. A request does not reserve it. Availability is checked again on submission and admin acceptance; competing requests are declined when one is accepted.</p><p>Company: {account.company_name} · Contact: {account.contact_name}, {account.contact_email}, {account.contact_phone}<br />Billing address: {account.billing_address}</p><p>These contact and billing details are saved with this request. Future profile edits will not rewrite them.</p><fieldset disabled={busy} className={styles.formGrid} style={{ border: 0, padding: 0, minWidth: 0 }}><legend>Group details</legend><label className={styles.field}><span className={styles.fieldLabel}>Group size</span><input className={styles.input} type="number" required min={event.min_group_size} max={Math.min(event.max_group_size, event.remaining)} step={1} value={size} onChange={change => setSize(change.target.value)} /></label><label className={styles.field}><span className={styles.fieldLabel}>Notes (optional)</span><textarea className={styles.input} maxLength={800} value={notes} onChange={change => setNotes(change.target.value)} /></label>{error && <p className={`${styles.error} ${styles.fieldFull}`} role="alert">{error}</p>}<div className={ui.formFooter}><button type="submit" className={styles.primaryButton}>{busy ? 'Submitting…' : 'Review & submit request'}</button></div></fieldset><p className={ui.notice}>Request (no reservation) → Admin accepts and reserves the whole session → Pending external payment → Admin confirms receipt. No payment is processed by this portal.</p></form>;
 }

@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useRef, useState } from 'react';
 import { cancelCorporateEvent, configureCorporateChanges } from '@/lib/actions/corporate-bookings';
@@ -18,7 +19,7 @@ export function CorporateCancelEventForm({ event, dirtyChanged, committed }: { e
     if (!window.confirm(`Cancel ${event.title} and all its open bookings? Held places will be released, companies notified and proposals to move here declined. Payment/history stays recorded; refunds happen externally. This cannot be undone by republishing.`)) return;
     pending.current = true; setBusy(true); dirtyChanged(true); setError('');
     try { await cancelCorporateEvent(event, reason); dirtyChanged(false); committed(); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : 'Cancellation could not be saved. Refresh and check the event before retrying.'); }
+    catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Cancellation could not be saved. Refresh and check the event before retrying.', "Cancellation could not be saved. Refresh and check the event before retrying.")); }
     finally { pending.current = false; setBusy(false); }
   }}><h2>Cancel corporate event</h2><p>{event.title} · {corporateDateLabel(event.starts_at)} · {event.location}</p><p>This cancels all open bookings on this event, retains receipts/history and sends an in-app update to each affected company. Refunds must be arranged externally.</p><fieldset disabled={busy} className={styles.formGrid} style={{ border: 0, padding: 0 }}><legend>Cancellation details</legend><label className={`${styles.field} ${styles.fieldFull}`}><span className={styles.fieldLabel}>Reason / external refund and payment follow-up</span><textarea className={styles.input} required maxLength={800} value={reason} onChange={change => setReason(change.target.value)} /></label>{error && <p className={`${styles.error} ${styles.fieldFull}`} role="alert">{error}</p>}<button className={styles.dangerButton}>{busy ? 'Cancelling…' : 'Cancel event & open bookings'}</button></fieldset></form>;
 }
@@ -31,7 +32,7 @@ export function CorporateChangesControls({ initial, saved, dirtyChanged }: { ini
     event.preventDefault(); if (pending.current || !window.confirm('Update change-request availability? Existing reservations and payment records remain unchanged.')) return;
     pending.current = true; setBusy(true); setError('');
     try { const result = await configureCorporateChanges(enabled); dirtyChanged(false); saved(result); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : 'Change controls could not be saved.'); }
+    catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Change controls could not be saved.', "Change controls could not be saved.")); }
     finally { pending.current = false; setBusy(false); }
   }}><label className={management.preference}><input type="checkbox" disabled={busy} checked={enabled} onChange={event => { setEnabled(event.target.checked); dirtyChanged(event.target.checked !== Boolean(initial.changes_enabled)); }} />Open corporate change/cancellation requests and amendment approvals</label>{error && <p className={styles.error} role="alert">{error}</p>}<button className={styles.primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save change controls'}</button></form></section>;
 }

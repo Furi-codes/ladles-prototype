@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import Image from 'next/image';
+import PortalBrand from '@/app/components/PortalBrand';
 import Link from 'next/link';
 import ThemeToggle from '@/app/components/ThemeToggle';
 import { useSignOut } from '@/app/components/useSignOut';
@@ -9,7 +9,7 @@ import { useSessionBoundary } from '@/app/components/useSessionBoundary';
 import type { CorporateAccount } from '@/lib/corporate-account-types';
 import ProfileAvatar from '@/app/volunteer/components/ProfileAvatar';
 import ConfirmDialog from '@/app/volunteer/components/ConfirmDialog';
-import PortalContactFooter from '@/app/components/PortalContactFooter';
+import PortalContactButton from '@/app/components/PortalContactButton';
 import CorporateNavigation from './CorporateNavigation';
 import CorporateNotificationBell from './CorporateNotificationBell';
 import { corporateBookingsEnabled } from '@/lib/feature-flags';
@@ -36,11 +36,11 @@ export default function CorporateFrame({ children, signedIn = false, workflowAcc
     <div className={volunteer.topAccent} />
     <header className={`${volunteer.topbar} ${styles.header}`}>
       <Link className={volunteer.brand} href={homeHref} aria-label={homeHref === '/corporate/bookings' ? 'Ladles of Love — My bookings' : signedIn ? 'Ladles of Love business profile' : 'Ladles of Love — Sign in'}>
-        <Image className="brandLogoImage" src="/Ladles-logo.png" alt="" width={40} height={48} style={{ objectFit: 'contain' }} priority />
-        <div><p className={volunteer.brandName}>LADLES OF LOVE</p><div className={volunteer.brandSub}>Corporate portal</div></div>
+        <PortalBrand portal="Corporate portal" />
       </Link>
       {signedIn && workflowAccess && <CorporateNavigation />}
       <div className={`${volunteer.topActions} ${styles.headerActions}`}>
+        {signedIn && <PortalContactButton portal="corporate" />}
         {signedIn && workflowAccess && corporateBookingsEnabled && <CorporateNotificationBell />}
         <ThemeToggle />
         {signedIn ? <>
@@ -52,7 +52,6 @@ export default function CorporateFrame({ children, signedIn = false, workflowAcc
     <main id="corporate-content" tabIndex={-1} className={`${volunteer.content} ${styles.main}`}>
       {error && !confirmSignOut && <p className={volunteer.error} role="alert">{error}</p>}
       {children}
-      {signedIn && <PortalContactFooter portal="corporate" />}
     </main>
     {signedIn && workflowAccess && <CorporateNavigation mobile />}
     {confirmSignOut && <ConfirmDialog title="Sign out?" message="Are you sure you want to sign out of the corporate portal?" confirmLabel={busy ? 'Signing out…' : 'Sign out'} busy={busy} error={error} onCancel={() => setConfirmSignOut(false)} onConfirm={() => void signOut()} />}

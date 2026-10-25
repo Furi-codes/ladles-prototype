@@ -7,6 +7,7 @@ import type { AttendanceRecord, Booking, Event, EventSlot } from "@/lib/types";
 import { useMemo, useState } from "react";
 import styles from "../admin.module.css";
 import ui from './management.module.css';
+import RosterEventPicker from './RosterEventPicker';
 
 type RosterView = "current" | "past" | "cancelled";
 
@@ -20,8 +21,8 @@ type VolunteerAttendanceProps = {
 export default function VolunteerAttendance({ events, eventSlots, bookings, attendanceRecords }: VolunteerAttendanceProps) {
   const [view, setView] = useState<RosterView>("current");
   const [selectedEventId, setSelectedEventId] = useState("");
-  const [eventSearch, setEventSearch] = useState('');
   const [programme, setProgramme] = useState('');
+  const [fromDate, setFromDate] = useState(''), [toDate, setToDate] = useState('');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
 
@@ -35,7 +36,10 @@ export default function VolunteerAttendance({ events, eventSlots, bookings, atte
     .filter((event) => event.status === "Cancelled")
     .sort((first, second) => (second.cancelled_at ?? "").localeCompare(first.cancelled_at ?? "")), [events]);
   const scopeEvents = view === "current" ? currentEvents : view === "past" ? pastEvents : cancelledEvents;
-  const filteredEvents = scopeEvents.filter(event => (!programme || (event.category || 'Other') === programme) && `${event.title} ${event.location}`.toLowerCase().includes(eventSearch.trim().toLowerCase()));
+  // Event dates are YYYY-MM-DD, so inclusive bounds do not depend on the browser's timezone.
+  const invalidDates = Boolean(fromDate && toDate && fromDate > toDate);
+  const filteredEvents = scopeEvents.filter(event => !invalidDates && (!programme || (event.category || 'Other') === programme)
+    && (!fromDate || event.date >= fromDate) && (!toDate || event.date <= toDate));
 
   const effectiveSelectedEventId = filteredEvents.some((event) => event.id.toString() === selectedEventId)
     ? selectedEventId
@@ -49,6 +53,7 @@ export default function VolunteerAttendance({ events, eventSlots, bookings, atte
   function chooseView(nextView: RosterView) {
     setView(nextView);
     setSelectedEventId("");
+    setQuery(''); setStatus('');
   }
 
   return <section className={`${styles.card} ${ui.panel}`} aria-labelledby="roster-title">
@@ -68,13 +73,15 @@ export default function VolunteerAttendance({ events, eventSlots, bookings, atte
     </div>
 
     <div className={ui.filters} role="group" aria-label="Select a roster event">
-      <label>Search events or locations<input type="search" className={styles.input} value={eventSearch} onChange={e => setEventSearch(e.target.value)} placeholder="Find an event…" /></label>
-      <label>Programme<select className={styles.select} value={programme} onChange={e => setProgramme(e.target.value)}><option value="">All programmes</option>{['Dignity Kitchen','Warehouse HQ','Feed The Soil','Campaign / Special Event','Other'].map(c => <option key={c}>{c}</option>)}</select></label>
-      <label>Choose event<select className={styles.select} value={effectiveSelectedEventId} disabled={!filteredEvents.length} onChange={e => { setSelectedEventId(e.target.value); setQuery(''); setStatus(''); }}>{!filteredEvents.length ? <option value="">No matching events</option> : filteredEvents.map(event => <option key={event.id} value={event.id}>{event.title} · {event.date} · {event.location}</option>)}</select></label>
-      {(eventSearch || programme) && <button type="button" className={styles.secondaryButton} onClick={() => { setEventSearch(''); setProgramme(''); }}>Clear event filters</button>}
+      <RosterEventPicker key={`${view}:${programme}:${fromDate}:${toDate}`} events={filteredEvents} value={effectiveSelectedEventId} onChange={id => { setSelectedEventId(id); setQuery(''); setStatus(''); }} />
+      <label>Programme<select className={styles.select} value={programme} onChange={e => { setProgramme(e.target.value); setQuery(''); setStatus(''); }}><option value="">All programmes</option>{['Dignity Kitchen','Warehouse HQ','Feed The Soil','Campaign / Special Event','Other'].map(c => <option key={c}>{c}</option>)}</select></label>
+      <label>From date<input type="date" className={styles.input} max={toDate || undefined} value={fromDate} onChange={event => { setFromDate(event.target.value); setQuery(''); setStatus(''); }} /></label>
+      <label>To date<input type="date" className={styles.input} min={fromDate || undefined} value={toDate} onChange={event => { setToDate(event.target.value); setQuery(''); setStatus(''); }} /></label>
+      {(programme || fromDate || toDate) && <button type="button" className={styles.secondaryButton} onClick={() => { setProgramme(''); setFromDate(''); setToDate(''); setQuery(''); setStatus(''); }}>Clear event filters</button>}
     </div>
+    {invalidDates && <p role="alert" className={ui.count}>From date must be on or before To date.</p>}
     <p className={ui.count}>{filteredEvents.length} of {scopeEvents.length} events in this view</p>
-    {!selectedEvent ? <div className={styles.empty}>{eventSearch || programme ? "No events match these filters." : view === "current" ? "No upcoming or current event rosters yet." : view === "past" ? "No past event rosters yet." : "No cancelled event rosters yet."}</div> : <>
+    {!selectedEvent ? <div className={styles.empty}>{programme || fromDate || toDate ? "No events match these filters." : view === "current" ? "No upcoming or current event rosters yet." : view === "past" ? "No past event rosters yet." : "No cancelled event rosters yet."}</div> : <>
       <div className={styles.rosterSummary}>
         <div><strong>{currentRoster.length}</strong><span>Registered</span></div>
         <div><strong>{checkedIn}</strong><span>Clocked in</span></div>

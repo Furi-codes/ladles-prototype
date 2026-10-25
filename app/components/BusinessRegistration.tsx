@@ -1,9 +1,11 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { passwordError } from '@/lib/password-policy';
 import { cleanCorporateAccount, getMyCorporateAccount, requireCorporateRegistrationOpen } from '@/lib/actions/corporate-accounts';
 import type { CorporateAccountInput } from '@/lib/corporate-account-types';
 import CorporateAccountForm from '@/app/corporate/components/CorporateAccountForm';
@@ -35,7 +37,7 @@ export default function BusinessRegistration({ onSignIn, onDirtyChange, onBusyCh
           if (account) { router.replace('/corporate'); return; }
         }
         setUser(data.user); setAccessError('');
-      } catch (failure) { if (active) setAccessError(failure instanceof Error ? failure.message : 'Account access could not be checked.'); }
+      } catch (failure) { if (active) setAccessError(userFacingError(failure instanceof Error ? failure.message : 'Account access could not be checked.', "Account access could not be checked.")); }
       finally { if (active) setChecking(false); }
     })();
     return () => { active = false; };
@@ -47,7 +49,8 @@ export default function BusinessRegistration({ onSignIn, onDirtyChange, onBusyCh
     const { data: current, error: sessionError } = await supabase.auth.getUser();
     if (sessionError && sessionError.name !== 'AuthSessionMissingError') throw sessionError;
     if (user || current.user) throw new Error('Sign out before registering a separate business account with a different email address.');
-    if (password.length < 8 || password.length > 128) throw new Error('Use a password between eight and 128 characters.');
+    const invalidPassword = passwordError(password);
+    if (invalidPassword) throw new Error(invalidPassword);
     await requireCorporateRegistrationOpen();
     const { error } = await supabase.auth.signUp({ email: details.contact_email, password, options: {
       emailRedirectTo: `${window.location.origin}/corporate`,
@@ -64,7 +67,7 @@ export default function BusinessRegistration({ onSignIn, onDirtyChange, onBusyCh
       const { error } = await supabase.auth.resend({ type: 'signup', email: receipt, options: { emailRedirectTo: `${window.location.origin}/corporate` } });
       if (error) throw error;
       setResendMessage('If this address still needs verification, another link has been requested. Check your inbox and spam folder before trying again.');
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not request another verification email.'); }
+    } catch (failure) { setError(userFacingError(failure instanceof Error ? failure.message : 'Could not request another verification email.', "Could not request another verification email.")); }
     finally { resendPending.current = false; setResending(false); onBusyChange(false); }
   }
   if (checking) return <p className={styles.intro} role="status">Checking account…</p>;

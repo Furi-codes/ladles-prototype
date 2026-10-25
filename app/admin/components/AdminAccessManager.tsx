@@ -1,4 +1,5 @@
 "use client";
+import { userFacingError } from '@/lib/user-facing-error';
 import { useEffect, useRef, useState } from 'react';
 import { changeAdminAccess, currentAccessUserId, searchAccessProfiles } from '@/lib/actions/access';
 import { logAdminAction } from '@/lib/actions/audit';
@@ -18,7 +19,7 @@ export default function AdminAccessManager({ admins, reload }: { admins: Profile
   const searchVersion = useRef(0);
   useEffect(() => {
     let active = true;
-    currentAccessUserId().then(id => { if (active) setUserId(id); }).catch(e => { if (active) setMessage(e.message); });
+    currentAccessUserId().then(id => { if (active) setUserId(id); }).catch(e => { if (active) setMessage(userFacingError(e.message, "This action could not be completed. Please refresh and try again.")); });
     return () => { active = false; };
   }, []);
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function AdminAccessManager({ admins, reload }: { admins: Profile
         const profiles = await searchAccessProfiles(query);
         if (active && version === searchVersion.current) { setResults(profiles); setAvailable(true); setMessage(''); }
       } catch (e) {
-        if (active && version === searchVersion.current) { setResults([]); setAvailable(false); setMessage(e instanceof Error ? e.message : 'Search failed.'); }
+        if (active && version === searchVersion.current) { setResults([]); setAvailable(false); setMessage(userFacingError(e instanceof Error ? e.message : 'Search failed.', "Search failed.")); }
       } finally { if (active && version === searchVersion.current) setSearching(false); }
     }, 300);
     return () => { active = false; clearTimeout(timer); };
@@ -52,7 +53,7 @@ export default function AdminAccessManager({ admins, reload }: { admins: Profile
       setResults([]);
       await reload();
       setMessage('Administrator access updated.');
-    } catch (e) { setMessage(e instanceof Error ? e.message : 'Unable to change access.'); }
+    } catch (e) { setMessage(userFacingError(e instanceof Error ? e.message : 'Unable to change access.', "Unable to change access.")); }
     finally { setBusy(false); setSearching(false); }
   }
   function action(profile: Profile) {
