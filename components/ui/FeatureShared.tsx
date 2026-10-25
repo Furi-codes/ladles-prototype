@@ -9,6 +9,7 @@ import { userFacingError } from '@/lib/errors/user-facing';
 /** Shared loader hook and small form/loading wrappers for admin feature screens. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from '@/styles/admin.module.css';
+import LoadingState from '@/components/experience/LoadingState';
 /** Runs a caller's async loader, exposing its data, retry action and loading/error state. */
 export function useFeatureData<T>(loader: () => Promise<T>) {
   const [data, setData] = useState<T | null>(null);
@@ -29,7 +30,7 @@ export function useFeatureData<T>(loader: () => Promise<T>) {
 }
 /** Shows loading first, then an error with Retry; returns nothing for a successful loaded state. */
 export function FeatureState({ error, loading, retry }: { error: string; loading: boolean; retry: () => void }) {
-  if (loading) return <p className={styles.helper} role="status">Loading...</p>;
+  if (loading) return <LoadingState label="Loading your workspace…" />;
   if (error) return <div className={styles.error} role="alert">{userFacingError(error, 'This section could not be loaded. Please retry.')} <button className={styles.secondaryButton} onClick={retry}>Retry</button></div>;
   return null;
 }

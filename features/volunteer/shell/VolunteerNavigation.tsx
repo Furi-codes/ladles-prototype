@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import PortalNavIcon from "@/components/navigation/PortalNavIcon";
 import styles from "@/styles/volunteer.module.css";
+import ActivePill from '@/components/experience/ActivePill';
 
 export const volunteerLinks = [
   { href: "/volunteer", label: "Home", icon: "home" },
@@ -20,7 +21,7 @@ export default function VolunteerNavigation({ mobile = false }: { mobile?: boole
   const pathname = usePathname();
   return <nav className={mobile ? styles.bottomNavigation : styles.desktopNavigation} aria-label={mobile ? "Mobile volunteer navigation" : "Volunteer navigation"}>
     {volunteerLinks.map(({ href, label, icon }) => <Link key={href} href={href} className={styles.portalNavLink} aria-current={pathname === href ? "page" : undefined}>
-      {mobile && <PortalNavIcon name={icon} />}<span>{label}</span>
+      {pathname === href && <ActivePill group={mobile ? 'volunteer-mobile' : 'volunteer-desktop'} />}<PortalNavIcon name={icon} /><span>{label}</span>
     </Link>)}
   </nav>;
 }

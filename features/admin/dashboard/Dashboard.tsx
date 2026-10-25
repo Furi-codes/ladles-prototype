@@ -9,6 +9,7 @@ import { hasEventFinished } from "@/lib/dates/calendar";
 import styles from "@/styles/admin.module.css";
 import Icon from "@/components/ui/Icon";
 import DashboardAnalytics from '@/features/admin/dashboard/DashboardAnalytics';
+import AnimatedNumber from '@/components/experience/AnimatedNumber';
 
 function StatusBadge({ status }: { status: Booking["status"] }) {
   const className = status === "Present" ? styles.statusPresent : status === "Completed" ? styles.statusCompleted : status === "No show" ? styles.statusCancelled : styles.statusConfirmed;
@@ -31,7 +32,7 @@ export default function Dashboard({ bookings, events, eventSlots, volunteers, is
   ];
 
   return <>
-    <section className={styles.stats} aria-label="Summary statistics">{stats.map((stat) => <div key={stat.label} className={`${styles.card} ${styles.stat}`}><div className={styles.statTop}><span className={styles.statLabel}>{stat.label}</span><span className={styles.statIcon}><Icon name={stat.icon} size={16} /></span></div><div className={styles.statValue}>{stat.value}</div><div className={styles.statNote}>{stat.note}</div></div>)}</section>
+    <section className={styles.stats} aria-label="Summary statistics">{stats.map((stat) => <div key={stat.label} className={`${styles.card} ${styles.stat}`}><div className={styles.statTop}><span className={styles.statLabel}>{stat.label}</span><span className={styles.statIcon}><Icon name={stat.icon} size={18} /></span></div><div className={styles.statValue}>{typeof stat.value === 'number' ? <AnimatedNumber value={stat.value} /> : stat.value}</div><div className={styles.statNote}>{stat.note}</div></div>)}</section>
     <DashboardAnalytics />
     <div className={styles.dashboardGrid}>
       <section className={styles.card} aria-labelledby="recent-bookings"><div className={styles.cardHeader}><div><h2 id="recent-bookings" className={`${styles.cardTitle} ${styles.dashboardCardTitle}`}>Recent upcoming bookings</h2><p className={styles.cardHint}>The latest reservations for events that have not ended</p></div></div><div className={styles.tableWrap}><table className={styles.table}><thead><tr>{["Volunteer", "Event", "Time", "Status"].map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{upcomingBookings.slice(0, 5).map((booking) => <tr key={booking.id}><td>{booking.volunteer_name}</td><td>{getEvent(booking.event_id)?.title ?? "Unknown event"}</td><td>{booking.selected_slot}</td><td><StatusBadge status={booking.status} /></td></tr>)}{upcomingBookings.length === 0 && <tr><td colSpan={4}><div className={styles.empty}>No bookings exist for upcoming events.</div></td></tr>}</tbody></table></div></section>

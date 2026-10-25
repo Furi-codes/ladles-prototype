@@ -5,6 +5,7 @@
  */
 
 import styles from "@/styles/admin.module.css";
+import ImpactHero from '@/components/experience/ImpactHero';
 
 const content: Record<string, { title: string; description: string }> = {
   Dashboard: { title: "Dashboard", description: "Monitor events, bookings, and volunteer attendance." },
@@ -17,5 +18,6 @@ const content: Record<string, { title: string; description: string }> = {
 
 export default function PageHeader({ activeNav, action }: { activeNav: string; action?: React.ReactNode }) {
   const page = content[activeNav] ?? { title: activeNav, description: "Manage your administration workspace." };
+  if (activeNav === 'Dashboard') return <ImpactHero eyebrow="ADMINISTRATION" title="Dashboard" accent="Your community, at a glance." description="Monitor bookings, upcoming events and volunteer participation." href="/admin/events" action="Manage volunteer events" />;
   return <div className={styles.pageHeading}><div><h1 className={styles.pageTitle}>{page.title}</h1><p className={styles.pageDescription}>{page.description}</p></div>{action}</div>;
 }

@@ -7,6 +7,7 @@ A web application for managing individual volunteering and corporate group booki
 - Next.js 16, React 19 and TypeScript
 - Supabase Authentication and PostgreSQL
 - CSS Modules and shared portal styles
+- Motion for React, Lucide icons and self-hosted Manrope typography
 - Node.js test runner, PGlite and ESLint
 - Vercel hosting
 

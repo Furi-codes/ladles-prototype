@@ -75,7 +75,7 @@ export default function CommunityParticipation({ refreshKey, compact = false, an
   const trend = points.map((point) => `${point.x},${point.y}`).join(" ");
   const selectedPoint = points[selectedIndex];
 
-  return <section className={`${styles.card} ${compact ? styles.compact : ""} ${analytics ? styles.analytics : ""}`} aria-labelledby={chartTitleId}>
+  return <section data-reveal className={`${styles.card} ${compact ? styles.compact : ""} ${analytics ? styles.analytics : ""}`} aria-labelledby={chartTitleId}>
     <div className={styles.heading}>
       <div>
         <p className={styles.eyebrow}>Community impact</p>

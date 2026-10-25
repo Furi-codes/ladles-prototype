@@ -198,6 +198,8 @@ test('rendered dashboard uses current slot capacity, never the stale event summa
     .replace(/import \{ hasEventFinished \} from [^;]+;/, 'const hasEventFinished = () => false;')
     .replace(/import styles from [^;]+;/, 'const styles = new Proxy({}, { get: (_, key) => key });')
     .replace(/import Icon from [^;]+;/, 'const Icon = () => null;')
+    // This capacity test keeps the real calculations and stubs only the decorative number tween.
+    .replace(/import AnimatedNumber from [^;]+;/, 'const AnimatedNumber = ({ value }) => value;')
     .replace(/import DashboardAnalytics from [^;]+;/, 'const DashboardAnalytics = () => null;');
   const { default: Dashboard } = await import(moduleUrl(source));
   const props = { bookings: [], volunteers: [], isLoading: false, hasError: false,

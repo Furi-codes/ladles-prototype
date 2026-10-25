@@ -26,6 +26,8 @@
 .point { fill: var(--surface); stroke: var(--accent); stroke-width: 3; }
 .pointHalo { fill: var(--accent); opacity: .12; }
 .pointLabel { fill: var(--ink); font-family: inherit; font-size: 13px; font-weight: 800; }
+.card{--ink:var(--portal-ink);--muted:var(--portal-muted);--line:var(--portal-line);--accent:var(--portal-accent);--soft:var(--portal-soft);--surface:var(--portal-surface);border-color:var(--portal-line);border-radius:22px;box-shadow:var(--portal-shadow)}
+.monthButton{border-radius:12px;font-size:11px}.heading h2{font-size:21px;letter-spacing:-.6px}.trendLine{filter:drop-shadow(0 3px 5px #c91d3222)}
 .monthPicker { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 .monthButton { padding: 10px 6px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
 .monthButton span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; font-weight: 600; }
@@ -45,7 +47,7 @@
 .analytics .monthPicker { margin-top: 10px; }
 .analytics .selectedSummary { margin-top: 9px; }
 .analytics .footnote { padding: 11px 24px; }
-:global(html[data-theme="dark"]) .card { --ink: #f0f4f8; --muted: #aebdcb; --line: #354454; --accent: #ff818a; --soft: #342127; --surface: #1a2530; border-color: #354454; }
+:global(html[data-theme="dark"]) .card { --ink:var(--portal-ink);--muted:var(--portal-muted);--line:var(--portal-line);--accent:var(--portal-accent);--soft:var(--portal-soft);--surface:var(--portal-surface);border-color:var(--portal-line); }
 /**
  * Apply these layout changes when (max-width: 600px) matches the screen.
  */

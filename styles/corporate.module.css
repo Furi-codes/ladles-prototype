@@ -166,3 +166,32 @@
   .shell .main{width:calc(100% - 24px)}
   .tabs button,.tabs a{flex:1 1 120px;text-align:center}
 }
+
+@media screen {
+  .workspace { gap:24px; }
+  .workspace>:global([data-reveal]) { margin-bottom:0; }
+  .tabs { gap:5px;padding:7px;border-radius:16px;box-shadow:var(--portal-shadow); }
+  .tabs button,.tabs a { padding:12px 17px;border-radius:11px;font-size:10px;font-weight:650;min-height:42px; }
+  .tabs button[aria-pressed=true],.tabs a[aria-current=page] { box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--portal-accent) 7%,transparent); }
+  .tabs button:hover,.tabs a:hover { background:var(--portal-bg); }
+  .tabs button[aria-pressed=true]:hover { background:var(--portal-soft); }
+  .body,.cardBody { padding:24px; }
+  .bookingPanel { border-radius:23px;padding:28px;gap:26px;box-shadow:var(--portal-shadow); }
+  .recordOverview,.paymentMeta { border-radius:15px;padding:21px;background:color-mix(in srgb,var(--portal-bg) 70%,var(--portal-surface)); }
+  .recordOverview dt,.paymentMeta dt { font-size:9px;font-weight:750;letter-spacing:.8px;text-transform:uppercase; }
+  .recordOverview dd,.paymentMeta dd { margin-top:5px;font-size:12px;line-height:1.8; }
+  .inlineForm { border-radius:16px;background:var(--portal-bg); }
+  .notice { border-radius:13px;line-height:1.8;font-size:12px; }
+  .badge { border-radius:7px;padding:6px 9px;font-size:9px;letter-spacing:.15px; }
+  .notificationItem { padding:24px;gap:10px;transition:background .3s ease; }
+  .notificationItem:hover { background:color-mix(in srgb,var(--portal-soft) 25%,var(--portal-surface)); }
+  .notificationItem strong { font-size:13px;letter-spacing:-.2px; }
+  .notificationItem p { font-size:12px;line-height:1.8; }
+  .notificationItem time,.notificationMeta { font-size:10px; }
+  .pagination { padding:18px 24px;font-size:10px;gap:12px; }
+  .viewToggle { padding:14px 24px;gap:5px; }
+  .historySection .history>li { padding-top:20px;padding-bottom:20px; }
+  .historySection .history>li::before { background:var(--portal-accent);box-shadow:0 0 0 5px var(--portal-soft); }
+  .contentLoading { min-height:130px;border:1px solid var(--portal-line);border-radius:20px;background:var(--portal-surface);box-shadow:var(--portal-shadow); }
+}
+@media screen and (max-width:640px) { .shell .header { flex-wrap:wrap; }.shell .headerActions { width:100%;justify-content:flex-end; }.body,.cardBody { padding:18px; }.bookingPanel { padding:20px; }.tabs { flex-wrap:nowrap;overflow-x:auto; }.tabs button,.tabs a { flex:0 0 auto;white-space:nowrap; }.notificationItem { padding:20px; } }

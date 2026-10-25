@@ -6,7 +6,6 @@
  */
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { getEventSlotStartAt } from "@/lib/dates/attendance";
 import { hasEventFinished } from "@/lib/dates/calendar";
 import type { Event } from "@/lib/types";
@@ -21,9 +20,9 @@ import UpcomingEvents from "@/features/volunteer/events/UpcomingEvents";
 import PersonalStats from "@/features/volunteer/dashboard/PersonalStats";
 import ui from "@/styles/experience.module.css";
 import { useVolunteerData } from "@/features/volunteer/shell/VolunteerProvider";
+import ImpactHero from '@/components/experience/ImpactHero';
 
 export default function VolunteerDashboard() {
-  const router = useRouter();
   const {
     user, profile, events, eventSlots, bookings, attendanceRecords, isLoading, loadError, refreshData,
     createUserBooking, cancelBooking, saveProfile, acceptConsent, consent,
@@ -53,10 +52,7 @@ export default function VolunteerDashboard() {
   if (loadError) return <section className={styles.card}><div className={ui.body}><h1 className={styles.pageTitle}>Your volunteering</h1><p role="alert">{loadError}</p><button className={styles.primaryButton} onClick={() => void refreshData()}>Try again</button></div></section>;
 
   return <>
-    <section className={styles.pageHeading}>
-      <div><h1 className={styles.pageTitle}>Welcome back, {profile?.full_name?.split(' ')[0] || 'volunteer'}</h1><p className={styles.pageDescription}>Your time makes a difference. Find your next opportunity and manage your shifts.</p></div>
-      <div className={styles.toolbar}><button type="button" className={styles.secondaryButton} onClick={() => router.push("/volunteer/attendance")}>Attendance scanner</button><span className={styles.liveStatus}><span className={styles.liveDot} aria-hidden="true" />Live updates</span></div>
-    </section>
+    <ImpactHero variant="volunteer" eyebrow="YOUR VOLUNTEERING" title={`Welcome back, ${profile?.full_name?.split(' ')[0] || 'volunteer'}.`} accent="A little time. A lasting difference." description="Find your next event, manage your shifts and see your contribution." href="/volunteer/attendance" action="Open attendance scanner"><span className={styles.liveStatus}><span className={styles.liveDot} aria-hidden="true" />Live updates</span></ImpactHero>
     <NotificationPanel compact />
     <PersonalStats bookings={bookings} attendance={attendanceRecords} userId={user?.id} activeCount={activeBookings.length} loading={isLoading} />
     <div className={styles.dashboardGrid}>

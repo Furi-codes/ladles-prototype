@@ -1,12 +1,13 @@
 /**
  * Holds the Next.js build/runtime options for this project.
- * The object is currently empty, so Next.js uses its default configuration.
+ * Keep runtime defaults, with extra generated repository instructions disabled.
  */
 
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* No project-specific Next.js options are set here. */
+  // Starting the development server should not create extra instruction documents.
+  agentRules: false,
 };
 
 export default nextConfig;

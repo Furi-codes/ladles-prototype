@@ -1,0 +1,61 @@
+/* The visual foundation is shared; role modules retain their own layout and business states.
+   Screen-only rules keep certificates, attendance sheets and reports printable. */
+:root { --portal-font:'Manrope Variable','Segoe UI',Arial,sans-serif;--ui-ease:cubic-bezier(.16,1,.3,1);--ui-spring:cubic-bezier(.22,1.28,.45,1); }
+@media screen {
+  html .portalUi {
+    --portal-font:'Manrope Variable','Segoe UI',Arial,sans-serif;
+    --portal-bg:#f5f6f9;--portal-surface:#fff;--portal-ink:#222b36;--portal-muted:#697582;
+    --portal-line:#e7e9ee;--portal-accent:#c91d32;--portal-accent-hover:#ad182b;--portal-soft:#fff0f2;
+    --portal-radius:21px;--portal-shadow:0 3px 4px -3px #2731420a,0 12px 35px -25px #27314226;
+  }
+  html[data-theme=dark] .portalUi {
+    --portal-bg:#111820;--portal-surface:#1a2530;--portal-ink:#f0f4f8;--portal-muted:#aebdcb;
+    --portal-line:#354454;--portal-accent:#ff9fa7;--portal-accent-hover:#ffc0c5;--portal-soft:#342127;
+    --portal-shadow:0 4px 12px -5px #00000020,0 16px 40px -25px #00000070;
+  }
+  html .portalUi[data-experience] { background:var(--portal-bg);font-family:var(--portal-font);font-feature-settings:'ss01';isolation:isolate; }
+  html .portalUi[data-experience] h1:not([data-hero-title]) { font-size:clamp(28px,2.9vw,39px);letter-spacing:-1.45px;line-height:1.15;font-weight:750; }
+  html .portalUi[data-experience] h2 { letter-spacing:-.35px; }
+  html .portalUi[data-experience] :where(button,a,input,select,textarea,summary) {
+    transition:background-color .22s ease,color .22s ease,border-color .25s ease,box-shadow .35s var(--ui-ease),transform .45s var(--ui-spring),opacity .2s ease;
+  }
+  html .portalUi[data-experience] :where(input,select,textarea) { border-radius:11px; }
+  html .portalUi[data-experience] :where(button,a[role=button]) { font-weight:700; }
+  html .portalUi[data-experience] :where(button:disabled,[aria-disabled=true]) { cursor:not-allowed; }
+  html .portalUi[data-experience] :where(button:enabled,a[href]):active { transform:scale(.965); }
+  html .portalUi[data-experience] :where(button:disabled) { transform:none!important; }
+  html .portalUi[data-experience] :where(button,a,summary,input[type=checkbox],input[type=radio],input[type=range],input[type=file]):focus-visible { outline:2px solid var(--portal-accent);outline-offset:4px; }
+  html .portalUi[data-experience] :where(legend,th) { font-weight:750; }
+  /* Tables enter as one surface; separate row animations would duplicate that reveal. */
+  html .portalUi[data-experience] :where(tbody tr) { transition:background-color .25s ease; }
+  html .portalUi[data-experience] :where([role=tabpanel]:not([hidden]),details[open]>:not(summary)) { animation:uiPanelReveal .45s var(--ui-ease); }
+  html .portalUi[data-experience] :where([role=alert]) { animation:uiPanelReveal .35s var(--ui-ease); }
+  html .portalUi[data-experience] :where([role=dialog]:not([data-contact-dropdown]),dialog[open]) { animation:uiDialogReveal .55s var(--ui-ease);border-radius:24px; }
+  html .portalUi[data-experience] dialog::backdrop { backdrop-filter:blur(8px);background:#15111d66;animation:uiRowReveal .25s ease; }
+  html .portalUi[data-experience] header { -webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%); }
+  html .portalUi[data-experience] header::after {
+    /* Clip only this decorative layer, so contact dropdowns can still open below the header. */
+    content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    box-shadow:inset 0 -3px 0 #c91d32;
+    -webkit-mask-image:linear-gradient(90deg,#000,#0006);mask-image:linear-gradient(90deg,#000,#0006);
+    clip-path:inset(0 calc(100% - var(--portal-scroll-progress,0) * 100%) 0 0);
+    transition:clip-path .12s linear;
+  }
+  html .portalUi[data-experience] :where(nav a[aria-current=page]) { color:var(--portal-accent); }
+  html .portalUi[data-experience] :where(nav a,nav button)>svg { transition:transform .45s var(--ui-spring); }
+  html .portalUi[data-experience] :where(nav a,nav button) { -webkit-tap-highlight-color:transparent; }
+  html .portalUi[data-experience] :where(select)::picker(select) { animation:uiPanelReveal .22s var(--ui-ease); }
+  html .portalUi[data-experience] :where([role=listbox]) { animation:uiPanelReveal .25s var(--ui-ease); }
+}
+@keyframes uiRowReveal { from { opacity:0; } to { opacity:1; } }
+@keyframes uiPanelReveal { from { opacity:.2;filter:blur(3px); } to { opacity:1;filter:none; } }
+@keyframes uiDialogReveal { from { opacity:0;transform:translateY(22px) scale(.955); } to { opacity:1;transform:none; } }
+@keyframes uiSweep { to { background-position:200% 0; } }
+@keyframes uiSpin { to { rotate:360deg; } }
+@media (prefers-reduced-motion:reduce) {
+  .portalUi[data-experience] *, .portalUi[data-experience] *::after,.portalUi[data-experience] *::before { animation:none!important;transition:none!important;scroll-behavior:auto!important; }
+}
+@media print {
+  .portalUi[data-experience] { background:#fff!important; }
+  .portalUi[data-experience] *, .portalUi[data-experience] *::before,.portalUi[data-experience] *::after { animation:none!important;transition:none!important;box-shadow:none!important; }
+}

@@ -20,6 +20,7 @@ import { corporateBookingsEnabled } from '@/lib/config/features';
 import volunteer from '@/styles/volunteer.module.css';
 import styles from '@/styles/corporate.module.css';
 import admin from '@/styles/admin.module.css';
+import { usePortalMotion } from '@/components/experience/usePortalMotion';
 
 /** Reuse the volunteer presentation, not its data provider: company access remains separate. */
 export default function CorporateFrame({ children, signedIn = false, workflowAccess = false, account, signInEmail, avatarUrl }: {
@@ -28,6 +29,7 @@ export default function CorporateFrame({ children, signedIn = false, workflowAcc
   const { signOut, busy, error } = useSignOut();
   const sessionEnded = useSessionBoundary(signedIn);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const motionRoot = usePortalMotion(signedIn && !sessionEnded);
   // Enable the shared button/card rules used by corporate forms as well as volunteer styling.
   const shell = `portalUi ${admin.shell} ${volunteer.shell} ${styles.shell}`;
   // The brand returns approved companies to their workspace; the account icon
@@ -35,7 +37,7 @@ export default function CorporateFrame({ children, signedIn = false, workflowAcc
   const homeHref = !signedIn ? '/' : workflowAccess && corporateBookingsEnabled ? '/corporate/bookings' : '/corporate';
   if (sessionEnded) return <div className={shell}><main className={volunteer.content}><h1 className={volunteer.pageTitle}>Your session has changed</h1><p>Sign in again to load the correct business account. Previous account details have been hidden.</p><Link className={volunteer.primaryButton} href="/">Continue to sign in</Link></main></div>;
 
-  return <div className={shell}>
+  return <div ref={motionRoot} data-experience="corporate" className={shell}>
     <a className="portalSkipLink" href="#corporate-content">Skip to content</a>
     <div className={volunteer.topAccent} />
     <header className={`${volunteer.topbar} ${styles.header}`}>

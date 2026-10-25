@@ -5,7 +5,8 @@
 
 .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:20px; }
 .stat { display:grid; gap:8px; padding:20px; border:1px solid var(--portal-line); border-radius:12px; background:var(--portal-surface); min-width:0; }
-.stat span, .stat small { color:var(--portal-muted); font-size:12px; }
+/* Labels are direct children; nested animated values inherit the large total typography. */
+.stat > span, .stat > small { color:var(--portal-muted); font-size:12px; }
 .stat strong { color:var(--portal-ink); font-size:28px; letter-spacing:-.7px; }
 .hero { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; padding:26px; margin-bottom:20px; border:1px solid var(--portal-line); border-left:4px solid var(--portal-accent); border-radius:12px; background:var(--portal-surface); }
 .hero h2 { margin:10px 0 8px; color:var(--portal-ink); font-size:23px; overflow-wrap:anywhere; }
@@ -33,9 +34,23 @@
 /**
  * Apply these layout changes when (max-width:600px) matches the screen.
  */
-@media (max-width:600px) { .stats { gap:8px; } .stat { padding:13px 10px; } .stat strong { font-size:20px; } .stat span,.stat small { font-size:10px; } .hero { padding:20px; } .historyRow { flex-direction:column; } .historyStatus { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; } }
+@media (max-width:600px) { .stats { gap:8px; } .stat { padding:13px 10px; } .stat strong { font-size:20px; } .stat > span,.stat > small { font-size:10px; } .hero { padding:20px; } .historyRow { flex-direction:column; } .historyStatus { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; } }
 /**
  * Printed output has its own layout rules so on-screen controls do not dictate the report
  * layout.
  */
 @media print { .stats { display:none; } }
+
+@media screen {
+  .stat { position:relative;overflow:hidden;gap:9px;padding:25px 26px;border-radius:20px;box-shadow:var(--portal-shadow); }
+  .stat>span { font-size:10px;font-weight:700;letter-spacing:.2px; }
+  .stat>strong { font-size:35px;line-height:1.2;font-weight:750;letter-spacing:-1.4px;font-variant-numeric:tabular-nums; }
+  .stat>small { font-size:10px;line-height:1.8; }
+  .stat:nth-child(1)::before { content:'';position:absolute;right:24px;top:26px;width:8px;height:8px;border-radius:50%;background:#c91d32;box-shadow:0 0 0 5px #c91d3212; }
+  .stat:nth-child(2)::before { content:'';position:absolute;right:24px;top:26px;width:8px;height:8px;border-radius:50%;background:#c91d32;box-shadow:0 0 0 5px #c91d3212; }
+  .stat:nth-child(3)::before { content:'';position:absolute;right:24px;top:26px;width:8px;height:8px;border-radius:50%;background:#c91d32;box-shadow:0 0 0 5px #c91d3212; }
+  .hero { padding:32px;border:1px solid var(--portal-line);border-radius:22px;box-shadow:var(--portal-shadow); }
+  .badge { border-radius:6px;font-size:9px;padding:5px 8px;letter-spacing:.2px; }
+  .certificate { border-radius:16px;background:linear-gradient(135deg,var(--portal-bg),var(--portal-surface));border-style:dashed;padding:34px; }
+}
+@media screen and (max-width:600px) { .stats { gap:9px; }.stat { padding:18px 14px;gap:7px; }.stat>strong { font-size:27px; }.stat>span,.stat>small { font-size:9px; }.stat::before { display:none; } }

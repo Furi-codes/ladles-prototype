@@ -12,6 +12,7 @@
  * Animation frames used by the loading/transition styles below.
  */
 @keyframes adminSpin { to { transform: rotate(360deg); } }
+@keyframes overlayEnter { from { opacity:0; } to { opacity:1; } }
 .main { min-width: 0; margin-left: 248px; }
 .content { max-width: 1440px; margin: 0 auto; padding: 32px 40px 48px; }
 .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 50; width: 248px; display: flex; flex-direction: column; background: #fff; border-right: 1px solid #e5e7eb; }
@@ -313,4 +314,86 @@ dialog.dialog::backdrop { background:rgba(23,32,42,.35); }
   .content { padding: 24px 16px 36px; }
   .cardHeader { padding: 16px; flex-wrap: wrap; }
   .stat { padding: 15px; }
+}
+
+/* The administration workspace uses a midnight rail and warm, elevated surfaces.
+   Shared corporate cards inherit the same controls without inheriting the admin rail. */
+@media screen {
+  .shell .card { border-radius:21px;box-shadow:var(--portal-shadow); }
+  .shell .primaryButton,.shell .secondaryButton,.shell .dangerButton { border-radius:11px;min-height:42px;font-weight:700;padding:10px 16px;gap:9px; }
+  .shell .primaryButton { position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(120deg,#c91d32,#a51f30);border-color:#b72032;box-shadow:0 4px 12px -5px #c91d3233; }
+  .shell .primaryButton:hover { background:linear-gradient(120deg,#b51b2e,#911b2b);box-shadow:0 10px 24px -10px #c91d3260; }
+  .shell .secondaryButton { background:var(--portal-surface);box-shadow:0 2px 3px -2px #29212a0d; }
+  .shell .secondaryButton:hover { border-color:color-mix(in srgb,var(--portal-accent) 25%,var(--portal-line));background:var(--portal-soft);color:var(--portal-accent); }
+  .shell .dangerButton { background:var(--portal-surface);border-color:color-mix(in srgb,var(--portal-accent) 25%,var(--portal-line));color:var(--portal-accent); }
+  .shell .pageHeading { margin-bottom:26px;align-items:center; }
+  .shell .pageDescription { margin-top:11px;max-width:680px;line-height:1.85;font-size:12px; }
+  .shell .cardHeader { padding:22px 24px; }
+  .shell .cardTitle { font-size:16px;font-weight:750;letter-spacing:-.4px; }
+  .shell .cardHint { font-size:11px;line-height:1.8; }
+  .shell .input,.shell .select,.shell .textarea { border-radius:11px;background:var(--portal-surface);border-color:var(--portal-line);font-family:var(--portal-font); }
+  .shell .fieldLabel { font-size:10px;letter-spacing:.8px;font-weight:750; }
+  .shell .table th { padding:15px 22px;font-size:10px;letter-spacing:1px;color:var(--portal-muted);background:color-mix(in srgb,var(--portal-bg) 70%,var(--portal-surface)); }
+  .shell .table td { padding:18px 22px;font-size:13px; }
+  .shell .table tbody tr:hover { background:color-mix(in srgb,var(--portal-soft) 35%,var(--portal-surface)); }
+  .shell .status { border-radius:7px;font-size:9px;padding:6px 9px;letter-spacing:.1px; }
+  .shell .stat { padding:23px 24px;overflow:hidden; }
+  .shell .statTop { margin-bottom:25px; }
+  .shell .statIcon { width:40px;height:40px;border-radius:13px;background:var(--portal-soft);color:#c91d32;box-shadow:inset 0 1px 0 #fff;transition:transform .55s var(--ui-spring),box-shadow .3s ease; }
+  .shell .stat:nth-child(2) .statIcon { background:var(--portal-soft);color:#c91d32; }
+  .shell .stat:nth-child(3) .statIcon { background:var(--portal-soft);color:#c91d32; }
+  .shell .stat:nth-child(4) .statIcon { background:var(--portal-soft);color:#c91d32; }
+  .shell .statValue { font-size:35px;letter-spacing:-1.5px;font-weight:750;line-height:1.25;font-variant-numeric:tabular-nums; }
+  .shell .statLabel { font-size:11px;font-weight:650;max-width:150px;line-height:1.8; }
+  .shell .statNote { margin-top:8px;font-size:10px;color:var(--portal-muted); }
+  .shell .filterGroup { padding:5px;border-radius:12px;border-color:var(--portal-line);background:var(--portal-bg);gap:3px; }
+  .shell .filterButton { border-radius:8px;font-size:10px;min-height:34px; }
+  .shell .filterButtonActive { box-shadow:0 3px 8px -4px #29212a26; }
+  .shell .dialog,.shell .drawer { border-radius:24px;background:var(--portal-surface);border-color:var(--portal-line);box-shadow:0 30px 100px -20px #10182040; }
+  .shell .dialogBackdrop,.shell .modalBackdrop { background:#10182066;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:overlayEnter .2s ease; }
+  .shell .drawer { padding:30px; }
+  .shell .closeButton { border-radius:10px; }
+  .shell .error { border-radius:13px;font-size:12px;line-height:1.8; }
+
+  .shell[data-experience=admin] .sidebar {
+    --portal-ink:#f0f4f8;--portal-muted:#aebdcb;--portal-surface:#1a2530;--portal-bg:#111820;--portal-line:#354454;--portal-accent:#ff9fa7;--portal-soft:#ffffff0b;
+    background:#1a2530;border-right:1px solid #ffffff0b;box-shadow:8px 0 32px -25px #10182033;
+  }
+  .shell[data-experience=admin] .brand { min-height:100px;padding:24px 20px; }
+  .shell[data-experience=admin] .nav { padding:18px 12px; }
+  .shell[data-experience=admin] .navSection { color:#aebdcb;font-size:8px;letter-spacing:2px;margin:8px 13px 13px; }
+  .shell[data-experience=admin] .navButton { position:relative;isolation:isolate;min-height:46px;padding:12px 14px;border-radius:12px;margin-bottom:5px;gap:12px;font-size:12px;transition:color .25s ease,transform .4s var(--ui-spring),background .25s ease; }
+  .shell[data-experience=admin] .sidebar .navButtonActive,.shell[data-experience=admin] .sidebar .navButtonActive:hover { background:transparent;color:#fff;font-weight:700; }
+  .shell[data-experience=admin] .sidebar .navButton:hover { color:#fff;background:#ffffff08;transform:translateX(3px); }
+  .shell[data-experience=admin] .navUtility { border-color:#ffffff14;margin-top:24px;padding-top:16px; }
+  .shell[data-experience=admin] .sidebarFooter { padding:24px;color:#aebdcb;font-size:10px; }
+  .shell[data-experience=admin] .sidebarFooter strong { color:#f0f4f8; }
+  .shell[data-experience=admin] .topbar { background:color-mix(in srgb,var(--portal-surface) 86%,transparent);border-color:var(--portal-line);box-shadow:0 8px 30px -24px #422b3326; }
+  .shell[data-experience=admin] .headerAvatar { background:#273542;box-shadow:0 0 0 4px var(--portal-surface),0 0 0 5px var(--portal-line); }
+  .shell[data-experience=admin] .content { padding-top:32px; }
+  .shell[data-experience=admin] .crumb { font-size:10px;letter-spacing:.1px; }
+  :global(html[data-theme=dark]) .shell { background:var(--portal-bg);color:var(--portal-ink); }
+  :global(html[data-theme=dark]) .shell .statIcon { box-shadow:none;filter:saturate(.7); }
+  :global(html[data-theme=dark]) .shell .status { background:var(--portal-bg);color:var(--portal-ink); }
+  :global(html[data-theme=dark]) .shell :is(.card,.dialog,.drawer,.input,.select,.textarea,.secondaryButton,.closeButton) { background:var(--portal-surface);border-color:var(--portal-line);color:var(--portal-ink); }
+  :global(html[data-theme=dark]) .shell .table th { background:var(--portal-bg);color:var(--portal-muted); }
+}
+@media screen and (hover:hover) and (pointer:fine) {
+  .shell :is(.primaryButton,.secondaryButton,.dangerButton):not(:disabled):hover { transform:translateY(-3px); }
+  .shell :is(.primaryButton,.secondaryButton,.dangerButton):not(:disabled):active { transform:translateY(0) scale(.96); }
+}
+@media screen and (max-width:760px) {
+  .shell .cardHeader { padding:18px; }
+  .shell .stat { padding:18px; }
+  .shell .statTop { margin-bottom:16px; }
+  .shell .statValue { font-size:29px; }
+  .shell[data-experience=admin] .sidebar { transition:transform .5s var(--ui-ease),visibility .5s; }
+  .shell[data-experience=admin] .content { padding-top:24px; }
+  .shell .drawer { padding:22px; }
+}
+@media screen and (max-width:480px) {
+  .shell[data-experience=admin] .topActions { gap:6px; }
+  .shell[data-experience=admin] .topbar :global(.themeToggle)>span { display:none; }
+  .shell[data-experience=admin] .topbar .signOut { width:40px;min-width:40px;padding:0;gap:0;font-size:0; }
+  .shell[data-experience=admin] .topbar .signOut svg { width:17px;height:17px; }
 }

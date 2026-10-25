@@ -26,6 +26,7 @@ import ContactOptions from '@/components/contacts/ContactOptions';
 import styles from '@/styles/admin.module.css';
 import management from '@/components/ui/management.module.css';
 import ui from '@/styles/corporate.module.css';
+import ImpactHero from '@/components/experience/ImpactHero';
 
 export default function CorporateBookingList({ admin = false, attendanceOnly = false, initialDetail = null, settings, dirtyChanged }: {
   admin?: boolean; attendanceOnly?: boolean; initialDetail?: CorporateBookingDetail | null; settings: CorporateBookingSettings; dirtyChanged?: (dirty: boolean) => void;
@@ -64,10 +65,11 @@ export default function CorporateBookingList({ admin = false, attendanceOnly = f
     finally { setOpening(false); }
   }
   return <div className={[management.workspace,ui.workspace].join(' ')}>
-    <div className={styles.pageHeading}><div>
+    {!admin && <ImpactHero variant="corporate" eyebrow="CORPORATE VOLUNTEERING" title="My bookings" accent="Your team's next opportunity starts here." description="Track your requests, payment deadlines and confirmed group sessions." href="/corporate/events" action="Browse available sessions" />}
+    {admin && <div className={styles.pageHeading}><div>
       <h1 className={styles.pageTitle}>{attendanceQueue ? 'Attendance to record' : admin ? 'Corporate booking requests' : 'My bookings'}</h1>
       <p className={styles.pageDescription}>{attendanceQueue ? 'Confirmed sessions that have ended and still need group attendance.' : admin ? 'Review requests, manage payment deadlines and confirm group bookings.' : 'Track your requests, payment deadlines and confirmed group bookings.'}</p>
-    </div>{attendanceQueue && <button type="button" className={styles.secondaryButton} disabled={loading || dirty || opening} onClick={() => void reload()}>Refresh queue</button>}</div>
+    </div>{attendanceQueue && <button type="button" className={styles.secondaryButton} disabled={loading || dirty || opening} onClick={() => void reload()}>Refresh queue</button>}</div>}
     {error && <p className={styles.error} role="alert">{error}</p>}{message && <p className={ui.notice} role="status">{message}</p>}
     <section className={styles.card}>
       <WorkflowFilters value={filters} statuses={!attendanceQueue} attendance={admin && corporateOutcomesEnabled} disabled={dirty || opening} change={value => { setFilters(attendanceQueue ? {...value,status:'Attendance to record'} : value); setPage(1); }} />

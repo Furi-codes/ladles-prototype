@@ -4,8 +4,8 @@
  * Users see a safe recovery message rather than internal exception details.
  */
 
-import styles from "@/styles/volunteer.module.css";
+import StatusPage from '@/components/experience/StatusPage';
 
 export default function VolunteerError({ reset }: { reset: () => void }) {
-  return <main className={styles.loadingScreen}><section className={styles.errorCard} role="alert"><h1>Something went wrong</h1><p>The volunteer portal could not be loaded.</p><button type="button" className={styles.primaryButton} onClick={reset}>Try again</button></section></main>;
+  return <StatusPage title="Let’s try that again." message="The volunteer page could not be loaded. Retry to get back to your volunteering." reset={reset} />;
 }

@@ -20,6 +20,8 @@ import BusinessRegistration from '@/features/auth/BusinessRegistration';
 import ThemeToggle from '@/components/theme/ThemeToggle';
 import PortalLoadingScreen from '@/components/feedback/PortalLoadingScreen';
 import styles from '@/features/auth/LoginForm.module.css';
+import ActivePill from '@/components/experience/ActivePill';
+import { ArrowRight, Mail, LockKeyhole, LoaderCircle } from 'lucide-react';
 
 type EntryMode = 'signin' | 'volunteer' | 'business' | 'recovery';
 
@@ -191,33 +193,35 @@ export default function LoginForm({ initialMode = 'signin' }: { initialMode?: En
 
   if (isRedirecting) return <PortalLoadingScreen message="Ladles of Love is securely opening your portal…" />;
   const title = isForgotPassword ? 'Reset your password' : isBusiness ? 'Register your organisation' : isSignUp ? 'Start making a difference' : 'Welcome back';
-  return <main className={styles.page}>
-    <header className={styles.header}><ThemeToggle /></header>
+  return <main className={styles.page} data-entry-mode={mode}>
+    <header className={styles.header}><span className={styles.headerLabel}>LADLES OF LOVE<span>{corporateRolloutEnabled ? 'Community portal' : 'Volunteer portal'}</span></span><ThemeToggle /></header>
     <div className={styles.layout}><section className={styles.formSide} aria-labelledby="auth-title">
-      <div className={styles.brand}><span className={styles.brandMark}><Image className={styles.brandImage} src="/Ladles-logo.png" alt="Ladles of Love" width={72} height={72} preload /></span><span><strong>LADLES OF LOVE</strong><small>{corporateRolloutEnabled ? 'COMMUNITY PORTAL' : 'VOLUNTEER PORTAL'}</small></span></div>
       <div className={styles.card}>
+        <div className={styles.formHeading}>
+          <span className={styles.brandMark}><Image className={styles.brandImage} src="/Ladles-logo.png" alt="Ladles of Love" width={72} height={72} preload /></span>
+          <span className={styles.eyebrow}>{isForgotPassword ? 'Account recovery' : isBusiness ? 'Corporate volunteering' : isSignUp ? 'Join the community' : 'Your community. Your contribution.'}</span>
+          <h2 id="auth-title" key={mode}>{title}</h2>
+        </div>
         {!isForgotPassword && <div className={`${styles.tabs} ${corporateRolloutEnabled ? styles.tabsThree : ''}`} aria-label="Account access">
-          <button type="button" disabled={busy} aria-pressed={mode === 'signin'} onClick={() => changeMode('signin')}>Sign in</button>
-          <button type="button" disabled={busy} aria-pressed={isSignUp} onClick={() => changeMode('volunteer')}>Volunteer registration</button>
-          {corporateRolloutEnabled && <button type="button" disabled={busy} aria-pressed={isBusiness} onClick={() => changeMode('business')}>Business registration</button>}
+          <button type="button" disabled={busy} aria-pressed={mode === 'signin'} onClick={() => changeMode('signin')}>{mode === 'signin' && <ActivePill group="auth-entry" />}Sign in</button>
+          <button type="button" disabled={busy} aria-pressed={isSignUp} onClick={() => changeMode('volunteer')}>{isSignUp && <ActivePill group="auth-entry" />}Volunteer registration</button>
+          {corporateRolloutEnabled && <button type="button" disabled={busy} aria-pressed={isBusiness} onClick={() => changeMode('business')}>{isBusiness && <ActivePill group="auth-entry" />}Business registration</button>}
         </div>}
-        <span className={styles.eyebrow}>{isForgotPassword ? 'Account recovery' : isBusiness ? 'Bring your team together' : isSignUp ? 'Join the community' : 'Your next act of kindness starts here'}</span>
-        <h2 id="auth-title">{title}</h2>
         <p className={styles.intro}>{isForgotPassword ? 'Enter your email and we’ll send you a reset link.' : isBusiness ? 'Enter your organisation and main contact details. Business and volunteer accounts use separate email addresses.' : isSignUp ? 'Create your account for individual volunteer shifts. Business bookings require a separate business account.' : corporateRolloutEnabled ? 'Sign in with your volunteer or business account. We’ll open the correct portal.' : 'Manage your shifts and view your impact.'}</p>
         {isBusiness ? corporateRolloutEnabled ? <BusinessRegistration onSignIn={continueBusinessSignIn} onDirtyChange={setBusinessDirty} onBusyChange={value => { businessPending.current = value; setBusinessBusy(value); }} /> : <p className={styles.notice}>Business registration is not open yet. Use Sign in or Volunteer registration above.</p> : <>
           <form onSubmit={isForgotPassword ? handleResetPassword : isSignUp ? handleSignUp : handleLogin} aria-busy={isLoading}><fieldset className={styles.fields} disabled={isLoading}><legend className={styles.srOnly}>{title}</legend>
             {isSignUp && <><div className={styles.nameRow}><div className={styles.field}><label htmlFor="first-name">First name</label><input id="first-name" autoComplete="given-name" required value={firstName} onChange={event => setFirstName(event.target.value)} /></div><div className={styles.field}><label htmlFor="last-name">Last name</label><input id="last-name" autoComplete="family-name" required value={lastName} onChange={event => setLastName(event.target.value)} /></div></div><div className={styles.field}><label htmlFor="birth-date">Date of birth</label><input id="birth-date" type="date" autoComplete="bday" required max={new Date().toISOString().slice(0,10)} value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} /></div></>}
             {isSignUp && corporateRolloutEnabled && <div className={styles.field}><label htmlFor="signup-phone">Cellphone number (optional)</label><input id="signup-phone" type="tel" autoComplete="tel" maxLength={25} value={phone} onChange={event => setPhone(event.target.value)} /></div>}
-            <div className={styles.field}><label htmlFor="auth-email">Email address</label><input id="auth-email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={event => { setEmail(event.target.value);setVerificationRequested(false); }} placeholder="you@example.com" /></div>
-            {!isForgotPassword && <div className={styles.field}><div className={styles.labelRow}><label htmlFor="auth-password">Password</label>{!isSignUp && <button className={styles.textButton} type="button" onClick={() => changeMode('recovery')}>Forgot password?</button>}</div><div className={styles.password}><input id="auth-password" type={showPassword ? 'text' : 'password'} autoComplete={isSignUp ? 'new-password' : 'current-password'} required minLength={isSignUp ? 8 : undefined} maxLength={isSignUp ? 128 : undefined} value={password} onChange={event => setPassword(event.target.value)} placeholder={isSignUp ? 'Create a password' : 'Enter your password'} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div>{isSignUp && <p className={styles.intro}>{passwordRequirements}</p>}</div>}
+            <div className={styles.field}><label htmlFor="auth-email"><Mail size={13} aria-hidden="true" />Email address</label><input id="auth-email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required value={email} onChange={event => { setEmail(event.target.value);setVerificationRequested(false); }} placeholder="you@example.com" /></div>
+            {!isForgotPassword && <div className={styles.field}><div className={styles.labelRow}><label htmlFor="auth-password"><LockKeyhole size={13} aria-hidden="true" />Password</label>{!isSignUp && <button className={styles.textButton} type="button" onClick={() => changeMode('recovery')}>Forgot password?</button>}</div><div className={styles.password}><input id="auth-password" type={showPassword ? 'text' : 'password'} autoComplete={isSignUp ? 'new-password' : 'current-password'} required minLength={isSignUp ? 8 : undefined} maxLength={isSignUp ? 128 : undefined} value={password} onChange={event => setPassword(event.target.value)} placeholder={isSignUp ? 'Create a password' : 'Enter your password'} /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div>{isSignUp && <p className={styles.intro}>{passwordRequirements}</p>}</div>}
             {message && <div className={/error|failed|please fill|couldn't|please enter|please use/i.test(message) ? styles.error : styles.notice} role="status">{message}</div>}
-            <button type="submit" className={styles.submit}>{isLoading ? 'Please wait…' : isForgotPassword ? 'Send reset link' : isSignUp ? 'Create volunteer account' : 'Sign in'}<span aria-hidden="true">→</span></button>
+            <button type="submit" className={styles.submit}>{isLoading ? 'Please wait…' : isForgotPassword ? 'Send reset link' : isSignUp ? 'Create volunteer account' : 'Sign in'}{isLoading ? <LoaderCircle size={17} className={styles.spinning} aria-hidden="true" /> : <ArrowRight size={17} aria-hidden="true" />}</button>
           </fieldset></form>
           {mode==='signin' && verificationNeeded && <button type="button" className={styles.google} disabled={busy || verificationRequested} onClick={()=>void resendVerification()}>{verificationRequested ? 'Verification requested' : 'Resend verification email'}</button>}
           {!isForgotPassword && <><div className={styles.divider}><span>or continue with</span></div><button type="button" className={styles.google} disabled={isLoading} onClick={() => void handleGoogleLogin()}><GoogleIcon />Continue with Google</button></>}
           <p className={styles.footer}>{isForgotPassword ? <button type="button" disabled={busy} className={styles.textButton} onClick={() => changeMode('signin')}>← Back to sign in</button> : isSignUp ? <>Already have a login? <button type="button" disabled={busy} className={styles.textButton} onClick={() => changeMode('signin')}>Sign in</button></> : corporateRolloutEnabled ? 'New here? Choose Volunteer registration or Business registration above.' : 'New here? Choose Volunteer registration above.'}</p>
         </>}
-      </div><p className={styles.support}>Your time matters. Thank you for choosing to give it.</p>
+      </div><p className={styles.support}>A little love goes a long way.</p>
     </section></div>
   </main>;
 }

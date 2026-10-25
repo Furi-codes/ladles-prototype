@@ -5,11 +5,12 @@
 
 @import "tailwindcss";
 @import "./portal.css";
+@import "./polish.css";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --portal-font: "Segoe UI", Arial, sans-serif;
+  --portal-font: "Manrope Variable", "Segoe UI", Arial, sans-serif;
 }
 
 :root[data-theme="dark"] {

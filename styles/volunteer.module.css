@@ -11,6 +11,7 @@
  * Animation frames used by the loading/transition styles below.
  */
 @keyframes volunteerSpin { to { transform: rotate(360deg); } }
+@keyframes overlayEnter { from { opacity:0; } to { opacity:1; } }
 
 .topAccent { height: 6px; background: #d92732; }
 .topbar { position: sticky; top: 0; z-index: 40; display: flex; min-height: 70px; align-items: center; justify-content: space-between; gap: 20px; padding: 0 40px; background: rgba(255,255,255,.96); border-bottom: 1px solid #e5e7eb; backdrop-filter: blur(8px); }
@@ -306,6 +307,62 @@
 @media print { .bottomNavigation, .desktopNavigation, .mobileMenu, .mobileMenuBackdrop { display: none !important; } }
 .profileAccountControls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 20px; margin-bottom: 20px; }
 .profileAccountButtons { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* Floating navigation and softer opportunity surfaces share the new portal foundation. */
+@media screen {
+  .shell .topAccent { display:none; }
+  .shell .topbar { top:12px;width:min(1520px,calc(100% - 40px));margin:12px auto 0;box-sizing:border-box;min-height:76px;padding:14px 24px;border:1px solid var(--portal-line);border-radius:21px;background:color-mix(in srgb,var(--portal-surface) 88%,transparent);box-shadow:0 12px 35px -23px #422b3326; }
+  .shell .content { padding-top:34px; }
+  .shell .card { border-radius:21px;box-shadow:var(--portal-shadow); }
+  .shell .cardHeader { padding:22px 24px; }
+  .shell .cardTitle { font-weight:750;letter-spacing:-.4px;font-size:16px; }
+  .shell .cardHint { font-size:11px;line-height:1.85; }
+  .shell .primaryButton,.shell .secondaryButton,.shell .dangerButton,.shell .signOut { min-height:42px;padding:10px 16px;gap:9px;border-radius:11px;font-size:11px;font-weight:750; }
+  .shell .primaryButton { position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(120deg,#c91d32,#a51f30);border-color:#b72032;box-shadow:0 4px 12px -5px #c91d3233; }
+  .shell .primaryButton:hover { background:linear-gradient(120deg,#b51b2e,#911b2b);box-shadow:0 10px 24px -10px #c91d3260; }
+  .shell .secondaryButton,.shell .signOut { box-shadow:0 2px 3px -2px #29212a0d; }
+  .shell .secondaryButton:hover,.shell .signOut:hover { border-color:color-mix(in srgb,var(--portal-accent) 25%,var(--portal-line));background:var(--portal-soft);color:var(--portal-accent); }
+  .shell .dangerButton { background:var(--portal-surface);border-color:color-mix(in srgb,var(--portal-accent) 25%,var(--portal-line));color:var(--portal-accent); }
+  .shell .portalNavLink { position:relative;isolation:isolate;gap:8px;min-height:42px;padding:10px 14px;border-radius:12px;font-size:10px;font-weight:700; }
+  .shell .portalNavLink>svg { width:16px;height:16px; }
+  .shell .portalNavLink[aria-current=page] { background:transparent; }
+  .shell .desktopNavigation { padding:4px;border-radius:15px;background:color-mix(in srgb,var(--portal-bg) 65%,transparent); }
+  .shell .pageDescription { margin-top:11px;max-width:680px;line-height:1.85;font-size:12px; }
+  .shell .upcomingEvent { padding:24px;gap:18px;transition:background .3s ease; }
+  .shell .upcomingEvent:hover { background:color-mix(in srgb,var(--portal-soft) 25%,var(--portal-surface)); }
+  .shell .eventDate { position:relative;overflow:hidden;min-width:56px;min-height:66px;border-radius:15px;background:var(--portal-soft);border-color:color-mix(in srgb,var(--portal-accent) 10%,var(--portal-line));color:var(--portal-accent);box-shadow:inset 0 1px 0 #ffffff50; }
+  .shell .upcomingTitle { font-size:15px;line-height:1.6;letter-spacing:-.35px; }
+  .shell .upcomingMeta,.shell .upcomingSlots { font-size:11px;line-height:1.8; }
+  .shell .shiftRow { padding:24px;gap:16px; }
+  .shell .shiftName { font-size:14px;letter-spacing:-.3px; }
+  .shell .shiftTime { display:inline-flex;align-items:center;gap:5px;margin-top:12px;padding:5px 8px;border:1px solid var(--portal-line);border-radius:6px;font-size:10px;background:var(--portal-bg); }
+  .shell .eventCount { display:grid;place-items:center;min-width:28px;height:28px;border-radius:10px;background:var(--portal-soft);color:var(--portal-accent);font-size:11px;font-weight:750; }
+  .shell .liveStatus { padding:8px 11px;background:#edf5ef;color:#497a55;font-size:10px;font-weight:700; }
+  .shell .modal,.shell .confirmDialog { border-radius:24px;box-shadow:0 30px 100px -20px #10182040; }
+  .shell .modalBackdrop,.shell .mobileMenuBackdrop { background:#10182066;backdrop-filter:blur(8px);animation:overlayEnter .2s ease; }
+  .shell .mobileMenu { border-left:1px solid var(--portal-line);border-radius:24px 0 0 24px;animation:menuEnter .45s var(--ui-ease); }
+  :global(html[data-theme=dark]) .shell { background:var(--portal-bg);color:var(--portal-ink); }
+  :global(html[data-theme=dark]) .shell .topbar { background:color-mix(in srgb,var(--portal-surface) 90%,transparent);border-color:var(--portal-line); }
+  :global(html[data-theme=dark]) .shell .liveStatus { background:#20372d;color:#b0d5ba; }
+  :global(html[data-theme=dark]) .shell :is(.card,.input,.select,.textarea,.secondaryButton,.closeButton,.signOut) { background:var(--portal-surface);border-color:var(--portal-line);color:var(--portal-ink); }
+}
+@media screen and (hover:hover) and (pointer:fine) {
+  .shell :is(.primaryButton,.secondaryButton,.dangerButton,.signOut):not(:disabled):hover { transform:translateY(-3px); }
+  .shell :is(.primaryButton,.secondaryButton,.dangerButton,.signOut):not(:disabled):active { transform:translateY(0) scale(.96); }
+}
+@media screen and (max-width:1100px) {
+  .shell .bottomNavigation { left:16px;right:16px;bottom:max(12px,env(safe-area-inset-bottom));width:auto;padding:7px;border:1px solid var(--portal-line);border-radius:20px;background:color-mix(in srgb,var(--portal-surface) 92%,transparent);backdrop-filter:blur(20px);box-shadow:0 10px 40px -12px #21152526; }
+  .shell .bottomNavigation .portalNavLink { min-height:53px;gap:5px;padding:7px 2px;border-radius:13px;font-size:9px; }
+  .shell .bottomNavigation .portalNavLink>svg { width:20px;height:20px; }
+}
+@media screen and (max-width:600px) {
+  .shell .topbar { top:8px;width:calc(100% - 24px);margin-top:8px;border-radius:17px;padding:12px 14px;gap:10px;min-height:68px; }
+  .shell .content { padding-top:26px; }
+  .shell .cardHeader { padding:18px; }
+  .shell .upcomingEvent,.shell .shiftRow { padding:18px; }
+  .shell .eventDate { min-width:48px;min-height:60px;border-radius:12px; }
+  .shell .bottomNavigation { left:12px;right:12px; }
+}
 /* Part 4: opportunity details and personal impact. */
 @media screen {
   .impactStack { max-width: 1120px; }

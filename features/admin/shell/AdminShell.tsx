@@ -15,6 +15,7 @@ import Sidebar from "@/features/admin/shell/Sidebar";
 import TopHeader from "@/features/admin/shell/TopHeader";
 import { useAdminData } from "@/features/admin/shell/AdminProvider";
 import AdminLoadingScreen from "@/features/admin/shell/AdminLoadingScreen";
+import { usePortalMotion } from '@/components/experience/usePortalMotion';
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const { signOut: handleSignOut, busy: signingOut, error: signOutError } = useSignOut();
@@ -23,6 +24,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const signOutPanel=useRef<HTMLElement>(null);
+  const motionRoot = usePortalMotion(!isCheckingAccess && !sessionEnded && !accessError);
   useDialogFocus(showSignOutConfirm && !sessionEnded && !isCheckingAccess,signOutPanel,()=>setShowSignOutConfirm(false),signingOut);
 
   useNavigationDrawer(mobileNavOpen, () => setMobileNavOpen(false), "admin-mobile-navigation", 760);
@@ -32,7 +34,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   if (accessError) return <div className="portalUi"><main className={styles.content}><p className={styles.error} role="alert">{accessError}</p><button className={styles.secondaryButton} onClick={retryAccess}>Retry access check</button></main></div>;
   if (isCheckingAccess) return <AdminLoadingScreen />;
 
-  return <div className={`portalUi ${styles.shell}`}>
+  return <div ref={motionRoot} data-experience="admin" className={`portalUi ${styles.shell}`}>
     <a className="portalSkipLink" href="#admin-content">Skip to content</a>
     {mobileNavOpen && <button type="button" className={styles.mobileNavBackdrop} aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
     <Sidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />

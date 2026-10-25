@@ -70,6 +70,23 @@ function browser(t, search = '', hash = '') {
 }
 function input(tree, id, value) { nodes(tree).find(node => node.props.id === id).props.onChange({ target: { value } }); }
 const submit = tree => nodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+// Decorative active pills are children too; choose a button by its visible text.
+const namedButton = (tree, label) => nodes(tree).find(node => node.type === 'button' && textContent(node).trim() === label);
+
+test('animated totals retain the actual accessible value and cancel an obsolete visual tween', async () => {
+  const calls = [];
+  const f = fixture({}, { 'motion/react': { useReducedMotion: () => false, animate: (from, to, options) => { const call = { from, to, options, stopped: false }; calls.push(call); return { stop() { call.stopped = true; } }; } } });
+  const component = f.load('components/experience/AnimatedNumber.tsx').default;
+  let tree = f.render(component, { value: 42 });
+  const visual = nodes(tree).find(node => 'data-count-visual' in node.props), element = { textContent: '42' };
+  visual.props.ref.current = element; await f.effects();
+  assert.equal(textContent(nodes(tree).find(node => 'data-count-value' in node.props)), '42');
+  calls[0].options.onUpdate(20); assert.equal(element.textContent, '20');
+  tree = f.render(component, { value: 67 }); await f.effects();
+  assert.equal(calls[0].stopped, true); assert.deepEqual([calls[1].from, calls[1].to], [42, 67]);
+  assert.equal(textContent(nodes(tree).find(node => 'data-count-value' in node.props)), '67');
+  f.unmount(); assert.equal(calls[1].stopped, true); assert.equal(element.textContent, '67');
+});
 
 test('admin navigation groups volunteer and corporate destinations, keeps Settings last and closes the mobile menu on selection', t => {
   browser(t); window.location.pathname = '/admin/corporate-reports';
@@ -288,14 +305,14 @@ test('all entry modes share one layout and business registration switches forms 
   const component = f.load('features/auth/LoginForm.tsx').default;
   let tree = f.render(component); await f.effects();
   const layout = tree.props.className;
-  for (const label of ['Sign in', 'Volunteer registration', 'Business registration']) assert.ok(nodes(tree).some(node => node.type === 'button' && node.props.children === label));
+  for (const label of ['Sign in', 'Volunteer registration', 'Business registration']) assert.ok(namedButton(tree, label));
   assert.doesNotMatch(textContent(tree), /Business sign in|BUSINESS PORTAL/);
-  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Business registration').props.onClick();
+  namedButton(tree, 'Business registration').props.onClick();
   tree = f.render(component);
   assert.equal(tree.props.className, layout); assert.match(textContent(tree), /Register your organisation/);
   assert.ok(nodes(tree).some(node => node.type?.name === 'BusinessRegistration')); assert.equal(nodes(tree).some(node => node.type === 'form'), false, 'Never nest a registration form in the sign-in form');
   assert.deepEqual(f.routes, []);
-  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Volunteer registration').props.onClick();
+  namedButton(tree, 'Volunteer registration').props.onClick();
   tree = f.render(component); assert.match(textContent(tree), /First name/); assert.equal(tree.props.className, layout);
   const alias = f.load('app/corporate/register/page.tsx').default();
   assert.equal(alias.type, component); assert.equal(alias.props.initialMode, 'business');
@@ -308,14 +325,14 @@ test('business registration tab changes respect dirty forms and cannot interrupt
   let tree = f.render(component, { initialMode: 'business' });
   const business = nodes(tree).find(node => node.type?.name === 'BusinessRegistration');
   business.props.onDirtyChange(true); tree = f.render(component, { initialMode: 'business' });
-  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Sign in').props.onClick();
+  namedButton(tree, 'Sign in').props.onClick();
   assert.equal(prompts, 1); assert.match(textContent(f.render(component, { initialMode: 'business' })), /Register your organisation/);
   business.props.onBusyChange(true); tree = f.render(component, { initialMode: 'business' });
   assert.ok(nodes(tree).filter(node => node.type === 'button').every(node => node.props.disabled));
-  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Sign in').props.onClick(); assert.equal(prompts, 1);
+  namedButton(tree, 'Sign in').props.onClick(); assert.equal(prompts, 1);
   business.props.onBusyChange(false); business.props.onDirtyChange(false);
   tree = f.render(component, { initialMode: 'business' });
-  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Sign in').props.onClick();
+  namedButton(tree, 'Sign in').props.onClick();
   assert.match(textContent(f.render(component, { initialMode: 'business' })), /Welcome back/);
 });
 
@@ -1501,16 +1518,16 @@ test('workflow pagination hides a single page but allows returning from a page e
   assert.ok(nodes(tree).filter(node => node.type === 'button').every(node => node.props.disabled));
 });
 
-test('header contact dialog keeps portal scopes separate, refreshes contacts and restores scrolling on close', async t => {
+test('header contact dropdown stays anchored, leaves scrolling available and closes without trapping focus', async t => {
   browser(t); let data={portal:'corporate',version:1,contacts:[]}, reloads=0, error='';
   const previousDocument=globalThis.document;
-  globalThis.document={body:{style:{overflow:'auto'}}};
+  const events=new EventTarget();let focused=0, bounds={left:800,right:920,bottom:70};
+  globalThis.document={body:{style:{overflow:'auto'}},documentElement:{clientWidth:1024},addEventListener:events.addEventListener.bind(events),removeEventListener:events.removeEventListener.bind(events)};
+  window.innerHeight=768;
   t.after(()=>{globalThis.document=previousDocument;});
   const reload=async()=>{reloads++;};
   const f=fixture({}, {
     '@/components/ui/FeatureShared':{useFeatureData:()=>({data,loading:false,error,reload})},
-    '@/hooks/useDialogFocus':{useDialogFocus(){}},
-    'react-dom':{createPortal:content=>content},
   });
   const button=f.load('components/contacts/PortalContactButton.tsx').default;
   assert.equal(f.render(button,{portal:'corporate'}),null);
@@ -1520,26 +1537,45 @@ test('header contact dialog keeps portal scopes separate, refreshes contacts and
     {kind:'phone',label:'Bookings',value:'+27 21 555 1234',is_primary:true},
   ]};
   let tree=f.render(button,{portal:'corporate'});await f.effects();
+  const inside={};tree.props.ref.current={getBoundingClientRect:()=>bounds,contains:target=>target===inside};
   assert.equal(nodes(tree).some(n=>n.props.role==='dialog'),false,'Details stay closed until requested');
   const trigger=nodes(tree).find(n=>n.props['aria-haspopup']==='dialog');
+  trigger.props.ref.current={focus(){focused++;}};
   assert.equal(trigger.props['aria-label'],'Contact team');
   trigger.props.onClick();tree=f.render(button,{portal:'corporate'});await f.effects();
-  assert.equal(document.body.style.overflow,'hidden');
-  assert.equal(nodes(tree).find(n=>n.props.role==='dialog').props['aria-modal'],'true');
+  assert.equal(document.body.style.overflow,'auto','The page never becomes scroll locked');
+  let dropdown=nodes(tree).find(n=>n.props.role==='dialog');
+  assert.equal(dropdown.props['aria-modal'],undefined,'This is a non-modal dropdown');
+  assert.equal(nodes(tree).find(n=>n.props['aria-label']==='Contact team').props['aria-controls'],dropdown.props.id);
+  assert.equal(dropdown.props.style.left,-280,'Keep the dropdown under its trigger, inside the right viewport edge');
+  const tab=new Event('keydown',{cancelable:true});Object.defineProperty(tab,'key',{value:'Tab'});events.dispatchEvent(tab);
+  assert.equal(tab.defaultPrevented,false,'Tab remains ordinary page navigation');
   assert.match(textContent(tree),/Payment enquiries/);
   const controls=nodes(tree).filter(n=>n.type?.name==='ContactOptions');assert.equal(controls.length,3);
   assert.ok(controls.every(n=>n.props.expanded));assert.equal(controls[0].props.email,'bookings@example.invalid');
   assert.equal(reloads,1,'Opening refreshes centrally configured details');
   window.dispatchEvent(new Event('focus'));await tick();assert.equal(reloads,2);
   window.dispatchEvent(new Event('portal-contacts-changed'));await tick();assert.equal(reloads,3);
+  document.documentElement.clientWidth=360;bounds={left:24,right:68,bottom:140};window.innerHeight=700;
+  window.dispatchEvent(new Event('resize'));tree=f.render(button,{portal:'corporate'});
+  dropdown=nodes(tree).find(n=>n.props.role==='dialog');assert.equal(dropdown.props.style.left,-12);assert.equal(dropdown.props.style.width,336);assert.equal(dropdown.props.style.maxHeight,538);
   error='Offline';tree=f.render(button,{portal:'corporate'});assert.match(textContent(tree),/temporarily unavailable/);
   assert.equal(nodes(tree).some(n=>n.type?.name==='ContactOptions'),false,'Do not show stale contacts after a failed refresh');
   nodes(tree).find(n=>n.props['aria-label']==='Close contact details').props.onClick();
   tree=f.render(button,{portal:'corporate'});await f.effects();
   assert.equal(document.body.style.overflow,'auto');
   assert.equal(nodes(tree).some(n=>n.props.role==='dialog'),false);
+  assert.equal(focused,1,'The close button returns focus to its trigger');
+  const openAgain=()=>{nodes(tree).find(n=>n.props['aria-label']==='Contact team').props.onClick();tree=f.render(button,{portal:'corporate'});};
+  openAgain();await f.effects();
+  const escape=new Event('keydown',{cancelable:true});Object.defineProperty(escape,'key',{value:'Escape'});events.dispatchEvent(escape);
+  tree=f.render(button,{portal:'corporate'});await f.effects();assert.equal(nodes(tree).some(n=>n.props.role==='dialog'),false);assert.equal(focused,2);
+  openAgain();await f.effects();events.dispatchEvent(new Event('pointerdown'));
+  tree=f.render(button,{portal:'corporate'});await f.effects();assert.equal(nodes(tree).some(n=>n.props.role==='dialog'),false);assert.equal(focused,2,'Outside clicks retain their own focus');
+  openAgain();await f.effects();nodes(tree).find(n=>n.props['aria-label']==='Contact team').props.onClick();
+  tree=f.render(button,{portal:'corporate'});await f.effects();assert.equal(nodes(tree).some(n=>n.props.role==='dialog'),false,'A second trigger click toggles it closed');
   error='';assert.equal(f.render(button,{portal:'volunteer'}),null,'Never display cached contacts from another portal');
-  f.unmount();window.dispatchEvent(new Event('focus'));await tick();assert.equal(reloads,3);
+  const beforeUnmount=reloads;f.unmount();window.dispatchEvent(new Event('focus'));await tick();assert.equal(reloads,beforeUnmount);
 });
 
 test('portal contact validation and API use checked portal scopes, versions and editable fields only', async () => {
@@ -1869,6 +1905,27 @@ test('booking detail keeps contacts, payment records and decision controls in di
   const g=fixture(), decision=g.load('features/corporate/bookings/CorporateBookingList.tsx').CorporateBookingDecisionForm;
   const formTree=g.render(decision,{mode:'payment',booking,dirtyChanged(){},committed(){}});
   const footer=nodes(formTree).find(n=>n.props.className==='formFooter');assert.ok(footer);assert.equal(nodes(footer).find(n=>n.type==='button').props.type,'submit');
+});
+
+test('monthly participation columns preserve unique counts, zero months and keyboard-accessible month selection', () => {
+  const data={events:[{id:1,date:'2026-01-15'},{id:2,date:'2026-03-15'}],slots:[],corporate:[],
+    bookings:[{id:1,event_id:1,user_id:'same-person'},{id:2,event_id:1,user_id:'same-person'},{id:3,event_id:2,user_id:'person-two'},{id:4,event_id:2,user_id:'person-three'}],
+    attendance:[1,2,3,4].map(booking_id=>({booking_id,clocked_in_at:'2026-03-15T08:00:00Z'}))};
+  const f=fixture(), chart=f.load('features/admin/analytics/ParticipationTrend.tsx').default;
+  const props={data,filter:{from:'2026-01-01',to:'2026-03-31',event:'',location:''}};
+  let tree=f.render(chart,props);
+  const summary=()=>{const live=nodes(tree).find(node=>node.props['aria-live']==='polite');return `${nodes(live).find(node=>node.type==='strong').props.children} ${textContent(live).trim()}`;};
+  assert.match(summary(),/2 unique volunteers Mar 26/);
+  const controls=nodes(tree).filter(node=>node.type==='button');
+  assert.equal(controls.length,3);assert.equal(controls[2].props['aria-pressed'],true);
+  assert.match(controls[0].props['aria-label'],/1 unique volunteer$/,'Repeat visits must not inflate a monthly unique count');
+  controls[1].props.onClick();tree=f.render(chart,props);
+  assert.match(summary(),/0 unique volunteers Feb 26/);
+  assert.equal(nodes(tree).filter(node=>node.type==='button')[1].props['aria-pressed'],true);
+  assert.equal(nodes(tree).filter(node=>node.type==='rect' && node.props.height>0 && 'data-active' in node.props).length,2,'Zero attendance has no positive-height column');
+  nodes(tree).filter(node=>node.type==='button')[0].props.onClick();tree=f.render(chart,props);assert.match(summary(),/1 unique volunteer Jan 26/);
+  tree=f.render(chart,{...props,filter:{...props.filter,from:'2026-03-01'}});assert.match(summary(),/2 unique volunteers Mar 26/,'A filtered-out month falls back to the latest visible month');
+  f.unmount();
 });
 
 test('volunteer report display and exports cannot mix legacy corporate attendance or person-hours', async t => {

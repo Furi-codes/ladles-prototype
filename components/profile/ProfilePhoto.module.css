@@ -6,6 +6,8 @@
 
 .avatar { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: #273542; color: #fff; font-weight: 800; line-height: 1; }
 .avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.avatar { background:#273542;box-shadow:0 0 0 3px var(--portal-surface),0 0 0 4px var(--portal-line);font-family:var(--portal-font);font-weight:750;transition:box-shadow .3s ease,transform .4s var(--ui-spring); }
+.avatar:hover { transform:scale(1.04);box-shadow:0 0 0 3px var(--portal-soft),0 0 0 4px color-mix(in srgb,var(--portal-accent) 25%,var(--portal-line)); }
 .editor { padding: 24px; }
 .previewRow { display: flex; align-items: center; gap: 20px; }
 .previewLabel { margin: 0; font-size: 14px; font-weight: 750; }

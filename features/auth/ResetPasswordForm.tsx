@@ -63,10 +63,9 @@ export default function ResetPasswordForm() {
     } catch (failure) { setMessage(userFacingError(failure instanceof Error ? failure.message : 'Password update could not be confirmed. Please retry.', "Password update could not be confirmed. Please retry.")); }
     finally { pending.current = false; setIsLoading(false); }
   }
-  return <main className={styles.page}><header className={styles.header}><ThemeToggle /></header>
+  return <main className={styles.page}><header className={styles.header}><span className={styles.headerLabel}>LADLES OF LOVE<span>Account recovery</span></span><ThemeToggle /></header>
     <div className={styles.layout}><section className={styles.formSide} aria-labelledby="reset-title">
-      <div className={styles.brand}><span className={styles.brandMark}><Image className={styles.brandImage} src="/Ladles-logo.png" alt="Ladles of Love" width={72} height={72} /></span><span><strong>LADLES OF LOVE</strong><small>ACCOUNT RECOVERY</small></span></div>
-      <div className={styles.card}><h2 id="reset-title">Set a new password</h2>
+      <div className={styles.card}><div className={styles.formHeading}><span className={styles.brandMark}><Image className={styles.brandImage} src="/Ladles-logo.png" alt="Ladles of Love" width={72} height={72} /></span><span className={styles.eyebrow}>Account recovery</span><h2 id="reset-title">Set a new password</h2></div>
         {status === 'checking' && <p role="status">Verifying secure link…</p>}
         {message && <p className={status === 'saved' ? styles.notice : styles.error} role={status === 'saved' ? 'status' : 'alert'}>{message}</p>}
         {status === 'ready' && <form onSubmit={handleUpdatePassword} aria-busy={isLoading}><fieldset className={styles.fields} disabled={isLoading}><legend className={styles.srOnly}>New password</legend>

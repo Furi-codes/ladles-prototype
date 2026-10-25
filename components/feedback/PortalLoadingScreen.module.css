@@ -14,3 +14,24 @@
  * Apply these layout changes when (max-width: 420px) matches the screen.
  */
 @media (max-width: 420px) { .screen { padding: 24px 18px; } .message { font-size: 13px; } }
+
+.screen { position:relative;box-sizing:border-box;background:#f5f6f9;color:#222b36;font-family:var(--portal-font); }
+.loadingBrand { position:absolute;top:35px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;font-size:10px;font-weight:800;letter-spacing:1.5px;color:#c91d32;white-space:nowrap; }
+.content { gap:18px;animation:loadingArrive .7s var(--ui-ease); }
+.loaderStage { position:relative;display:grid;place-items:center;width:250px;height:250px;margin-bottom:6px; }
+.loaderRing,.loaderRingInner { position:absolute;inset:2px;border:1px dashed #c91d3255;border-radius:50%;animation:loadingOrbit 25s linear infinite;pointer-events:none; }
+.loaderRing::after { content:'';position:absolute;left:40px;top:25px;width:8px;height:8px;border-radius:50%;background:#c91d32;box-shadow:0 0 0 6px #c91d320d; }
+.loaderRingInner { inset:20px;border-style:solid;border-color:#c91d3226;animation-direction:reverse; }
+.loaderRingInner::after { content:'';position:absolute;right:20px;bottom:35px;width:5px;height:5px;border-radius:50%;background:#c91d32; }
+.title { font-size:clamp(23px,4vw,30px);font-weight:750;letter-spacing:-1px; }
+.message { font-size:11px;max-width:330px;color:#697582;line-height:1.9; }
+.loadingDots { display:flex;gap:7px;margin-top:8px; }
+.loadingDots span { width:5px;height:5px;border-radius:50%;background:#c91d32;animation:loadingDot 1.5s ease-in-out infinite; }
+.loadingDots span:nth-child(2) { animation-delay:.15s; }.loadingDots span:nth-child(3) { animation-delay:.3s; }
+:global(html[data-theme=dark]) .screen { background:#111820;color:#f0f4f8; }
+:global(html[data-theme=dark]) .message { color:#aebdcb; }
+:global(html[data-theme=dark]) .loadingBrand { color:#ff9fa7; }
+@keyframes loadingOrbit { to { rotate:360deg; } }
+@keyframes loadingDot { 0%,80%,100% { opacity:.3;translate:0 0; } 40% { opacity:1;translate:0 -5px; } }
+@keyframes loadingArrive { from { opacity:0;translate:0 12px; } to { opacity:1;translate:0 0; } }
+@media(prefers-reduced-motion:reduce) { .content,.loaderRing,.loaderRingInner,.loadingDots span { animation:none; } }
