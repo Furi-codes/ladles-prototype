@@ -159,6 +159,38 @@ test('roster programme and inclusive date filters keep the selected roster accur
   nodes(tree).find(n=>n.props.role==='tab'&&textContent(n).startsWith('Cancelled events')).props.onClick();tree=f.render(component,props);assert.deepEqual(getPicker(tree).props.events.map(e=>e.id),[5]);
 });
 
+test('ended volunteer roster offers approval/correction and refreshes after a successful save', () => {
+  const f=fixture(),component=f.load('features/admin/rosters/VolunteerAttendance.tsx').default;
+  let refreshed=0;
+  const props={events:[{id:1,title:'Past shift',date:'2020-01-02',location:'Kitchen',status:'Scheduled'},{id:2,title:'Future shift',date:'2099-01-02',location:'Kitchen',status:'Scheduled'}],eventSlots:[],bookings:[{id:1,event_id:1,status:'No show',volunteer_name:'Alice',selected_slot:'09:15-10:15'},{id:2,event_id:1,status:'Completed',volunteer_name:'Bob',selected_slot:'09:15-10:15'},{id:3,event_id:2,status:'Confirmed',volunteer_name:'Alice',selected_slot:'09:15-10:15'}],attendanceRecords:[{booking_id:2,clocked_in_at:'2020-01-02T07:15:00Z',clocked_out_at:'2020-01-02T08:15:00Z',worked_minutes:60}],onHoursApproved:()=>{refreshed++;}};
+  let tree=f.render(component,props);
+  assert.equal(namedButton(tree,'Approve hours'),undefined);
+  nodes(tree).find(n=>n.props.role==='tab'&&textContent(n).startsWith('Past events')).props.onClick();tree=f.render(component,props);
+  assert.ok(namedButton(tree,'Correct hours'));
+  namedButton(tree,'Approve hours').props.onClick();tree=f.render(component,props);
+  const dialog=nodes(tree).find(n=>n.type?.name==='VolunteerHoursDialog');
+  assert.equal(dialog.props.booking.id,1); assert.equal(dialog.props.event.id,1);
+  dialog.props.onSaved();tree=f.render(component,props);
+  assert.equal(refreshed,1);assert.equal(nodes(tree).find(n=>n.type?.name==='VolunteerHoursDialog'),undefined);
+});
+
+test('hours approval form previews minutes, prevents duplicate saves and cannot close while saving', async () => {
+  let resolveSave;const requests=[];let closed=0,saved=0;
+  const f=fixture({}, {'@/features/admin/services/management':{approveVolunteerHours:(...args)=>{requests.push(args);return new Promise(resolve=>{resolveSave=resolve;});}}});
+  const component=f.load('features/admin/rosters/VolunteerHoursDialog.tsx').default;
+  const props={booking:{id:1,status:'No show',volunteer_name:'Alice',selected_slot:'09:15-10:15'},event:{id:1,title:'Past shift',date:'2020-01-02'},onClose:()=>{closed++;},onSaved:()=>{saved++;}};
+  let tree=f.render(component,props);
+  input(tree,'hours-arrival','09:15');tree=f.render(component,props);
+  input(tree,'hours-departure','10:00');tree=f.render(component,props);
+  input(tree,'hours-reason','Verified from volunteer email');tree=f.render(component,props);
+  assert.match(textContent(tree),/Hours to approve: 45 min/);
+  const pending=submit(tree);await submit(tree);tree=f.render(component,props);
+  assert.equal(requests.length,1);assert.equal(nodes(tree).find(n=>n.type==='fieldset').props.disabled,true);
+  tree.props.onCancel({preventDefault(){}});assert.equal(closed,0);
+  assert.deepEqual(requests[0].slice(2),['2020-01-02T09:15:00+02:00','2020-01-02T10:00:00+02:00','Verified from volunteer email']);
+  resolveSave();await pending;assert.equal(saved,1);
+});
+
 test('theme controls remain usable when browser storage is blocked and preserve the initial page theme', async t => {
   browser(t);const previous=globalThis.document;globalThis.document={documentElement:{dataset:{theme:'dark'}}};t.after(()=>{globalThis.document=previous;});
   window.localStorage={getItem(){throw new Error('Storage blocked');},setItem(){throw new Error('Storage blocked');}};

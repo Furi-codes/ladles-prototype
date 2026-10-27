@@ -69,6 +69,14 @@ test('activity details show readable dates, capacity changes and ranges without 
   assert.deepEqual(activityDetails({ location: 'SELECT * FROM auth.users', capacity: { query: 'secret' } }), []);
 });
 
+test('approved volunteer hours have readable audit details instead of a raw snapshot', () => {
+  assert.equal(activityAction('VOLUNTEER_HOURS_APPROVED'),'Volunteer hours approved');
+  const rows=activityDetails({previous_worked_minutes:30,worked_minutes:60,approval_reason:'Verified volunteer email',clock_in:'2020-01-02T07:15:00Z',clock_out:'2020-01-02T08:15:00Z'});
+  assert.ok(rows.some(row=>row.label==='Previously recorded minutes'&&row.value==='30'));
+  assert.ok(rows.some(row=>row.label==='Approved minutes'&&row.value==='60'));
+  assert.ok(rows.some(row=>row.label==='Reason'&&row.value==='Verified volunteer email'));
+});
+
 test('production pages have no raw code dumps or JSON serialization used directly as visible JSX', () => {
   const files = [];
   function visitDirectory(directory) {

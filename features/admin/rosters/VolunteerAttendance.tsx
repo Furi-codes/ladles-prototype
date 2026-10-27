@@ -9,10 +9,12 @@ import LiveAttendanceTime from "@/components/attendance/LiveAttendanceTime";
 import { formatAttendanceTime, formatWorkedTime, getEventSlotEndAt } from "@/lib/dates/attendance";
 import { hasEventFinished } from "@/lib/dates/calendar";
 import type { AttendanceRecord, Booking, Event, EventSlot } from "@/lib/types";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "@/styles/admin.module.css";
 import ui from '@/components/ui/management.module.css';
 import RosterEventPicker from '@/features/admin/rosters/RosterEventPicker';
+import VolunteerHoursDialog from '@/features/admin/rosters/VolunteerHoursDialog';
+import { rosterShiftTimes } from '@/features/admin/rosters/hours';
 
 type RosterView = "current" | "past" | "cancelled";
 
@@ -21,9 +23,16 @@ type VolunteerAttendanceProps = {
   eventSlots: EventSlot[];
   bookings: Booking[];
   attendanceRecords: AttendanceRecord[];
+  onHoursApproved: () => void;
 };
 
-export default function VolunteerAttendance({ events, eventSlots, bookings, attendanceRecords }: VolunteerAttendanceProps) {
+export default function VolunteerAttendance({ events, eventSlots, bookings, attendanceRecords, onHoursApproved }: VolunteerAttendanceProps) {
+  const [now, setNow] = useState(() => Date.now());
+  // A shift can finish while this screen stays open. SQL still makes the final eligibility check.
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(timer); }, []);
+  // Keep the values shown when the form opened. SQL rejects the save if they have since changed.
+  const [approval, setApproval] = useState<{ booking: Booking; event: Event; slot?: EventSlot; attendance?: AttendanceRecord } | null>(null);
+  const [message, setMessage] = useState('');
   const [view, setView] = useState<RosterView>("current");
   const [selectedEventId, setSelectedEventId] = useState("");
   const [programme, setProgramme] = useState('');
@@ -97,13 +106,16 @@ export default function VolunteerAttendance({ events, eventSlots, bookings, atte
       <p className={ui.count}>{visibleRoster.length} of {currentRoster.length} volunteers · Event totals above include the full roster.</p>
       <div data-mobile-table className={ui.tableViewport} tabIndex={0} role="region" aria-label="Volunteer attendance table">
         <table role="table" className={styles.table}>
-          <thead role="rowgroup"><tr role="row">{["Volunteer", "Time range", "Status", "Clock in", "Clock out", "Hours"].map((column) => <th role="columnheader" scope="col" key={column}>{column}</th>)}</tr></thead>
+          <thead role="rowgroup"><tr role="row">{["Volunteer", "Time range", "Status", "Clock in", "Clock out", "Hours", "Actions"].map((column) => <th role="columnheader" scope="col" key={column}>{column}</th>)}</tr></thead>
           <tbody role="rowgroup">
             {visibleRoster.map((booking) => {
               const attendance = attendanceRecords.find((record) => record.booking_id === booking.id);
               const slot = eventSlots.find((item) => item.id === booking.event_slot_id);
               const endsAt = slot ? getEventSlotEndAt(selectedEvent, slot) : undefined;
               const isLive = Boolean(attendance?.clocked_in_at && !attendance?.clocked_out_at);
+              const shift = rosterShiftTimes(selectedEvent, booking, slot);
+              // Corrections are offered after the booked shift ends, including missed QR attendance.
+              const canApprove = selectedEvent.status !== 'Cancelled' && shift !== null && shift.endAt <= now;
               const statusClass = booking.status === "Present" ? styles.statusPresent : booking.status === "Completed" ? styles.statusCompleted : booking.status === "No show" ? styles.statusCancelled : styles.statusConfirmed;
 
               return <tr role="row" key={booking.id}>
@@ -113,12 +125,15 @@ export default function VolunteerAttendance({ events, eventSlots, bookings, atte
                 <td role="cell" data-label="Clock in">{formatAttendanceTime(attendance?.clocked_in_at ?? null)}</td>
                 <td role="cell" data-label="Clock out">{formatAttendanceTime(attendance?.clocked_out_at ?? null)}</td>
                 <td role="cell" data-label="Hours">{attendance ? isLive ? <span className={styles.liveAttendance}><LiveAttendanceTime attendance={attendance} endsAt={endsAt} prefix="Live" /></span> : formatWorkedTime(attendance.worked_minutes) : "—"}</td>
+                <td role="cell" data-label="Actions">{canApprove ? <button type="button" className={styles.secondaryButton} onClick={() => { setMessage(''); setApproval({ booking, event: selectedEvent, slot, attendance }); }}>{attendance?.worked_minutes !== null && attendance?.worked_minutes !== undefined ? 'Correct hours' : 'Approve hours'}</button> : <span className={styles.cardHint}>{selectedEvent.status === 'Cancelled' ? 'Event cancelled' : !shift ? 'Time range unavailable' : 'Available after shift'}</span>}</td>
               </tr>;
             })}
-            {visibleRoster.length === 0 && <tr role="row"><td role="cell" colSpan={6}><div className={styles.empty}>{currentRoster.length ? 'No volunteers match these filters.' : 'No volunteers have registered for this event.'}</div></td></tr>}
+            {visibleRoster.length === 0 && <tr role="row"><td role="cell" colSpan={7}><div className={styles.empty}>{currentRoster.length ? 'No volunteers match these filters.' : 'No volunteers have registered for this event.'}</div></td></tr>}
           </tbody>
         </table>
       </div>
     </>}
+    {message && <p className={ui.count} role="status">{message}</p>}
+    {approval && <VolunteerHoursDialog {...approval} onClose={() => setApproval(null)} onSaved={() => { setApproval(null); setMessage('Volunteer hours approved.'); onHoursApproved(); }} />}
   </section>;
 }

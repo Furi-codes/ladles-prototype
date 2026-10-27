@@ -12,5 +12,5 @@ import { FeatureState } from '@/components/ui/FeatureShared';
 
 export default function VolunteersPage() {
   const { events, eventSlots, bookings, attendanceRecords, isLoading, loadError, fetchData } = useAdminData();
-  return <><PageHeader activeNav="Volunteer rosters" /><FeatureState loading={isLoading} error={loadError ?? ''} retry={() => void fetchData()} />{!isLoading && !loadError && <VolunteerAttendance events={events} eventSlots={eventSlots} bookings={bookings} attendanceRecords={attendanceRecords} />}</>;
+  return <><PageHeader activeNav="Volunteer rosters" /><FeatureState loading={isLoading} error={loadError ?? ''} retry={() => void fetchData()} />{!isLoading && !loadError && <VolunteerAttendance events={events} eventSlots={eventSlots} bookings={bookings} attendanceRecords={attendanceRecords} onHoursApproved={() => void fetchData()} />}</>;
 }

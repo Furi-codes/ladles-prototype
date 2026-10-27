@@ -12,6 +12,7 @@ import ts from 'typescript';
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 const url = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const pagingUrl = url(compile(readFileSync(new URL('../lib/supabase/pagination.ts', import.meta.url), 'utf8')));
+const errorsUrl = url(compile(readFileSync(new URL('../lib/errors/user-facing.ts', import.meta.url), 'utf8')));
 const { fetchAllPages, fetchRowsByIds } = await import(pagingUrl);
 
 test('shared paging follows actual page lengths and rejects changing/missing counts and page failures', async () => {
@@ -50,7 +51,8 @@ test('all six admin loaders paginate with an exact count and unique ordering', a
   globalThis[key] = { from: chain, rpc: (name, args, options) => { assert.equal(options.count, 'exact'); return chain(name); } };
   const source = compile(readFileSync(new URL('../features/admin/services/management.ts', import.meta.url), 'utf8'))
     .replace(/import \{ supabase \} from [^;]+;/, `const supabase = globalThis.${key};`)
-    .replace(/['"]@\/lib\/supabase\/pagination['"]/, JSON.stringify(pagingUrl));
+    .replace(/['"]@\/lib\/supabase\/pagination['"]/, JSON.stringify(pagingUrl))
+    .replace(/['"]@\/lib\/errors\/user-facing['"]/, JSON.stringify(errorsUrl));
   try {
     const actions = await import(url(source));
     for (const name of ['fetchAdminEvents', 'fetchAdminBookings', 'fetchAdminEventSlots', 'fetchVolunteers', 'fetchAdminAttendanceCheckpoints', 'fetchAdminAttendanceRecords']) {

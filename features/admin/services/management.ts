@@ -8,6 +8,26 @@ import type { PostgrestResponse } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import type { AttendanceCheckpoint, AttendanceRecord, Booking, Volunteer, Event, EventCategory, EventSlot } from '@/lib/types'
 import { fetchAllPages } from '@/lib/supabase/pagination'
+import { userFacingError } from '@/lib/errors/user-facing'
+
+/** The original values let SQL reject a stale approval instead of overwriting another admin's work. */
+export async function approveVolunteerHours(booking: Booking, attendance: AttendanceRecord | undefined, start: string, end: string, reason: string) {
+  // The deployed function saves attendance, completed status and the audit reason together.
+  const { data, error } = await supabase.rpc('admin_approve_volunteer_hours', {
+    p_booking_id: booking.id,
+    p_clock_in: start,
+    p_clock_out: end,
+    p_reason: reason,
+    p_expected_status: booking.status,
+    p_expected_attendance: attendance ? {
+      clocked_in_at: attendance.clocked_in_at,
+      clocked_out_at: attendance.clocked_out_at,
+      worked_minutes: attendance.worked_minutes,
+    } : null,
+  });
+  if (error) throw new Error(userFacingError(error.message, 'Hours could not be approved. Refresh the roster and try again.'));
+  return data;
+}
 
 /** Fields sent by the event form; an existing slot ID lets the RPC identify an edited range. */
 export type EventSlotInput = Pick<EventSlot, 'start_time' | 'end_time' | 'capacity'> & { id?: number }

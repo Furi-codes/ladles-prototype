@@ -13,6 +13,7 @@ const actions: Record<string, string> = {
   PORTAL_CONTACTS_UPDATED: 'Portal contacts updated', REPORT_EXPORTED: 'Report exported', NOTIFICATION_PREFERENCES_UPDATED: 'Notification preferences updated',
   CSR_COMPANY_CREATED: 'Company created (legacy CSR)', CSR_COMPANY_UPDATED: 'Company updated (legacy CSR)', CSR_NOTE_ADDED: 'Company note added (legacy CSR)',
   CORPORATE_BOOKING_CREATED: 'Corporate booking created', CORPORATE_BOOKING_UPDATED: 'Corporate booking updated',
+  VOLUNTEER_HOURS_APPROVED: 'Volunteer hours approved',
 };
 export const activityAction = (action: string) => actions[action] ?? 'Action recorded';
 export function activityRecordType(type: string) {
@@ -34,6 +35,10 @@ export function activityDetails(details: unknown): { label: string; value: strin
   for (const [key, label] of [['date','Event date'],['from','From date'],['to','To date']] as const) add(label, date(data[key]));
   for (const [key, label] of [['location','Location'],['category','Category'],['status','Status'],['relationship_status','Relationship status'],['attendance_status','Attendance status']] as const) add(label, text(data[key]));
   for (const [key, label] of [['slot_count','Bookable ranges'],['capacity_before','Previous capacity'],['capacity_after','New capacity'],['capacity','Capacity'],['team_size','Group size'],['attendance_count','Actual attendees'],['event_hours','Event hours'],['contact_methods','Contact methods'],['rows','Rows exported']] as const) add(label, number(data[key]));
+  // Show the useful parts of an hours correction instead of its full stored record.
+  add('Previously recorded minutes', number(data.previous_worked_minutes));
+  add('Approved minutes', number(data.worked_minutes));
+  add('Reason', text(data.approval_reason));
   if (data.role === 'admin' || data.role === 'volunteer') add('Account access', data.role === 'admin' ? 'Administrator' : 'Volunteer');
   if (data.participation === 'volunteers') add('Report scope', 'Volunteers');
   if (data.cancellation_message_supplied === true) add('Cancellation message', 'Included');
