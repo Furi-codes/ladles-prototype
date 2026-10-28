@@ -22,8 +22,8 @@ async function mockedLoader(respond) {
     chain.then = (resolve,reject) => { requests.push(request); return Promise.resolve(respond(request)).then(resolve,reject); };
     return chain;
   }};
-  const source = readFileSync(new URL('../features/admin/services/reports.ts',import.meta.url),'utf8');
-  const js = ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText.replace(/import \{ supabase \} from ['"]@\/lib\/supabase\/client['"];?/,`const supabase = globalThis[${JSON.stringify(key)}];`);
+  const source = readFileSync(new URL('../data/admin/reports.ts',import.meta.url),'utf8');
+  const js = ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText.replace(/import \{ supabase \} from ['"]@\/data\/supabase\/client['"];?/,`const supabase = globalThis[${JSON.stringify(key)}];`);
   try { return {actions:await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`),requests}; } finally { delete globalThis[key]; }
 }
 test('event options are bounded/recent by default; title search has no date restriction and escapes literal wildcards', async () => {

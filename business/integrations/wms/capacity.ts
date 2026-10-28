@@ -1,0 +1,87 @@
+import { createWmsRepository } from '@/data/wms/repository';
+/**
+ * Accepts a WMS timeslot-capacity update and returns the saved availability.
+ * The server authenticates WMS and checks the persisted result rather than returning the request
+ * value as proof of saving.
+ */
+
+import {
+  integrationErrorStatus,
+  jsonError,
+  parsePositiveInteger,
+  readJsonRecord,
+  requireJsonContent,
+  requireWmsAuthentication,
+} from "@/data/server/wms-integration";
+
+
+
+/** External timeslot ID from the URL, awaited using the current Next.js route convention. */
+type RouteContext = { params: Promise<{ externalTimeslotId: string }> };
+
+/** Updates capacity only when existing individual and corporate reservations still fit. */
+export async function PATCH(request: Request, context: RouteContext) {
+  const authenticationError = requireWmsAuthentication(request);
+  if (authenticationError) return authenticationError;
+  const contentTypeError = requireJsonContent(request);
+  if (contentTypeError) return contentTypeError;
+
+  const { externalTimeslotId } = await context.params;
+  const body = await readJsonRecord(request);
+  const capacity = body ? parsePositiveInteger(body.capacity) : null;
+  if (!capacity) return jsonError("capacity must be a positive integer.", 422);
+
+  try {
+    const repository = createWmsRepository();
+    const { data: slot, error: slotError } = await repository.findSlot(externalTimeslotId);
+    if (slotError) {
+      console.error("WMS capacity slot lookup failed:", slotError);
+      return jsonError(slotError.message, 500);
+    }
+    if (!slot) return jsonError("The external timeslot was not found.", 404);
+
+    const [{ count: individualReservations, error: bookingsError }, { data: corporateBookings, error: corporateError }] = await Promise.all([
+      repository.countIndividuals(slot.id),
+      repository.listSlotGroups(slot.id),
+    ]);
+    if (bookingsError) return jsonError(bookingsError.message, 500);
+    if (corporateError) return jsonError(corporateError.message, 500);
+
+    const reservedPlaces = (individualReservations ?? 0) + (corporateBookings ?? []).reduce((total, booking) => total + booking.team_size, 0);
+    // A group's team_size reserves several places. Completed groups are included, not just upcoming ones.
+    if (capacity < reservedPlaces) {
+      return jsonError(`Capacity cannot be lower than the ${reservedPlaces} place${reservedPlaces === 1 ? "" : "s"} already reserved.`, 409);
+    }
+
+    // The read/check above and this update are separate requests, not a route-level transaction.
+    const { data: updatedSlot, error: updateError } = await repository.saveCapacity(slot.id, capacity);
+    if (updateError) {
+      console.error("WMS capacity update failed:", updateError);
+      return jsonError(updateError.message, integrationErrorStatus(updateError.code));
+    }
+
+    if (updatedSlot.capacity !== capacity) {
+      // Do not report 200 with an old value if the database did not return the requested capacity.
+      console.error("WMS capacity update did not persist the requested value.");
+      return jsonError("The requested capacity was not saved. Please retry or contact the VMS team.", 500);
+    }
+
+    await repository.logAction({
+      action: "WMS_CAPACITY_UPDATED",
+      entityType: "EVENT_SLOT",
+      entityId: updatedSlot.id,
+      entityLabel: `Timeslot ${externalTimeslotId}`,
+      details: {
+        external_timeslot_id: externalTimeslotId,
+        event_id: slot.event_id,
+        capacity_before: slot.capacity,
+        capacity_after: updatedSlot.capacity,
+      },
+    });
+    return Response.json({ vmsTimeslotId: updatedSlot.id, externalTimeslotId, capacity: updatedSlot.capacity });
+  } catch (error) {
+    // A runtime exception is also returned as 503 here, not only missing environment variables.
+    console.error("WMS capacity integration configuration failed:", error);
+    return jsonError("Integration is not configured.", 503);
+  }
+}

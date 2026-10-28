@@ -4,7 +4,7 @@
  * feature.
  */
 
-import LoginForm from "@/features/auth/LoginForm";
+import LoginForm from "@/presentation/auth/LoginForm";
 
 /** Renders the account entry screen; profile-based redirects happen inside LoginForm. */
 export default function LoginPage() {

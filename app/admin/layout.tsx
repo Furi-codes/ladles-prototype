@@ -4,8 +4,8 @@
  * and loaded data.
  */
 
-import { AdminProvider } from "@/features/admin/shell/AdminProvider";
-import AdminShell from "@/features/admin/shell/AdminShell";
+import { AdminProvider } from "@/presentation/admin/shell/AdminProvider";
+import AdminShell from "@/presentation/admin/shell/AdminShell";
 
 /** Places the shell and page children inside the provider so both can use useAdminData. */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

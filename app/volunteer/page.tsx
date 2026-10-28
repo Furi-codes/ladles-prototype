@@ -4,7 +4,7 @@
  * screen implementation.
  */
 
-import VolunteerDashboard from "@/features/volunteer/dashboard/VolunteerDashboard";
+import VolunteerDashboard from "@/presentation/volunteer/dashboard/VolunteerDashboard";
 
 export default function VolunteerPage() {
   return <VolunteerDashboard />;

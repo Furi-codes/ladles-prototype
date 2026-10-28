@@ -4,6 +4,6 @@
  * screen implementation.
  */
 
-import PageHeader from '@/features/admin/shell/PageHeader';
-import ReportsManager from '@/features/admin/analytics/ReportsManager';
+import PageHeader from '@/presentation/admin/shell/PageHeader';
+import ReportsManager from '@/presentation/admin/analytics/ReportsManager';
 export default function ReportsPage() { return <><PageHeader activeNav="Analytics & Reports" /><ReportsManager /></>; }

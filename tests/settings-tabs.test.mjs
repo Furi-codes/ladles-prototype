@@ -34,18 +34,18 @@ function fixture(search = '') {
   const mocks = {
     react,
     'next/navigation': { useSearchParams: () => new URLSearchParams(search) },
-    '@/features/admin/services/settings': corporate,
-    '@/features/admin/services/audit': audit,
-    '@/features/admin/shell/AdminProvider': { useAdminData: () => ({ adminProfile: { full_name: 'Test admin', email: 'admin@example.invalid' } }) },
-    '@/components/ui/FeatureShared': {
+    '@/business/admin/services/settings': corporate,
+    '@/business/admin/services/audit': audit,
+    '@/presentation/admin/shell/AdminProvider': { useAdminData: () => ({ adminProfile: { full_name: 'Test admin', email: 'admin@example.invalid' } }) },
+    '@/presentation/components/ui/FeatureShared': {
       useFeatureData: loader => ({ data: loader === corporate.loadSettings ? { settings, admins: [] } : [], loading: false, error: '', reload: async () => {} }),
       Field: () => null,
       FeatureState: () => null,
     },
-    '@/features/admin/settings/AdminAccessManager': { default: () => null },
+    '@/presentation/admin/settings/AdminAccessManager': { default: () => null },
   };
   const compiledModule = { exports: {} };
-  const source = ts.transpileModule(readFileSync(new URL('../features/admin/settings/SettingsManager.tsx', import.meta.url), 'utf8'), {
+  const source = ts.transpileModule(readFileSync(new URL('../presentation/admin/settings/SettingsManager.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   vm.runInNewContext(source, {

@@ -4,8 +4,8 @@
  * Users see a safe recovery message rather than internal exception details.
  */
 
-import StatusPage from '@/components/experience/StatusPage';
-import styles from '@/components/experience/status-page.module.css';
+import StatusPage from '@/presentation/components/experience/StatusPage';
+import styles from '@/presentation/components/experience/status-page.module.css';
 
 /** Unhandled page failures get a recovery screen, never the exception or its stack trace. */
 export default function PageError({ reset }: { reset: () => void }) {

@@ -6,9 +6,9 @@
 
 import type { Metadata } from "next";
 import Script from "next/script";
-import "@/styles/globals.css";
-import { ThemeProvider } from "@/components/theme/ThemeProvider";
-import ExperienceProvider from '@/components/experience/ExperienceProvider';
+import "@/presentation/styles/globals.css";
+import { ThemeProvider } from "@/presentation/components/theme/ThemeProvider";
+import ExperienceProvider from '@/presentation/components/experience/ExperienceProvider';
 import '@fontsource-variable/manrope';
 
 /** Browser title/description supplied through Next.js rather than each page's rendered content. */

@@ -11,13 +11,13 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 /** Loads the real TypeScript helper with a supplied fake range function for each test scenario. */
 async function loaderWith(range) {
-  const source = readFileSync(new URL('../features/admin/services/reports.ts', import.meta.url),'utf8');
+  const source = readFileSync(new URL('../data/admin/reports.ts', import.meta.url),'utf8');
   const js = ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
   const key = '__pagination_' + Math.random().toString(36).slice(2);
   // Separate mock keys keep cached dynamic imports from sharing another test's client.
   globalThis[key] = { from: () => ({ select: () => ({ order: () => ({ range }) }) }) };
   try {
-    const mocked = js.replace(/import \{ supabase \} from ['"]@\/lib\/supabase\/client['"];?/, `const supabase = globalThis[${JSON.stringify(key)}];`);
+    const mocked = js.replace(/import \{ supabase \} from ['"]@\/data\/supabase\/client['"];?/, `const supabase = globalThis[${JSON.stringify(key)}];`);
     return (await import(`data:text/javascript;base64,${Buffer.from(mocked).toString('base64')}`)).allRows;
   } finally { delete globalThis[key]; }
 }

@@ -4,8 +4,8 @@
  * layout.
  */
 
-import { VolunteerProvider } from "@/features/volunteer/shell/VolunteerProvider";
-import VolunteerShell from "@/features/volunteer/shell/VolunteerShell";
+import { VolunteerProvider } from "@/presentation/volunteer/shell/VolunteerProvider";
+import VolunteerShell from "@/presentation/volunteer/shell/VolunteerShell";
 
 /** Gives the shell and all child pages access to the same VolunteerProvider context. */
 export default function VolunteerLayout({ children }: { children: React.ReactNode }) {

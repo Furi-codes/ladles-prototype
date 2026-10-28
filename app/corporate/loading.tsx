@@ -4,4 +4,4 @@
  * visible.
  */
 
-export { default } from '@/features/corporate/shell/CorporateContentLoading';
+export { default } from '@/presentation/corporate/shell/CorporateContentLoading';

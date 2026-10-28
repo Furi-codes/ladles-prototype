@@ -4,9 +4,9 @@
  * screen implementation.
  */
 
-import PageHeader from "@/features/admin/shell/PageHeader";
+import PageHeader from "@/presentation/admin/shell/PageHeader";
 import { Suspense } from 'react';
-import SettingsManager from "@/features/admin/settings/SettingsManager";
+import SettingsManager from "@/presentation/admin/settings/SettingsManager";
 export default function SettingsPage() {
   return <> <PageHeader activeNav="Settings" /><Suspense fallback={<p role="status">Loading settings…</p>}><SettingsManager /></Suspense></>;
 }

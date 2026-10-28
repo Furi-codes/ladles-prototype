@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-const source = readFileSync(new URL('../features/volunteer/utils/notifications.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../business/volunteer/notifications.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { inboxItems, unreadNotifications, notificationLabel, notificationDate } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const items = [

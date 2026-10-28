@@ -140,8 +140,8 @@ grant execute on function attendance_private.approve_volunteer_hours(bigint,time
 grant execute on function public.admin_approve_volunteer_hours(bigint,timestamptz,timestamptz,text,text,jsonb) to authenticated;
 `;
 const load = async file => import(`data:text/javascript;base64,${Buffer.from(ts.transpileModule(readFileSync(new URL(file, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText).toString('base64')}`);
-const { getVerifiedContribution } = await load('../lib/dates/attendance.ts');
-const { rosterShiftTimes, validateApprovedTimes } = await load('../features/admin/rosters/hours.ts');
+const { getVerifiedContribution } = await load('../business/shared/dates/attendance.ts');
+const { rosterShiftTimes, validateApprovedTimes } = await load('../business/admin/hours.ts');
 const start = '2020-01-02T09:15:00+02:00', end = '2020-01-02T10:15:00+02:00';
 
 /** A small copy of the inspected live attendance schema; all writes run in disposable Postgres. */

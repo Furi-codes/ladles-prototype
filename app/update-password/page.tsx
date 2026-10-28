@@ -3,7 +3,7 @@
  * Link checking and password submission live in the auth feature rather than this route wrapper.
  */
 
-import ResetPasswordForm from "@/features/auth/ResetPasswordForm";
+import ResetPasswordForm from "@/presentation/auth/ResetPasswordForm";
 
 export default function UpdatePasswordPage() {
   return <ResetPasswordForm />;

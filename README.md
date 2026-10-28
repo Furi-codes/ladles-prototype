@@ -67,18 +67,16 @@ Open [http://localhost:3000](http://localhost:3000). Administrator access must b
 ## Project structure
 
 ```text
-app/          Next.js routes, layouts and API endpoints
-features/     Auth, admin, volunteer and corporate functionality
-components/   Reusable interface components
-hooks/        Shared React hooks
-lib/          Shared data, validation and integration utilities
-styles/       Global theme and shared portal styles
+app/          Next.js routes, layouts and thin HTTP entry points
+presentation/ React screens, components, hooks and styles for all portals
+business/     Application workflows, validation, calculations and domain types
+data/         Supabase queries, Auth, Storage, Realtime and HTTP adapters
 tests/        Automated tests and database fixtures
 supabase/     Database migrations and authentication configuration
 public/       Static assets
 ```
 
-Features are grouped into folders such as `bookings/`, `events/` and `profile/`. Data-access functions live in `services/`; these are browser helpers, not Next.js Server Actions. Internal imports use the `@/` alias.
+The app uses three layers: **presentation → business → data**. Each layer groups related volunteer, corporate and admin code. Pages keep the normal Next.js `app/` routing conventions. Screens call business services; repositories and adapters in `data/` own external requests. Data modules may import domain types with `import type`, which creates no runtime dependency. Business services used by portal screens run in the browser; WMS business handlers run on the server. These layers are responsibilities, not three separate deployed servers. Database policies and functions remain responsible for access control and atomic writes. Internal imports use the `@/` alias.
 
 ## Tests and checks
 

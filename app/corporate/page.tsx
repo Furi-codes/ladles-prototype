@@ -4,4 +4,4 @@
  * screen implementation.
  */
 
-export { default } from "@/features/corporate/accounts/BusinessProfile";
+export { default } from "@/presentation/corporate/accounts/BusinessProfile";

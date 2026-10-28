@@ -5,10 +5,10 @@
  * screen implementation.
  */
 
-import PageHeader from "@/features/admin/shell/PageHeader";
-import EventsManager from "@/features/admin/events/EventsManager";
-import { useAdminData } from "@/features/admin/shell/AdminProvider";
-import { FeatureState } from '@/components/ui/FeatureShared';
+import PageHeader from "@/presentation/admin/shell/PageHeader";
+import EventsManager from "@/presentation/admin/events/EventsManager";
+import { useAdminData } from "@/presentation/admin/shell/AdminProvider";
+import { FeatureState } from '@/presentation/components/ui/FeatureShared';
 
 export default function EventsPage() {
   const { events, eventSlots, attendanceCheckpoints, isLoading, loadError, fetchData } = useAdminData();

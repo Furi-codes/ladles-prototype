@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import ts from 'typescript';
 
-const source = readFileSync(new URL('../components/experience/portal-motion.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../presentation/components/experience/portal-motion.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { installPortalMotion } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 

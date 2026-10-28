@@ -4,7 +4,7 @@
  * screen implementation.
  */
 
-import CorporateOutcomeReports from '@/features/corporate/reports/CorporateOutcomeReports';
+import CorporateOutcomeReports from '@/presentation/corporate/reports/CorporateOutcomeReports';
 
 /** Keep corporate outcomes separate from volunteer analytics, using the same checked report/export flow. */
 export default function CorporateAnalyticsPage() {

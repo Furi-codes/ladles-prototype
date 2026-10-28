@@ -11,8 +11,8 @@ import ts from 'typescript';
 
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 const url = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
-const pagingUrl = url(compile(readFileSync(new URL('../lib/supabase/pagination.ts', import.meta.url), 'utf8')));
-const errorsUrl = url(compile(readFileSync(new URL('../lib/errors/user-facing.ts', import.meta.url), 'utf8')));
+const pagingUrl = url(compile(readFileSync(new URL('../data/supabase/pagination.ts', import.meta.url), 'utf8')));
+const errorsUrl = url(compile(readFileSync(new URL('../data/errors/user-facing.ts', import.meta.url), 'utf8')));
 const { fetchAllPages, fetchRowsByIds } = await import(pagingUrl);
 
 test('shared paging follows actual page lengths and rejects changing/missing counts and page failures', async () => {
@@ -49,10 +49,10 @@ test('all six admin loaders paginate with an exact count and unique ordering', a
     return q;
   };
   globalThis[key] = { from: chain, rpc: (name, args, options) => { assert.equal(options.count, 'exact'); return chain(name); } };
-  const source = compile(readFileSync(new URL('../features/admin/services/management.ts', import.meta.url), 'utf8'))
+  const source = compile(readFileSync(new URL('../data/admin/management.ts', import.meta.url), 'utf8'))
     .replace(/import \{ supabase \} from [^;]+;/, `const supabase = globalThis.${key};`)
-    .replace(/['"]@\/lib\/supabase\/pagination['"]/, JSON.stringify(pagingUrl))
-    .replace(/['"]@\/lib\/errors\/user-facing['"]/, JSON.stringify(errorsUrl));
+    .replace(/['"]@\/data\/supabase\/pagination['"]/, JSON.stringify(pagingUrl))
+    .replace(/['"]@\/business\/shared\/errors\/user-facing['"]/, JSON.stringify(errorsUrl));
   try {
     const actions = await import(url(source));
     for (const name of ['fetchAdminEvents', 'fetchAdminBookings', 'fetchAdminEventSlots', 'fetchVolunteers', 'fetchAdminAttendanceCheckpoints', 'fetchAdminAttendanceRecords']) {
@@ -79,14 +79,15 @@ async function refreshHarness() {
   };
   for (const name of ['fetchAdminBookings', 'fetchAdminEventSlots', 'fetchVolunteers', 'fetchAdminAttendanceCheckpoints', 'fetchAdminAttendanceRecords']) actions[name] = () => current.promise;
   globalThis[key] = { hooks, actions };
-  let source = compile(readFileSync(new URL('../features/admin/shell/AdminProvider.tsx', import.meta.url), 'utf8'));
+  let source = compile(readFileSync(new URL('../presentation/admin/shell/AdminProvider.tsx', import.meta.url), 'utf8'));
   source = source
     .replace(/import [^;]+ from "react\/jsx-runtime";/, 'const _jsx = (type, props) => props;')
     .replace(/import ([^;]+) from "react";/, `const $1 = globalThis[${JSON.stringify(key)}].hooks;`)
     .replace(/import [^;]+ from "next\/navigation";/, 'const useRouter = () => ({});')
-    .replace(/import [^;]+ from "@\/lib\/supabase\/client";/, 'const supabase = {}; const getCurrentUser = () => null;')
-    .replace(/import [^;]+ from "@\/lib\/accounts\/profile";/, 'const fetchUserRole = () => null;')
-    .replace(/import ([^;]+) from "@\/features\/admin\/services\/management";/, `const $1 = globalThis[${JSON.stringify(key)}].actions;`);
+    .replace(/import [^;]+ from ['"]@\/business\/shared\/auth\/session['"];?/, 'const getAuthenticatedUser = () => null; const getCurrentUser = () => null;')
+    .replace(/import [^;]+ from ['"]@\/business\/admin\/subscriptions['"];?/, 'const watchAdminRecords = () => ({ unsubscribe() {} });')
+    .replace(/import [^;]+ from "@\/business\/shared\/accounts\/profile";/, 'const fetchUserRole = () => null;')
+    .replace(/import ([^;]+) from "@\/business\/admin\/services\/management";/, `const $1 = globalThis[${JSON.stringify(key)}].actions;`);
   try {
     const { AdminProvider } = await import(url(source));
     const { value } = AdminProvider({ children: null });

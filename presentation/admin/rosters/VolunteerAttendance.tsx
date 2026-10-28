@@ -1,0 +1,140 @@
+"use client";
+
+/**
+ * Shows event rosters, attendance controls and recorded volunteer hours.
+ * Event and volunteer filters narrow the display, while attendance writes refresh the shared
+ * admin data.
+ */
+
+import LiveAttendanceTime from "@/presentation/components/attendance/LiveAttendanceTime";
+import { formatAttendanceTime, formatWorkedTime, getEventSlotEndAt } from "@/business/shared/dates/attendance";
+import { hasEventFinished } from "@/business/shared/dates/calendar";
+import type { AttendanceRecord, Booking, Event, EventSlot } from "@/business/shared/types";
+import { useEffect, useMemo, useState } from "react";
+import styles from "@/presentation/styles/admin.module.css";
+import ui from '@/presentation/components/ui/management.module.css';
+import RosterEventPicker from '@/presentation/admin/rosters/RosterEventPicker';
+import VolunteerHoursDialog from '@/presentation/admin/rosters/VolunteerHoursDialog';
+import { rosterShiftTimes } from '@/business/admin/hours';
+
+type RosterView = "current" | "past" | "cancelled";
+
+type VolunteerAttendanceProps = {
+  events: Event[];
+  eventSlots: EventSlot[];
+  bookings: Booking[];
+  attendanceRecords: AttendanceRecord[];
+  onHoursApproved: () => void;
+};
+
+export default function VolunteerAttendance({ events, eventSlots, bookings, attendanceRecords, onHoursApproved }: VolunteerAttendanceProps) {
+  const [now, setNow] = useState(() => Date.now());
+  // A shift can finish while this screen stays open. SQL still makes the final eligibility check.
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(timer); }, []);
+  // Keep the values shown when the form opened. SQL rejects the save if they have since changed.
+  const [approval, setApproval] = useState<{ booking: Booking; event: Event; slot?: EventSlot; attendance?: AttendanceRecord } | null>(null);
+  const [message, setMessage] = useState('');
+  const [view, setView] = useState<RosterView>("current");
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [programme, setProgramme] = useState('');
+  const [fromDate, setFromDate] = useState(''), [toDate, setToDate] = useState('');
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('');
+
+  const currentEvents = useMemo(() => events
+    .filter((event) => event.status !== "Cancelled" && !hasEventFinished(event, eventSlots))
+    .sort((first, second) => first.date.localeCompare(second.date)), [events, eventSlots]);
+  const pastEvents = useMemo(() => events
+    .filter((event) => event.status !== "Cancelled" && hasEventFinished(event, eventSlots))
+    .sort((first, second) => second.date.localeCompare(first.date)), [events, eventSlots]);
+  const cancelledEvents = useMemo(() => events
+    .filter((event) => event.status === "Cancelled")
+    .sort((first, second) => (second.cancelled_at ?? "").localeCompare(first.cancelled_at ?? "")), [events]);
+  const scopeEvents = view === "current" ? currentEvents : view === "past" ? pastEvents : cancelledEvents;
+  // Event dates are YYYY-MM-DD, so inclusive bounds do not depend on the browser's timezone.
+  const invalidDates = Boolean(fromDate && toDate && fromDate > toDate);
+  const filteredEvents = scopeEvents.filter(event => !invalidDates && (!programme || (event.category || 'Other') === programme)
+    && (!fromDate || event.date >= fromDate) && (!toDate || event.date <= toDate));
+
+  const effectiveSelectedEventId = filteredEvents.some((event) => event.id.toString() === selectedEventId)
+    ? selectedEventId
+    : filteredEvents[0]?.id.toString() ?? "";
+  const selectedEvent = filteredEvents.find((event) => event.id.toString() === effectiveSelectedEventId);
+  const currentRoster = bookings.filter((booking) => booking.event_id.toString() === effectiveSelectedEventId);
+  const checkedIn = currentRoster.filter((booking) => attendanceRecords.some((record) => record.booking_id === booking.id && record.clocked_in_at)).length;
+  const completed = currentRoster.filter((booking) => booking.status === "Completed").length;
+  const visibleRoster = currentRoster.filter(b => (!status || b.status === status) && `${b.volunteer_name} ${b.volunteer_email ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()));
+
+  function chooseView(nextView: RosterView) {
+    setView(nextView);
+    setSelectedEventId("");
+    setQuery(''); setStatus('');
+  }
+
+  return <section className={`${styles.card} ${ui.panel}`} aria-labelledby="roster-title">
+    <div className={styles.rosterIntro}>
+      <div>
+        <h2 id="roster-title" className={styles.rosterTitle}>Manage volunteer rosters</h2>
+        <p className={styles.cardHint}>Review event participants, live QR attendance, and recorded hours.</p>
+      </div>
+      <div className={styles.rosterControls}>
+        <div className={styles.filterGroup} role="tablist" aria-label="Roster event filter">
+          <button type="button" role="tab" aria-selected={view === "current"} className={`${styles.filterButton} ${view === "current" ? styles.filterButtonActive : ""}`} onClick={() => chooseView("current")}>Upcoming & current ({currentEvents.length})</button>
+          <button type="button" role="tab" aria-selected={view === "past"} className={`${styles.filterButton} ${view === "past" ? styles.filterButtonActive : ""}`} onClick={() => chooseView("past")}>Past events ({pastEvents.length})</button>
+          <button type="button" role="tab" aria-selected={view === "cancelled"} className={`${styles.filterButton} ${view === "cancelled" ? styles.filterButtonActive : ""}`} onClick={() => chooseView("cancelled")}>Cancelled events ({cancelledEvents.length})</button>
+        </div>
+
+      </div>
+    </div>
+
+    <div className={ui.filters} role="group" aria-label="Select a roster event">
+      <RosterEventPicker key={`${view}:${programme}:${fromDate}:${toDate}`} events={filteredEvents} value={effectiveSelectedEventId} onChange={id => { setSelectedEventId(id); setQuery(''); setStatus(''); }} />
+      <label>Programme<select className={styles.select} value={programme} onChange={e => { setProgramme(e.target.value); setQuery(''); setStatus(''); }}><option value="">All programmes</option>{['Dignity Kitchen','Warehouse HQ','Feed The Soil','Campaign / Special Event','Other'].map(c => <option key={c}>{c}</option>)}</select></label>
+      <label>From date<input type="date" className={styles.input} max={toDate || undefined} value={fromDate} onChange={event => { setFromDate(event.target.value); setQuery(''); setStatus(''); }} /></label>
+      <label>To date<input type="date" className={styles.input} min={fromDate || undefined} value={toDate} onChange={event => { setToDate(event.target.value); setQuery(''); setStatus(''); }} /></label>
+      {(programme || fromDate || toDate) && <button type="button" className={styles.secondaryButton} onClick={() => { setProgramme(''); setFromDate(''); setToDate(''); setQuery(''); setStatus(''); }}>Clear event filters</button>}
+    </div>
+    {invalidDates && <p role="alert" className={ui.count}>From date must be on or before To date.</p>}
+    <p className={ui.count}>{filteredEvents.length} of {scopeEvents.length} events in this view</p>
+    {!selectedEvent ? <div className={styles.empty}>{programme || fromDate || toDate ? "No events match these filters." : view === "current" ? "No upcoming or current event rosters yet." : view === "past" ? "No past event rosters yet." : "No cancelled event rosters yet."}</div> : <>
+      <div className={styles.rosterSummary}>
+        <div><strong>{currentRoster.length}</strong><span>Registered</span></div>
+        <div><strong>{checkedIn}</strong><span>Clocked in</span></div>
+        <div><strong>{completed}</strong><span>Completed</span></div>
+        <p><strong>{selectedEvent.title}</strong><br />{selectedEvent.date} · {selectedEvent.location}</p>
+      </div>
+      <div className={ui.filters}><label>Find a volunteer<input type="search" className={styles.input} placeholder="Name or email…" value={query} onChange={e => setQuery(e.target.value)} /></label><label>Attendance status<select className={styles.select} value={status} onChange={e => setStatus(e.target.value)}><option value="">All statuses</option>{['Confirmed','Present','Completed','No show'].map(s => <option key={s}>{s}</option>)}</select></label>{(query || status) && <button className={styles.secondaryButton} onClick={() => { setQuery(''); setStatus(''); }}>Clear filters</button>}</div>
+      <p className={ui.count}>{visibleRoster.length} of {currentRoster.length} volunteers · Event totals above include the full roster.</p>
+      <div data-mobile-table className={ui.tableViewport} tabIndex={0} role="region" aria-label="Volunteer attendance table">
+        <table role="table" className={styles.table}>
+          <thead role="rowgroup"><tr role="row">{["Volunteer", "Time range", "Status", "Clock in", "Clock out", "Hours", "Actions"].map((column) => <th role="columnheader" scope="col" key={column}>{column}</th>)}</tr></thead>
+          <tbody role="rowgroup">
+            {visibleRoster.map((booking) => {
+              const attendance = attendanceRecords.find((record) => record.booking_id === booking.id);
+              const slot = eventSlots.find((item) => item.id === booking.event_slot_id);
+              const endsAt = slot ? getEventSlotEndAt(selectedEvent, slot) : undefined;
+              const isLive = Boolean(attendance?.clocked_in_at && !attendance?.clocked_out_at);
+              const shift = rosterShiftTimes(selectedEvent, booking, slot);
+              // Corrections are offered after the booked shift ends, including missed QR attendance.
+              const canApprove = selectedEvent.status !== 'Cancelled' && shift !== null && shift.endAt <= now;
+              const statusClass = booking.status === "Present" ? styles.statusPresent : booking.status === "Completed" ? styles.statusCompleted : booking.status === "No show" ? styles.statusCancelled : styles.statusConfirmed;
+
+              return <tr role="row" key={booking.id}>
+                <td role="cell" data-label="Volunteer">{booking.volunteer_name}<br /><span className={styles.rosterEmail}>{booking.volunteer_email}</span></td>
+                <td role="cell" data-label="Time range">{booking.selected_slot}</td>
+                <td role="cell" data-label="Status"><span className={`${styles.status} ${statusClass}`}>{booking.status}</span></td>
+                <td role="cell" data-label="Clock in">{formatAttendanceTime(attendance?.clocked_in_at ?? null)}</td>
+                <td role="cell" data-label="Clock out">{formatAttendanceTime(attendance?.clocked_out_at ?? null)}</td>
+                <td role="cell" data-label="Hours">{attendance ? isLive ? <span className={styles.liveAttendance}><LiveAttendanceTime attendance={attendance} endsAt={endsAt} prefix="Live" /></span> : formatWorkedTime(attendance.worked_minutes) : "—"}</td>
+                <td role="cell" data-label="Actions">{canApprove ? <button type="button" className={styles.secondaryButton} onClick={() => { setMessage(''); setApproval({ booking, event: selectedEvent, slot, attendance }); }}>{attendance?.worked_minutes !== null && attendance?.worked_minutes !== undefined ? 'Correct hours' : 'Approve hours'}</button> : <span className={styles.cardHint}>{selectedEvent.status === 'Cancelled' ? 'Event cancelled' : !shift ? 'Time range unavailable' : 'Available after shift'}</span>}</td>
+              </tr>;
+            })}
+            {visibleRoster.length === 0 && <tr role="row"><td role="cell" colSpan={7}><div className={styles.empty}>{currentRoster.length ? 'No volunteers match these filters.' : 'No volunteers have registered for this event.'}</div></td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </>}
+    {message && <p className={ui.count} role="status">{message}</p>}
+    {approval && <VolunteerHoursDialog {...approval} onClose={() => setApproval(null)} onSaved={() => { setApproval(null); setMessage('Volunteer hours approved.'); onHoursApproved(); }} />}
+  </section>;
+}

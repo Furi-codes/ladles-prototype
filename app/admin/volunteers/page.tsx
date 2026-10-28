@@ -5,10 +5,10 @@
  * screen implementation.
  */
 
-import PageHeader from "@/features/admin/shell/PageHeader";
-import VolunteerAttendance from "@/features/admin/rosters/VolunteerAttendance";
-import { useAdminData } from "@/features/admin/shell/AdminProvider";
-import { FeatureState } from '@/components/ui/FeatureShared';
+import PageHeader from "@/presentation/admin/shell/PageHeader";
+import VolunteerAttendance from "@/presentation/admin/rosters/VolunteerAttendance";
+import { useAdminData } from "@/presentation/admin/shell/AdminProvider";
+import { FeatureState } from '@/presentation/components/ui/FeatureShared';
 
 export default function VolunteersPage() {
   const { events, eventSlots, bookings, attendanceRecords, isLoading, loadError, fetchData } = useAdminData();

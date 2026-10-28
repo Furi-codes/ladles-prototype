@@ -5,9 +5,9 @@
  * screen implementation.
  */
 
-import PageHeader from "@/features/admin/shell/PageHeader";
-import Dashboard from "@/features/admin/dashboard/Dashboard";
-import { useAdminData } from "@/features/admin/shell/AdminProvider";
+import PageHeader from "@/presentation/admin/shell/PageHeader";
+import Dashboard from "@/presentation/admin/dashboard/Dashboard";
+import { useAdminData } from "@/presentation/admin/shell/AdminProvider";
 
 export default function AdminPage() {
   const { bookings, events, eventSlots, volunteers, isLoading, loadError } = useAdminData();

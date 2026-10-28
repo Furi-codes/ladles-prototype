@@ -4,5 +4,5 @@
  * screen implementation.
  */
 
-import CorporateWorkflowPortal from '@/features/corporate/shell/CorporateWorkflowPortal';
+import CorporateWorkflowPortal from '@/presentation/corporate/shell/CorporateWorkflowPortal';
 export default function CorporateEventsPage() { return <CorporateWorkflowPortal mode="events" />; }

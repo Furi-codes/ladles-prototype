@@ -1,16 +1,3 @@
-/**
- * Provides the WMS integration health/configuration check.
- * The shared WMS authentication check protects this endpoint too.
- */
-
-import { requireWmsAuthentication } from "@/lib/server/wms-integration";
-
-export const runtime = "nodejs";
-
-/** Confirms the endpoint accepts the WMS token, not that booking/attendance RPCs are installed. */
-export async function GET(request: Request) {
-  const authenticationError = requireWmsAuthentication(request);
-  if (authenticationError) return authenticationError;
-
-  return Response.json({ status: "ok" });
-}
+/** Next.js HTTP entry point. The business handler coordinates validation; the data repository owns queries. */
+export { GET } from '@/business/integrations/wms/health';
+export const runtime = 'nodejs';

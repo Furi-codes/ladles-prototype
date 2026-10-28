@@ -4,4 +4,4 @@
  * screen implementation.
  */
 
-export { default } from "@/features/corporate/accounts/AdminCorporateAccounts";
+export { default } from "@/presentation/corporate/accounts/AdminCorporateAccounts";

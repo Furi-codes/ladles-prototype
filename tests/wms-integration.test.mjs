@@ -15,9 +15,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 const compile = source => ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
-const paginationUrl = moduleUrl(compile(readFileSync(new URL('../lib/supabase/pagination.ts', import.meta.url), 'utf8')));
-const safeErrorUrl = moduleUrl(compile(readFileSync(new URL('../lib/errors/user-facing.ts', import.meta.url), 'utf8')));
-const timeOptions = await import(moduleUrl(compile(readFileSync(new URL('../features/admin/utils/event-times.ts', import.meta.url), 'utf8'))));
+const paginationUrl = moduleUrl(compile(readFileSync(new URL('../data/supabase/pagination.ts', import.meta.url), 'utf8')));
+const safeErrorUrl = moduleUrl(compile(readFileSync(new URL('../data/errors/user-facing.ts', import.meta.url), 'utf8')));
+const timeOptions = await import(moduleUrl(compile(readFileSync(new URL('../business/admin/utils/event-times.ts', import.meta.url), 'utf8'))));
 
 async function fixture({ stale = false, reservations = 0, found = true, corporate = [], bookings = [], profiles = [], pageLimit = 500, missingCount = false, auditFailure = '', rpcError = false } = {}) {
   const key = '__wms_test_' + Math.random().toString(36).slice(2);
@@ -71,13 +71,27 @@ async function fixture({ stale = false, reservations = 0, found = true, corporat
   process.env.WMS_INTEGRATION_TOKEN = 'test-only-token';
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.invalid';
   process.env.SUPABASE_SECRET_KEY = 'test-only-key';
-  const helper = compile(readFileSync(new URL('../lib/server/wms-integration.ts', import.meta.url), 'utf8'))
-    .replace(/['"]@\/lib\/errors\/user-facing['"]/, JSON.stringify(safeErrorUrl))
+  const helper = compile(readFileSync(new URL('../data/server/wms-integration.ts', import.meta.url), 'utf8'))
+    .replace(/['"]@\/data\/errors\/user-facing['"]/, JSON.stringify(safeErrorUrl))
     .replace('import "server-only";', '')
     .replace(/import \{ createClient \} from "@supabase\/supabase-js";/, `const createClient = () => globalThis[${JSON.stringify(key)}];`);
   const helperUrl = moduleUrl(helper);
   const helpers = await import(helperUrl);
-  const route = async path => import(moduleUrl(compile(readFileSync(new URL(`../app/api/integrations/wms/v1/${path}/route.ts`, import.meta.url), 'utf8')).replace('"@/lib/server/wms-integration"', JSON.stringify(helperUrl)).replace('"@/lib/supabase/pagination"', JSON.stringify(paginationUrl))));
+  // Execute both the real thin Next.js adapter and its business handler against the same fake data client.
+  const repositoryUrl = moduleUrl(compile(readFileSync(new URL('../data/wms/repository.ts', import.meta.url), 'utf8'))
+    .replace(/import ['"]server-only['"];?/, '')
+    .replace(/['"]@\/data\/server\/wms-integration['"]/, JSON.stringify(helperUrl))
+    .replace(/['"]@\/data\/supabase\/pagination['"]/, JSON.stringify(paginationUrl)));
+  const names = { 'events/[externalEventId]': 'events', 'events/[externalEventId]/bookings': 'bookings', 'timeslots/[externalTimeslotId]/capacity': 'capacity', attendance: 'attendance', health: 'health' };
+  const route = async path => {
+    const name = names[path];
+    const handlerUrl = moduleUrl(compile(readFileSync(new URL('../business/integrations/wms/' + name + '.ts', import.meta.url), 'utf8'))
+      .replace(/['"]@\/data\/server\/wms-integration['"]/, JSON.stringify(helperUrl))
+      .replace(/['"]@\/data\/wms\/repository['"]/, JSON.stringify(repositoryUrl)));
+    const adapter = compile(readFileSync(new URL('../app/api/integrations/wms/v1/' + path + '/route.ts', import.meta.url), 'utf8'))
+      .replace(/['"]@\/business\/integrations\/wms\/[^'"]+['"]/, JSON.stringify(handlerUrl));
+    return import(moduleUrl(adapter));
+  };
   return { calls, helpers, route, cleanup: () => { delete globalThis[key]; } };
 }
 const request = (method, body, token = 'test-only-token') => new Request('https://example.invalid', { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -190,7 +204,7 @@ test('completed corporate groups prevent capacity reductions before any write', 
 
 test('rendered dashboard uses current slot capacity, never the stale event summary', async () => {
   const require = createRequire(import.meta.url);
-  let source = ts.transpileModule(readFileSync(new URL('../features/admin/dashboard/Dashboard.tsx', import.meta.url), 'utf8'), {
+  let source = ts.transpileModule(readFileSync(new URL('../presentation/admin/dashboard/Dashboard.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   source = source

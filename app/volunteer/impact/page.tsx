@@ -5,11 +5,11 @@
  * screen implementation.
  */
 
-import CommunityParticipation from "@/features/volunteer/impact/CommunityParticipation";
-import ProgressionPanel from "@/features/volunteer/impact/ProgressionPanel";
-import VolunteerHistory from '@/features/volunteer/bookings/VolunteerHistory';
-import { useVolunteerData } from "@/features/volunteer/shell/VolunteerProvider";
-import styles from "@/styles/volunteer.module.css";
+import CommunityParticipation from "@/presentation/volunteer/impact/CommunityParticipation";
+import ProgressionPanel from "@/presentation/volunteer/impact/ProgressionPanel";
+import VolunteerHistory from '@/presentation/volunteer/bookings/VolunteerHistory';
+import { useVolunteerData } from "@/presentation/volunteer/shell/VolunteerProvider";
+import styles from "@/presentation/styles/volunteer.module.css";
 
 export default function VolunteerImpactPage() {
   const { user, profile, events, bookings, attendanceRecords, isLoading, loadError } = useVolunteerData();

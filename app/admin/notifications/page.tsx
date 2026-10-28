@@ -4,4 +4,4 @@
  * screen implementation.
  */
 
-export { default } from "@/features/admin/notifications/AdminNotifications";
+export { default } from "@/presentation/admin/notifications/AdminNotifications";

@@ -4,4 +4,4 @@
  * screen implementation.
  */
 
-export { default } from "@/features/volunteer/profile/VolunteerProfile";
+export { default } from "@/presentation/volunteer/profile/VolunteerProfile";

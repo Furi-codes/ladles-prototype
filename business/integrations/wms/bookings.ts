@@ -1,0 +1,109 @@
+import { createWmsRepository } from '@/data/wms/repository';
+/**
+ * Returns the WMS-owned event's booking sync data.
+ * The integration is server-authenticated and paged; corporate portal reservations use a
+ * separate workflow.
+ */
+
+import { jsonError, requireWmsAuthentication } from "@/data/server/wms-integration";
+
+
+
+/** The URL carries a WMS ID; the database lookup below finds its internal event ID. */
+type RouteContext = { params: Promise<{ externalEventId: string }> };
+/** Only slot fields needed by this response are selected. */
+type Slot = { id: number; external_timeslot_id: string | null; capacity: number };
+/** Individual reservation rows, retaining display details for a missing profile fallback. */
+type Booking = { id: number; event_slot_id: number | null; status: string; user_id: string; volunteer_name: string | null; volunteer_email: string | null };
+/** Deliberately excludes phone: this endpoint does not query a profiles.phone column. */
+type Profile = { id: string; full_name: string; email: string | null };
+/** Group rows are used for reserved places, not added to the individual bookings response. */
+type CorporateBooking = { event_slot_id: number; team_size: number; status: string };
+
+/** Returns the current portal booking snapshot for one WMS-owned event. */
+export async function GET(request: Request, context: RouteContext) {
+  const authenticationError = requireWmsAuthentication(request);
+  if (authenticationError) return authenticationError;
+
+  const { externalEventId } = await context.params;
+  try {
+    const repository = createWmsRepository();
+    const { data: event, error: eventError } = await repository.findEvent(externalEventId);
+
+    if (eventError) {
+      console.error("WMS booking event lookup failed:", eventError);
+      return jsonError(eventError.message, 500);
+    }
+    if (!event) return jsonError("The external event was not found.", 404);
+
+    const { data: slots, error: slotsError } = await repository.listSlots(event.id);
+    if (slotsError) return jsonError(slotsError.message, 500);
+
+    const slotRows = (slots ?? []) as Slot[];
+    const slotIds = slotRows.map((slot) => slot.id);
+    if (!slotIds.length) {
+      return Response.json({ externalEventId, bookingCount: 0, capacityTotal: 0, timeslots: [], bookings: [] });
+    }
+
+    const [{ data: bookings, error: bookingsError }, { data: corporateBookings, error: corporateError }] = await Promise.all([
+      repository.listBookings(slotIds),
+      repository.listGroups(slotIds),
+    ]);
+    if (bookingsError) return jsonError(bookingsError.message, 500);
+    if (corporateError) return jsonError(corporateError.message, 500);
+
+    const bookingRows = (bookings ?? []) as Booking[];
+    // Fetch each volunteer profile once, even when the same person has several booking rows.
+    const volunteerIds = [...new Set(bookingRows.map((booking) => booking.user_id))];
+    const profileResult = volunteerIds.length
+      ? await repository.listProfiles(volunteerIds)
+      : { data: [] as Profile[], error: null };
+    if (profileResult.error) return jsonError(profileResult.error.message, 500);
+
+    const profiles = new Map(((profileResult.data ?? []) as Profile[]).map((profile) => [profile.id, profile]));
+    const bookingCounts = new Map<number, number>();
+    const corporateReservations = new Map<number, number>();
+    for (const booking of bookingRows) {
+      if (booking.event_slot_id !== null) bookingCounts.set(booking.event_slot_id, (bookingCounts.get(booking.event_slot_id) ?? 0) + 1);
+    }
+    for (const booking of (corporateBookings ?? []) as CorporateBooking[]) {
+      // Completed groups still occupy places. Only Cancelled groups were excluded by the query.
+      corporateReservations.set(booking.event_slot_id, (corporateReservations.get(booking.event_slot_id) ?? 0) + booking.team_size);
+    }
+
+    return Response.json({
+      externalEventId,
+      // bookingCount counts individual rows; remaining also subtracts corporate team sizes.
+      bookingCount: bookingRows.length,
+      capacityTotal: slotRows.reduce((total, slot) => total + slot.capacity, 0),
+      timeslots: slotRows.map((slot) => ({
+        vmsTimeslotId: slot.id,
+        externalTimeslotId: slot.external_timeslot_id,
+        capacity: slot.capacity,
+        remaining: Math.max(0, slot.capacity - (bookingCounts.get(slot.id) ?? 0) - (corporateReservations.get(slot.id) ?? 0)),
+        bookingCount: bookingCounts.get(slot.id) ?? 0,
+      })),
+      bookings: bookingRows.map((booking) => {
+        const profile = profiles.get(booking.user_id);
+        return {
+          vmsBookingId: booking.id,
+          externalTimeslotId: slotRows.find((slot) => slot.id === booking.event_slot_id)?.external_timeslot_id ?? null,
+          // The integration status is fixed; vmsStatus preserves the actual portal lifecycle status.
+          status: "CONFIRMED",
+          vmsStatus: booking.status,
+          volunteer: {
+            vmsVolunteerId: booking.user_id,
+            name: profile?.full_name ?? booking.volunteer_name ?? "Volunteer",
+            email: profile?.email ?? booking.volunteer_email ?? null,
+            // Phone is optional in the contract; the current profile schema has no phone column.
+            phone: null,
+          },
+        };
+      }),
+    });
+  } catch (error) {
+    // Unexpected exceptions also reach this configuration-style 503 response.
+    console.error("WMS booking integration configuration failed:", error);
+    return jsonError("Integration is not configured.", 503);
+  }
+}

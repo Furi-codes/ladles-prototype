@@ -12,7 +12,7 @@ import ts from 'typescript';
 
 /** Compiles a real utility to an in-memory ES module using the project's existing TypeScript dependency. */
 async function loadUtility(name) {
-  const source = readFileSync(new URL(`../lib/${name}.ts`, import.meta.url), 'utf8');
+  const source = readFileSync(new URL(`../business/shared/${name}.ts`, import.meta.url), 'utf8');
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
   return import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 }

@@ -3,7 +3,7 @@
  * Account checks and the header remain mounted while feature content changes.
  */
 
-import CorporateShell from '@/features/corporate/shell/CorporateShell';
+import CorporateShell from '@/presentation/corporate/shell/CorporateShell';
 
 /** Next.js keeps this layout mounted while corporate pages change. */
 export default function CorporateLayout({ children }: { children: React.ReactNode }) {
